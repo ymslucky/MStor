@@ -1,0 +1,9 @@
+[
+  {
+    "AllowedOrigins": ["https://stor.msxor.com", "http://localhost:5173"],
+    "AllowedMethods": ["PUT"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": ["etag"],
+    "MaxAgeSeconds": 3600
+  }
+]
