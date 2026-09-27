@@ -48,4 +48,5 @@ test("oversize Content-Length rejected before reading body", async () => {
     headers: { ...(await sessionHeaders(u)), "content-length": "999999999999" },
   });
   expect(res.status).toBe(400);
+  expect(((await res.json()) as { error: { code: string } }).error.code).toBe("BAD_REQUEST");
 });

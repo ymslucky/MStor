@@ -36,10 +36,11 @@ files.put("/upload", async (c) => {
   const parentId = c.req.query("parentId") ?? "";
   const len = Number(c.req.header("content-length") ?? "0");
   const limit = Number(c.env.SMALL_FILE_LIMIT);
-  if (len > limit) throw errors.badRequest(`超过小文件直传上限（${Math.floor(limit / 1048576)}MB），请使用网页端上传大文件`);
+  if (!Number.isFinite(limit)) throw new Error("SMALL_FILE_LIMIT 未配置或非法");
+  if (!Number.isFinite(len) || len < 0 || len > limit) throw errors.badRequest(`文件大小非法或超过小文件直传上限（${Math.floor(limit / 1048576)}MB），请使用网页端上传大文件`);
   const parent = parentId === "" ? await ensureRootDir(c.env.DB, user.id) : await getNode(c.env.DB, user.id, parentId);
   if (!parent || !parent.is_dir) throw errors.notFound();
-  const finalName = await uniqueName(c.env.DB, user.id, parentId, name);
+  let finalName = await uniqueName(c.env.DB, user.id, parentId, name);
   await assertQuota(c.env.DB, user.id, len, Number(c.env.DEFAULT_QUOTA_BYTES));
   const id = randomId();
   const key = `${user.id}/${id}`;
@@ -48,8 +49,16 @@ files.put("/upload", async (c) => {
   if (!body) throw errors.badRequest("缺少请求体");
   const obj = await c.env.BUCKET.put(key, body, { httpMetadata: { contentType: mime } });
   const now = Date.now();
-  await c.env.DB.prepare(
+  const insert = c.env.DB.prepare(
     "INSERT INTO nodes (id, owner_id, parent_id, name, is_dir, r2_key, size, mime, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,0,?5,?6,?7,?8,?8,NULL)"
-  ).bind(id, user.id, parentId, finalName, key, obj.size, mime, now).run();
+  );
+  try {
+    await insert.bind(id, user.id, parentId, finalName, key, obj.size, mime, now).run();
+  } catch (e) {
+    // uniqueName 与 INSERT 之间并发同名撞 UNIQUE：换名重试一次（R2 key 随机，无需重传）
+    if (!(e instanceof Error && e.message.includes("UNIQUE constraint failed"))) throw e;
+    finalName = await uniqueName(c.env.DB, user.id, parentId, name);
+    await insert.bind(id, user.id, parentId, finalName, key, obj.size, mime, now).run();
+  }
   return c.json({ id, name: finalName, size: obj.size }, 201);
 });
