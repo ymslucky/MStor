@@ -20,7 +20,7 @@ export async function sessionMiddleware(c: Context<AppEnv>, next: Next) {
   }
   const user = await c.env.DB.prepare("SELECT * FROM users WHERE id = ?1").bind(sub).first<UserRow>();
   if (!user) throw errors.unauthorized();
-  if (user.disabled_at) throw errors.forbidden();
+  if (user.disabled_at) throw errors.forbidden("账号已被停用");
   c.set("user", user);
   await next();
 }

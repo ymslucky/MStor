@@ -89,7 +89,7 @@ auth.get("/callback", async (c) => {
       }
     }
   }
-  if (user.disabled_at) throw errors.forbidden();
+  if (user.disabled_at) throw errors.forbidden("账号已被停用");
   await ensureRootDir(db, user.id);
   const token = await sign({ sub: user.id, role: user.role, exp: Math.floor(Date.now() / 1000) + 7 * 86400 }, c.env.SESSION_SECRET);
   setCookie(c, SESSION_COOKIE, token, {

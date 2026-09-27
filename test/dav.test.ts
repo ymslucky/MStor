@@ -24,6 +24,17 @@ test("dav requires valid basic auth", async () => {
   expect(res.headers.get("www-authenticate")).toContain("Basic");
 });
 
+test("disabled user is rejected by dav auth with 401", async () => {
+  const u = await seedUser();
+  const h = await davHeaders(u);
+  await env.DB.prepare("UPDATE users SET disabled_at = ?1 WHERE id = ?2").bind(Date.now(), u.id).run();
+  const res = await SELF.fetch("https://example.com/dav/", {
+    method: "PROPFIND", headers: { ...h, depth: "1" },
+  });
+  expect(res.status).toBe(401);
+  expect(res.headers.get("www-authenticate")).toContain("Basic");
+});
+
 test("PROPFIND depth 1 lists root children", async () => {
   const u = await seedUser();
   await upload(u, "dav.txt", "hello");

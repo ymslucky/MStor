@@ -10,7 +10,7 @@ export class HttpError extends Error {
 
 export const errors = {
   unauthorized: () => new HttpError(401, "UNAUTHORIZED", "请先登录"),
-  forbidden: () => new HttpError(403, "FORBIDDEN", "无权访问"),
+  forbidden: (m = "无权访问") => new HttpError(403, "FORBIDDEN", m),
   quotaExceeded: () => new HttpError(403, "QUOTA_EXCEEDED", "空间配额不足"),
   notFound: () => new HttpError(404, "NOT_FOUND", "资源不存在"),
   conflict: (m = "名称已存在") => new HttpError(409, "CONFLICT", m),

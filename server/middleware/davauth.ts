@@ -19,7 +19,8 @@ export async function davAuth(c: Context<AppEnv>, next: Next) {
     return unauthorized();
   }
   const user = await c.env.DB.prepare("SELECT * FROM users WHERE name = ?1").bind(name).first<UserRow>();
-  if (!user?.webdav_password_hash || !(await pbkdf2Verify(password, user.webdav_password_hash))) {
+  // 停用用户在验密前即拒绝（短路），一律按认证失败处理（401，WebDAV 协议语义）
+  if (!user || user.disabled_at || !user.webdav_password_hash || !(await pbkdf2Verify(password, user.webdav_password_hash))) {
     return unauthorized();
   }
   c.set("user", user);
