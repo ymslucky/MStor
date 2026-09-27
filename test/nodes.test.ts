@@ -66,3 +66,17 @@ test("subtreeIds returns self and descendants", async () => {
   expect(ids.sort()).toEqual([dir.id, file.id].sort());
   expect(await getNode(env.DB, u.id, file.id)).not.toBeNull();
 });
+
+test("cross-user isolation", async () => {
+  const u1 = await seedUser();
+  const u2 = await seedUser();
+  const u1root = await ensureRootDir(env.DB, u1.id);
+  const u1dir = await createDir(env.DB, u1.id, u1root.id, "u1dir");
+  const u2root = await ensureRootDir(env.DB, u2.id);
+  await createDir(env.DB, u2.id, u2root.id, "u2dir");
+  expect(await getNode(env.DB, u2.id, u1dir.id)).toBeNull();
+  expect(await listChildren(env.DB, u2.id, u1dir.id)).toEqual([]);
+  await expect(moveNode(env.DB, u2.id, u1dir.id, u2root.id, "x")).rejects.toThrow(/资源不存在/);
+  expect(await subtreeIds(env.DB, u2.id, u1dir.id)).toEqual([]);
+  expect(await breadcrumb(env.DB, u2.id, u1dir.id)).toEqual([]);
+});

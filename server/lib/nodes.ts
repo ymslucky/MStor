@@ -8,9 +8,18 @@ export async function ensureRootDir(db: D1Database, ownerId: string): Promise<No
   const found = await db.prepare("SELECT * FROM nodes WHERE owner_id = ?1 AND parent_id = '' LIMIT 1").bind(ownerId).first<NodeRow>();
   if (found) return found;
   const id = randomId();
-  await db.prepare(
-    "INSERT INTO nodes (id, owner_id, parent_id, name, is_dir, r2_key, size, mime, created_at, updated_at, deleted_at) VALUES (?1,?2,'','',1,NULL,NULL,NULL,?3,?3,NULL)"
-  ).bind(id, ownerId, now()).run();
+  try {
+    await db.prepare(
+      "INSERT INTO nodes (id, owner_id, parent_id, name, is_dir, r2_key, size, mime, created_at, updated_at, deleted_at) VALUES (?1,?2,'','',1,NULL,NULL,NULL,?3,?3,NULL)"
+    ).bind(id, ownerId, now()).run();
+  } catch (e) {
+    if (e instanceof Error && e.message.includes("UNIQUE constraint failed")) {
+      // 并发首次访问：另一个请求已建根目录，幂等复用
+      const existing = await db.prepare("SELECT * FROM nodes WHERE owner_id = ?1 AND parent_id = '' LIMIT 1").bind(ownerId).first<NodeRow>();
+      if (existing) return existing;
+    }
+    throw e;
+  }
   return (await db.prepare("SELECT * FROM nodes WHERE id = ?1").bind(id).first<NodeRow>())!;
 }
 
@@ -18,6 +27,7 @@ export async function getNode(db: D1Database, ownerId: string, id: string): Prom
   return db.prepare("SELECT * FROM nodes WHERE id = ?1 AND owner_id = ?2").bind(id, ownerId).first<NodeRow>();
 }
 
+// 有意不过滤 deleted_at：与 UNIQUE(owner_id,parent_id,name) 约束保持一致，软删除仍占用目录名称
 export async function childByName(db: D1Database, ownerId: string, parentId: string, name: string): Promise<NodeRow | null> {
   return db.prepare("SELECT * FROM nodes WHERE owner_id = ?1 AND parent_id = ?2 AND name = ?3").bind(ownerId, parentId, name).first<NodeRow>();
 }
@@ -25,9 +35,15 @@ export async function childByName(db: D1Database, ownerId: string, parentId: str
 export async function createDir(db: D1Database, ownerId: string, parentId: string, name: string): Promise<NodeRow> {
   if (await childByName(db, ownerId, parentId, name)) throw errors.conflict();
   const id = randomId();
-  await db.prepare(
-    "INSERT INTO nodes (id, owner_id, parent_id, name, is_dir, r2_key, size, mime, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,1,NULL,NULL,NULL,?5,?5,NULL)"
-  ).bind(id, ownerId, parentId, name, now()).run();
+  try {
+    await db.prepare(
+      "INSERT INTO nodes (id, owner_id, parent_id, name, is_dir, r2_key, size, mime, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,1,NULL,NULL,NULL,?5,?5,NULL)"
+    ).bind(id, ownerId, parentId, name, now()).run();
+  } catch (e) {
+    // check-then-insert 竞态：并发同名时 UNIQUE 约束兜底，映射为 409
+    if (e instanceof Error && e.message.includes("UNIQUE constraint failed")) throw errors.conflict();
+    throw e;
+  }
   return (await db.prepare("SELECT * FROM nodes WHERE id = ?1").bind(id).first<NodeRow>())!;
 }
 
