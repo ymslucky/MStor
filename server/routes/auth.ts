@@ -12,6 +12,7 @@ export const auth = new Hono<AppEnv>();
 interface Discovery {
   authorization_endpoint: string;
   token_endpoint: string;
+  end_session_endpoint?: string;
 }
 
 async function discover(env: Env): Promise<Discovery> {
@@ -153,7 +154,16 @@ auth.get("/callback", async (c) => {
   return c.redirect("/");
 });
 
-auth.get("/logout", (c) => {
+auth.get("/logout", async (c) => {
   setCookie(c, SESSION_COOKIE, "", { httpOnly: true, path: "/", maxAge: 0 });
+  // RP-initiated logout（OIDC）：必须同时结束 IdP 会话，否则 SSO 会在用户下次访问时静默重新登录。
+  // IdP 未提供 end_session_endpoint 时退回本地登出。
+  const cfg = await discover(c.env);
+  if (cfg.end_session_endpoint) {
+    const end = new URL(cfg.end_session_endpoint);
+    end.searchParams.set("client_id", c.env.OIDC_CLIENT_ID);
+    end.searchParams.set("post_logout_redirect_uri", c.env.PUBLIC_URL);
+    return c.redirect(end.toString());
+  }
   return c.redirect("/");
 });
