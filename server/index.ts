@@ -7,6 +7,7 @@ import { auth } from "./routes/auth";
 import { files } from "./routes/files";
 import { dirs } from "./routes/dirs";
 import { uploads } from "./routes/uploads";
+import { purgeExpiredTrash, trash } from "./routes/trash";
 
 const app = new Hono<AppEnv>();
 
@@ -22,10 +23,11 @@ app.route("/auth", auth);
 app.route("/api/files", files);
 app.route("/api/dirs", dirs);
 app.route("/api/uploads", uploads);
+app.route("/api/trash", trash);
 
 export default {
   fetch: app.fetch,
-  async scheduled(_event: ScheduledController, _env: Env, ctx: ExecutionContext) {
-    ctx.waitUntil(Promise.resolve());
+  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(purgeExpiredTrash(env));
   },
 } satisfies ExportedHandler<Env>;

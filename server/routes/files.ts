@@ -4,6 +4,7 @@ import { randomId } from "../lib/crypto";
 import { errors } from "../lib/errors";
 import { assertQuota, breadcrumb, ensureRootDir, getNode, listChildren, moveNode, uniqueName, validateNodeName } from "../lib/nodes";
 import { serveObject } from "../lib/serve";
+import { softDeleteNode } from "./trash";
 
 export const files = new Hono<AppEnv>();
 
@@ -68,4 +69,9 @@ files.put("/upload", async (c) => {
     await insert.bind(id, user.id, parentId, finalName, key, obj.size, mime, now).run();
   }
   return c.json({ id, name: finalName, size: obj.size }, 201);
+});
+
+files.delete("/:id", async (c) => {
+  await softDeleteNode(c.env.DB, c.get("user").id, c.req.param("id"));
+  return c.json({ ok: true });
 });

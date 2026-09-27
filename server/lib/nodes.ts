@@ -80,14 +80,14 @@ export async function breadcrumb(db: D1Database, ownerId: string, dirId: string)
   return results.reverse();
 }
 
-export async function uniqueName(db: D1Database, ownerId: string, parentId: string, name: string): Promise<string> {
-  if (!(await childByName(db, ownerId, parentId, name))) return name;
+export async function uniqueName(db: D1Database, ownerId: string, parentId: string, name: string, excludeId?: string): Promise<string> {
+  if (!(await childByName(db, ownerId, parentId, name, excludeId))) return name;
   const dot = name.lastIndexOf(".");
   const base = dot > 0 ? name.slice(0, dot) : name;
   const ext = dot > 0 ? name.slice(dot) : "";
   for (let i = 2; ; i++) {
     const candidate = `${base} (${i})${ext}`;
-    if (!(await childByName(db, ownerId, parentId, candidate))) return candidate;
+    if (!(await childByName(db, ownerId, parentId, candidate, excludeId))) return candidate;
   }
 }
 
