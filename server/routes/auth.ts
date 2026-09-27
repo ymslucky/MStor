@@ -24,14 +24,19 @@ auth.get("/login", async (c) => {
   const cfg = await discover(c.env);
   const verifier = randomToken(48);
   const state = randomToken(16);
-  const url = new URL(cfg.authorization_endpoint);
-  url.searchParams.set("client_id", c.env.OIDC_CLIENT_ID);
-  url.searchParams.set("redirect_uri", `${c.env.PUBLIC_URL}/auth/callback`);
-  url.searchParams.set("response_type", "code");
-  url.searchParams.set("scope", "openid profile email");
-  url.searchParams.set("state", state);
-  url.searchParams.set("code_challenge", await sha256B64Url(verifier));
-  url.searchParams.set("code_challenge_method", "S256");
+  // 手动拼接并用 encodeURIComponent（空格 → %20）：URLSearchParams 会编成 '+'，
+  // 部分对 authorize 查询做签名校验的 IdP 规范化后只认 %20，会导致 consent 阶段 invalid_signature
+  const params: Record<string, string> = {
+    client_id: c.env.OIDC_CLIENT_ID,
+    redirect_uri: `${c.env.PUBLIC_URL}/auth/callback`,
+    response_type: "code",
+    scope: "openid profile email",
+    state,
+    code_challenge: await sha256B64Url(verifier),
+    code_challenge_method: "S256",
+  };
+  const query = Object.entries(params).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join("&");
+  const url = new URL(`${cfg.authorization_endpoint}?${query}`);
   setCookie(c, "mstor_oidc", JSON.stringify({ state, verifier }), {
     httpOnly: true, secure: true, path: "/", maxAge: 600, sameSite: "Lax",
   });
