@@ -2564,6 +2564,12 @@ npm run test:client; npm run test:server; npm run check
 git add client; git commit -m "feat: inline preview for image, video, audio, pdf, text"
 ```
 
+> **审查记录（2026-09-27）**
+>
+> - 实现：3394b5a，client 23 绿 / server 99 绿 / check 双零。
+> - 偏离判定（均成立）：测试 import 适配 + JSX 类型导入沿用项目模式。
+> - 规格审查 PASS；质量审查 APPROVE：svg→image 无 XSS 面（<img> 子资源忽略 attachment 且不执行脚本）；Range 头有断言防回归。建议级（Task 17 顺手加固）：PreviewModal 加 `key={node.id}` 防 text 残留（当前不可达）；0 字节文本后端 416 → 前端可回空串提示。
+
 ---
 
 ### Task 12: 搜索（300ms 防抖、路径展示、点击跳转）
