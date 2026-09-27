@@ -2366,6 +2366,12 @@ npm run test:client; npm run test:server; npm run check
 git add client; git commit -m "test: multipart upload flow with retry coverage"
 ```
 
+> **审查记录（2026-09-27）**
+>
+> - 实现：c19005f，client 18 绿 / server 99 绿 / check 双零。
+> - 偏离判定：①重试用例 10B→8B 成立——2 分片双 worker 下 Promise.all 提前 reject，fetch 计数本质不确定（9-13 区间），单分片使「7 次」断言确定成立且覆盖不损失；②strict 防御写法无害；③baseDelayMs 默认 1000 生产行为不变。
+> - 规格审查 PASS；质量审查 APPROVE：fetch mock 四段分流覆盖完整链路，etag 白名单断言与后端一致。吹毛求疵：测试 etag 正则少 i 标志（当前小写数据无影响）。
+
 ---
 
 ### Task 11: 下载与在线预览（图片/视频/音频/PDF/文本）
