@@ -12,8 +12,8 @@ test("Button renders variant classes and respects disabled", () => {
       <Button disabled data-testid="off">禁用</Button>
     </>,
   );
-  expect(screen.getByTestId("primary")).toHaveClass("from-sky-400");
-  expect(screen.getByTestId("ghost")).toHaveClass("bg-white/5");
+  expect(screen.getByTestId("primary")).toHaveClass("bg-accent");
+  expect(screen.getByTestId("ghost")).toHaveClass("border-line");
   expect(screen.getByTestId("danger")).toHaveClass("text-danger");
   expect(screen.getByTestId("off")).toBeDisabled();
   expect(screen.getByTestId("off")).toHaveClass("disabled:opacity-50");
@@ -43,8 +43,8 @@ test("Badge renders tone classes", () => {
       <Badge tone="success">已完成</Badge>
     </>,
   );
-  expect(screen.getByText("默认")).toHaveClass("bg-white/10");
-  expect(screen.getByText("新")).toHaveClass("text-accent");
+  expect(screen.getByText("默认")).toHaveClass("bg-gray-100");
+  expect(screen.getByText("新")).toHaveClass("text-accent-strong");
   expect(screen.getByText("超限")).toHaveClass("text-danger");
   expect(screen.getByText("已完成")).toHaveClass("text-success");
 });

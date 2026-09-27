@@ -41,7 +41,7 @@ export function Dialog({ open, onClose, title, children, footer }: DialogProps) 
   return (
     <div
       data-testid="dialog-mask"
-      className="fixed inset-0 z-40 flex items-end justify-center bg-black/60 sm:items-center"
+      className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 sm:items-center"
       onClick={onClose}
     >
       <div

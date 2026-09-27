@@ -4,6 +4,7 @@ import { ApiError, clearSessionFlag, handleSessionExpired } from "../api/client"
 import { getMe } from "../api/me";
 import type { Me } from "../api/types";
 import { formatBytes } from "../lib/format";
+import { Badge } from "../components/ui";
 import SearchBox from "../components/SearchBox";
 import OfflineBar from "../components/OfflineBar";
 import { Toaster, toast } from "../components/Toaster";
@@ -36,6 +37,17 @@ const NAV = [
   { to: "/settings", label: "设置", icon: "⚙️" },
 ];
 
+// 退出按钮（<a> 保持跳转语义与 href 断言）：移动顶栏与桌面档案行各一份
+const logoutCls =
+  "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-line bg-white text-ink-dim transition-colors hover:border-accent/40 hover:bg-accent-soft hover:text-accent";
+
+function greeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return "早上好";
+  if (h < 18) return "下午好";
+  return "晚上好";
+}
+
 export default function AppShell() {
   const me = useMe();
   if (!me) return <div className="p-8 text-center text-ink-dim">加载中…</div>;
@@ -43,70 +55,90 @@ export default function AppShell() {
   const pct = Math.min(100, Math.round((me.usedBytes / me.quotaBytes) * 100));
   return (
     <div className="min-h-screen">
-      {/* 玻璃背板独立于 header：header 自带 backdrop-filter 会成为 fixed 后代的包含块，破坏移动端底部导航 */}
-      <header className="sticky top-0 z-30">
-        <div className="glass-panel pointer-events-none absolute inset-0" aria-hidden />
-        <div className="relative">
-          <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2">
-            <span className="bg-gradient-to-r from-sky-300 to-cyan-200 bg-clip-text text-lg font-bold text-transparent">
-              MStor
+      {/* 侧边栏容器：md+ 固定左侧；移动端退化为普通文档流（品牌行即顶栏） */}
+      <aside className="md:fixed md:inset-y-0 md:left-0 md:z-30 md:flex md:w-60 md:flex-col md:border-r md:border-line md:bg-white">
+        {/* 品牌行：移动端 = 顶栏一行（品牌 + 退出） */}
+        <div className="flex items-center justify-between border-b border-line bg-white px-4 py-2.5 md:border-b-0 md:bg-transparent md:px-5 md:py-5">
+          <div className="flex items-center gap-2.5">
+            <span aria-hidden className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-lg font-bold text-white">
+              M
             </span>
-            {/* 桌面横向链接 / 移动底部 Tab：同一 DOM，responsive 切换 */}
-            <nav
-              aria-label="主导航"
-              className="glass-panel safe-bottom fixed inset-x-0 bottom-0 z-30 flex py-1.5 md:static md:gap-1 md:rounded-none md:border-0! md:bg-transparent! md:py-0 md:[-webkit-backdrop-filter:none]! md:[backdrop-filter:none]!"
+            <span className="text-lg font-bold text-ink">MStor</span>
+          </div>
+          <a href="/auth/logout" aria-label="退出" title="退出" onClick={() => clearSessionFlag()} className={`${logoutCls} md:hidden`}>
+            <span aria-hidden>🚪</span>
+          </a>
+        </div>
+        {/* 导航同一 DOM：移动端底部 Tab（fixed），md+ 侧边栏纵向链接 */}
+        <nav
+          aria-label="主导航"
+          className="safe-bottom fixed inset-x-0 bottom-0 z-40 flex border-t border-line bg-white/95 px-2 py-1.5 md:static md:z-auto md:flex-1 md:flex-col md:gap-1 md:border-t-0 md:bg-transparent md:px-3 md:py-2"
+        >
+          {NAV.map((n) => (
+            <NavLink
+              key={n.to}
+              to={n.to}
+              end={n.to === "/"}
+              className={({ isActive }) =>
+                `flex min-h-[44px] flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-2 text-xs transition-colors md:min-h-0 md:flex-none md:flex-row md:gap-3 md:px-3 md:py-2.5 md:text-sm ${
+                  isActive
+                    ? "text-accent-strong md:bg-accent-soft md:font-medium"
+                    : "text-ink-dim hover:text-accent-strong md:hover:bg-gray-50"
+                }`
+              }
             >
-              {NAV.map((n) => (
-                <NavLink
-                  key={n.to}
-                  to={n.to}
-                  end={n.to === "/"}
-                  className={({ isActive }) =>
-                    `relative flex min-h-[44px] flex-1 flex-col items-center justify-center gap-0.5 px-2 text-xs transition-colors md:min-h-0 md:flex-none md:flex-row md:rounded-lg md:px-2.5 md:py-1.5 md:text-sm ${
-                      isActive
-                        ? "text-accent after:absolute after:top-0 after:left-1/2 after:h-0.5 after:w-10 after:-translate-x-1/2 after:rounded-full after:bg-accent after:content-[''] md:bg-white/10 md:text-ink md:after:hidden"
-                        : "text-ink-dim hover:text-ink md:hover:bg-white/5"
-                    }`
-                  }
-                >
-                  <span aria-hidden>{n.icon}</span>
-                  <span>{n.label}</span>
-                </NavLink>
-              ))}
-            </nav>
-            <SearchBox />
-            <div className="ml-auto flex items-center gap-3 text-sm">
+              <span aria-hidden>{n.icon}</span>
+              <span>{n.label}</span>
+            </NavLink>
+          ))}
+        </nav>
+        {/* 底部：存储用量小卡 + 用户档案行（仅桌面侧边栏） */}
+        <div className="hidden space-y-3 border-t border-line px-4 py-4 md:block">
+          <div className="rounded-xl bg-gray-50 p-3" title={`${formatBytes(me.usedBytes)} / ${formatBytes(me.quotaBytes)}`}>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
               <div
-                className="hidden w-32 sm:block"
-                title={`${formatBytes(me.usedBytes)} / ${formatBytes(me.quotaBytes)}`}
-              >
-                <div className="h-1.5 w-full overflow-hidden rounded bg-white/10">
-                  <div
-                    className={`h-full rounded ${pct > 90 ? "bg-warning" : "bg-gradient-to-r from-sky-400 to-cyan-300"}`}
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-                <div className="mt-0.5 text-xs text-ink-dim">
-                  {formatBytes(me.usedBytes)} / {formatBytes(me.quotaBytes)}
-                </div>
-              </div>
-              <span>{me.name}</span>
-              <a
-                href="/auth/logout"
-                aria-label="退出"
-                title="退出"
-                onClick={() => clearSessionFlag()}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-ink transition-colors hover:bg-white/10"
-              >
-                <span aria-hidden>🚪</span>
-              </a>
+                className={`h-full rounded-full ${pct > 90 ? "bg-warning" : "bg-accent"}`}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            <div className="mt-1.5 text-xs text-ink-dim">
+              {formatBytes(me.usedBytes)} / {formatBytes(me.quotaBytes)}
             </div>
           </div>
+          <div className="flex items-center gap-2.5">
+            <span
+              aria-hidden
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold text-accent-strong"
+            >
+              {me.name.charAt(0)}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-medium text-ink">{me.name}</div>
+              <Badge tone="accent">{me.role === "admin" ? "管理员" : "成员"}</Badge>
+            </div>
+            <a href="/auth/logout" aria-label="退出" title="退出" onClick={() => clearSessionFlag()} className={logoutCls}>
+              <span aria-hidden>🚪</span>
+            </a>
+          </div>
+        </div>
+      </aside>
+      {/* 内容区 */}
+      <div className="md:ml-60">
+        <main className="pb-nav mx-auto max-w-6xl p-4 md:p-6">
+          <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h1 className="text-xl font-semibold text-ink">
+                {greeting()}，{me.name} 👋
+              </h1>
+              <p className="mt-0.5 text-sm text-ink-dim">这是你的私有云盘概览</p>
+            </div>
+            <SearchBox />
+          </div>
           {actAs && (
-            <div className="glass-subtle mx-auto max-w-5xl px-4 py-1.5 text-xs text-warning">
+            <div className="mb-4 flex flex-wrap items-center gap-x-2 rounded-xl bg-amber-50 px-4 py-2 text-xs text-amber-800">
               正在以管理员身份查看「{me.name}」的空间
               <button
-                className="ml-2 underline"
+                className="font-medium underline"
                 onClick={() => {
                   localStorage.removeItem("mstor_act_as");
                   window.location.reload();
@@ -116,11 +148,9 @@ export default function AppShell() {
               </button>
             </div>
           )}
-        </div>
-      </header>
-      <main className="pb-nav mx-auto max-w-5xl p-4">
-        <Outlet context={me} />
-      </main>
+          <Outlet context={me} />
+        </main>
+      </div>
       <OfflineBar />
       <Toaster />
     </div>

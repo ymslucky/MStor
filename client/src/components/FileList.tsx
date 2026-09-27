@@ -18,7 +18,7 @@ export default function FileList({ nodes, onOpenDir, onOpenFile, actions, emptyT
     // 双形态同一 DOM：移动端卡片行（flex），sm+ 恢复表格行
     <table className="w-full text-sm">
       <thead className="hidden text-left text-xs text-ink-faint sm:table-header-group">
-        <tr className="border-b border-white/10">
+        <tr className="border-b border-line">
           <th className="py-2 font-medium">名称</th>
           <th className="hidden py-2 font-medium sm:table-cell">大小</th>
           <th className="hidden py-2 font-medium md:table-cell">修改时间</th>
@@ -29,11 +29,11 @@ export default function FileList({ nodes, onOpenDir, onOpenFile, actions, emptyT
         {nodes.map((n) => (
           <tr
             key={n.id}
-            className="mb-2 flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3 sm:table-row sm:rounded-none sm:border-x-0 sm:border-t-0 sm:border-b sm:border-white/10 sm:bg-transparent sm:p-0 sm:hover:bg-white/5"
+            className="mb-2 flex items-center justify-between gap-2 rounded-xl border border-line bg-gray-50/50 p-3 sm:table-row sm:rounded-none sm:border-x-0 sm:border-t-0 sm:border-b sm:border-line sm:bg-transparent sm:p-0 sm:hover:bg-gray-50"
           >
             <td className="min-w-0 max-w-[12rem] py-2 sm:max-w-xs">
               <button
-                className="line-clamp-2 break-all text-left hover:underline sm:truncate"
+                className="line-clamp-2 break-all text-left text-ink hover:underline sm:truncate"
                 onClick={() => (n.is_dir ? onOpenDir(n.id) : onOpenFile(n))}
               >
                 {n.is_dir ? "📁" : "📄"} {n.name}

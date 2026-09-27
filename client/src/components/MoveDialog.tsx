@@ -56,7 +56,7 @@ export default function MoveDialog({ title, excludeId, onSubmit, onCancel, busy 
       ) : (
         <div className="max-h-64 space-y-0.5 overflow-auto" role="listbox" aria-label="目标目录">
           <button
-            className="block w-full rounded-lg px-2 py-2 text-left text-sm text-ink hover:bg-white/10"
+            className="block w-full rounded-lg px-2 py-2 text-left text-sm text-ink hover:bg-gray-50"
             onClick={() => setSelected("")}
             style={{ fontWeight: selected === "" ? 600 : 400 }}
           >
@@ -65,7 +65,7 @@ export default function MoveDialog({ title, excludeId, onSubmit, onCancel, busy 
           {dirs.map((d) => (
             <button
               key={d.id}
-              className="block w-full rounded-lg px-2 py-2 text-left text-sm text-ink hover:bg-white/10"
+              className="block w-full rounded-lg px-2 py-2 text-left text-sm text-ink hover:bg-gray-50"
               style={{ paddingLeft: `${d.depth * 16 + 8}px`, fontWeight: selected === d.id ? 600 : 400 }}
               onClick={() => setSelected(d.id)}
             >

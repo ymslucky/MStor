@@ -38,7 +38,7 @@ test("mask click closes, click inside panel does not", async () => {
 
 test("panel is glass-modal with mobile bottom-sheet classes", () => {
   renderWithProviders(<Dialog open title="标题" onClose={() => {}}>内容</Dialog>);
-  expect(screen.getByTestId("dialog-mask")).toHaveClass("z-40", "bg-black/60");
+  expect(screen.getByTestId("dialog-mask")).toHaveClass("z-40", "bg-black/40");
   const panel = screen.getByTestId("dialog-panel");
   expect(panel).toHaveClass("glass-modal", "rounded-t-panel", "safe-bottom", "w-full", "sm:max-w-md", "sm:rounded-panel", "transition-transform", "ease-out-soft");
 });

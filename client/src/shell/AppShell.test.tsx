@@ -29,5 +29,8 @@ test("shows user name, quota and nav links", async () => {
   expect(within(nav).getByRole("link", { name: "分享" })).toBeInTheDocument();
   expect(within(nav).getByRole("link", { name: "设置" })).toBeInTheDocument();
   expect(screen.getByText(/40 B/)).toBeInTheDocument(); // usedBytes
-  expect(screen.getByRole("link", { name: "退出" })).toHaveAttribute("href", "/auth/logout");
+  // 移动顶栏与桌面档案行各有一个退出链接，均指向 logout
+  for (const link of screen.getAllByRole("link", { name: "退出" })) {
+    expect(link).toHaveAttribute("href", "/auth/logout");
+  }
 });

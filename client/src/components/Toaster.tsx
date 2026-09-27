@@ -39,8 +39,8 @@ export function Toaster() {
       {items.map((t) => (
         <div
           key={t.id}
-          className={`rounded-xl border px-4 py-2 text-sm text-white shadow-lg ${
-            t.kind === "error" ? "border-red-400/30 bg-red-500/90" : "border-white/10 bg-[#1b2440]/95"
+          className={`rounded-xl border px-4 py-2 text-sm shadow-lg ${
+            t.kind === "error" ? "border-red-600 bg-red-600 text-white" : "border-line bg-white text-ink"
           }`}
           role="alert"
         >

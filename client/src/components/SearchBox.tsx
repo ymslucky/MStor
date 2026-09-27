@@ -36,7 +36,7 @@ export default function SearchBox() {
       <input
         aria-label="搜索"
         placeholder="搜索文件名…"
-        className="w-40 rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5 text-sm text-ink placeholder:text-ink-faint focus:w-56 focus:border-accent/60 focus:outline-none sm:w-56"
+        className="w-40 rounded-xl border border-line bg-white px-2.5 py-1.5 text-sm text-ink placeholder:text-ink-faint focus:w-56 focus:border-accent focus:outline-none sm:w-56"
         value={q}
         onChange={(e) => {
           setQ(e.target.value);
@@ -45,13 +45,13 @@ export default function SearchBox() {
         onFocus={() => setOpen(true)}
       />
       {open && dq.trim() && (
-        <div className="absolute right-0 z-30 mt-1 max-h-80 w-80 max-w-[calc(100vw-2rem)] overflow-auto rounded-xl border border-white/10 bg-[#131b30] shadow-glass">
+        <div className="absolute right-0 z-30 mt-1 max-h-80 w-80 max-w-[calc(100vw-2rem)] overflow-auto rounded-xl border border-line bg-white shadow-card">
           {isFetching && <div className="px-3 py-2 text-xs text-ink-dim">搜索中…</div>}
           {data?.nodes.length === 0 && !isFetching && <div className="px-3 py-2 text-xs text-ink-dim">无结果</div>}
           {data?.nodes.map((n) => (
             <button
               key={n.id}
-              className="block w-full px-3 py-2 text-left text-sm hover:bg-white/5"
+              className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50"
               onClick={() => go(n.is_dir ? n.id : n.parent_id || null)}
             >
               <div className="truncate">{n.is_dir ? "📁" : "📄"} {n.name}</div>
