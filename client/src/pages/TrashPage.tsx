@@ -10,6 +10,8 @@ export default function TrashPage() {
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: ["trash"] });
     void queryClient.invalidateQueries({ queryKey: ["files"] });
+    // 彻底删除会释放配额，恢复会占用配额，都需要刷新配额条
+    void queryClient.invalidateQueries({ queryKey: ["me"] });
   };
   const restore = useMutation({ mutationFn: (id: string) => restoreNode(id), onSuccess: invalidate });
   const purge = useMutation({ mutationFn: (id: string) => purgeNode(id), onSuccess: invalidate });

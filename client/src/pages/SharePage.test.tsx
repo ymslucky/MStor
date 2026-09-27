@@ -5,6 +5,7 @@ import { expect, test, vi } from "vitest";
 import { ApiError } from "../api/client";
 import type { ShareInfo } from "../api/types";
 import { renderWithProviders } from "../test/utils";
+import { Toaster } from "../components/Toaster";
 import { Route, Routes } from "react-router-dom";
 import SharePage from "./SharePage";
 
@@ -94,8 +95,45 @@ test("shows expired and revoked states", async () => {
 
 test("file click downloads via blob helper", async () => {
   vi.mocked(fetchShare).mockResolvedValue(info({ isDir: false, name: "single.jpg", children: undefined }));
+  vi.mocked(downloadShared).mockResolvedValue(undefined);
   const { user } = renderWith(<SharePage />);
   await screen.findByText("single.jpg");
   await user.click(screen.getByRole("button", { name: /下载 single.jpg/ }));
   await waitFor(() => expect(downloadShared).toHaveBeenCalledWith("tok123", "p1", "single.jpg", undefined));
+});
+
+test("children requests carry the committed password", async () => {
+  vi.mocked(fetchShare)
+    .mockRejectedValueOnce(new ApiError(401, "SHARE_PASSWORD", "需要提取码"))
+    .mockResolvedValue(info({ hasPassword: true }));
+  vi.mocked(fetchShareChildren).mockResolvedValue({ name: "子目录", children: [] });
+  const { user } = renderWith(<SharePage />);
+  await screen.findByText(/需要提取码/);
+  await user.type(screen.getByLabelText("提取码"), "8888");
+  await user.click(screen.getByRole("button", { name: "解锁" }));
+  await screen.findByText("子目录");
+  await user.click(screen.getByText("子目录"));
+  // 子目录请求必须用「已提交的密码」而非实时输入：解锁后输入框随门卸载，usedPassword 是唯一来源
+  await waitFor(() => expect(fetchShareChildren).toHaveBeenCalledWith("tok123", "p2", "8888"));
+});
+
+test("subdirectory load failure shows error instead of empty state", async () => {
+  vi.mocked(fetchShare).mockResolvedValue(info());
+  vi.mocked(fetchShareChildren).mockRejectedValue(new ApiError(500, "INTERNAL", "服务暂不可用"));
+  const { user } = renderWith(<SharePage />);
+  expect(await screen.findByText("日落.jpg")).toBeInTheDocument();
+  await user.click(screen.getByText("子目录"));
+  expect(await screen.findByText(/子目录加载失败/)).toBeInTheDocument();
+  expect(screen.getByText(/服务暂不可用/)).toBeInTheDocument();
+  expect(screen.queryByText("空文件夹")).not.toBeInTheDocument();
+});
+
+test("download failure surfaces a toast", async () => {
+  vi.mocked(fetchShare).mockResolvedValue(info({ isDir: false, name: "single.jpg", children: undefined }));
+  vi.mocked(downloadShared).mockRejectedValue(new Error("下载失败"));
+  // Toaster 由 App 挂载，这里单独渲染以断言 toast
+  const { user } = renderWith(<><SharePage /><Toaster /></>);
+  await screen.findByText("single.jpg");
+  await user.click(screen.getByRole("button", { name: /下载 single.jpg/ }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("下载失败");
 });

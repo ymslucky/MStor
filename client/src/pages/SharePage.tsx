@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { downloadShared, fetchShare, fetchShareChildren } from "../api/shares";
 import type { PublicNode } from "../api/types";
+import { toast } from "../components/Toaster";
 import { formatBytes } from "../lib/format";
 
 interface Crumb {
@@ -30,9 +31,10 @@ export default function SharePage() {
   const expired = info.error instanceof ApiError && info.error.status === 410;
   const gone = info.error instanceof ApiError && !needsPassword && !expired && info.error.status === 404;
 
+  // 子目录请求同样用已提交的密码，避免实时输入影响请求
   const children = useQuery({
-    queryKey: ["share-children", token, current?.id ?? "", password],
-    queryFn: () => fetchShareChildren(token, current!.id, password || undefined),
+    queryKey: ["share-children", token, current?.id ?? "", usedPassword],
+    queryFn: () => fetchShareChildren(token, current!.id, usedPassword || undefined),
     enabled: !!current,
   });
 
@@ -72,7 +74,9 @@ export default function SharePage() {
       : [{ id: info.data.id, name: info.data.name, isDir: false, size: info.data.size, mime: info.data.mime }];
 
   const download = (f: PublicNode) => {
-    void downloadShared(token, f.id, f.name, password || undefined);
+    downloadShared(token, f.id, f.name, password || undefined).catch((e: unknown) => {
+      toast(e instanceof Error ? e.message : "下载失败");
+    });
   };
 
   return (
@@ -136,7 +140,12 @@ export default function SharePage() {
               </td>
             </tr>
           ))}
-          {!files.length && <tr><td colSpan={3} className="py-10 text-center text-sm text-slate-400">空文件夹</td></tr>}
+          {/* 加载失败与空目录区分：失败时给出可感知的报错而非空态 */}
+          {current && children.isError ? (
+            <tr><td colSpan={3} className="py-10 text-center text-sm text-red-500">子目录加载失败：{children.error.message}</td></tr>
+          ) : !files.length ? (
+            <tr><td colSpan={3} className="py-10 text-center text-sm text-slate-400">空文件夹</td></tr>
+          ) : null}
         </tbody>
       </table>
     </div>

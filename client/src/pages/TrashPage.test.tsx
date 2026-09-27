@@ -57,3 +57,22 @@ test("purge requires confirm", async () => {
   await waitFor(() => expect(purgeNode).toHaveBeenCalledWith("t1"));
   vi.restoreAllMocks();
 });
+
+test("restore and purge also invalidate me for quota refresh", async () => {
+  vi.mocked(listTrash).mockResolvedValue({ nodes: [node()] });
+  vi.mocked(restoreNode).mockResolvedValue({ ok: true });
+  vi.mocked(purgeNode).mockResolvedValue({ ok: true });
+  const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+  const { user, qc } = renderWith(<TrashPage />);
+  const invalidateSpy = vi.spyOn(qc, "invalidateQueries");
+  const meCalls = () =>
+    invalidateSpy.mock.calls.filter(
+      ([filters]) => ((filters as { queryKey?: unknown[] } | undefined)?.queryKey?.[0]) === "me",
+    );
+  await screen.findByText(/旧文件\.txt/);
+  await user.click(screen.getByRole("button", { name: "恢复" }));
+  await waitFor(() => expect(meCalls()).toHaveLength(1)); // 恢复占用配额，需刷新
+  await user.click(screen.getByRole("button", { name: "彻底删除" }));
+  await waitFor(() => expect(meCalls()).toHaveLength(2)); // 彻底删除释放配额，需刷新
+  confirmSpy.mockRestore();
+});
