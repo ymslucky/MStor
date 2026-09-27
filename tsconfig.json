@@ -8,5 +8,5 @@
     "noEmit": true,
     "types": ["@cloudflare/workers-types", "@cloudflare/vitest-pool-workers"]
   },
-  "include": ["server", "test"]
+  "include": ["server", "test", "vitest.config.ts"]
 }
