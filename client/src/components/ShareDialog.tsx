@@ -11,7 +11,8 @@ interface Props {
 }
 
 export default function ShareDialog({ node, onClose }: Props) {
-  const [days, setDays] = useState("");
+  // 默认 7 天有效期；清空为永久
+  const [days, setDays] = useState("7");
   const [password, setPassword] = useState("");
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
@@ -64,7 +65,7 @@ export default function ShareDialog({ node, onClose }: Props) {
           <label className="block text-xs text-ink-2">
             <span className="flex items-center gap-1">
               <CalendarClock size={14} aria-hidden className="text-ink-3" />
-              有效天数（可选，留空永久）
+              有效天数（默认 7 天，清空为永久）
             </span>
             <Input
               aria-label="有效天数（可选）"

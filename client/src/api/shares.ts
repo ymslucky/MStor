@@ -8,6 +8,13 @@ export const listShares = () => api<{ shares: Share[] }>("/api/shares");
 
 export const revokeShare = (id: string) => api<{ ok: true }>(`/api/shares/${id}`, { method: "DELETE" });
 
+// 批量撤销：单项失败不阻断，失败清单在 failed 里
+export const batchRevokeShares = (ids: string[]) =>
+  api<{ ok: true; revoked: number; failed: { id: string; reason: string }[] }>("/api/shares/batch-revoke", {
+    method: "POST",
+    json: { ids },
+  });
+
 // 公开分享（无需登录）：401 SHARE_PASSWORD / 410 SHARE_EXPIRED 由调用方按 code 分流
 export const fetchShare = (token: string, password?: string) =>
   api<ShareInfo>(`/api/s/${token}`, password ? { headers: { "x-share-password": password } } : {});

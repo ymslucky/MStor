@@ -144,3 +144,70 @@ test("invalid expiresInDays is rejected", async () => {
     expect(res.status).toBe(400);
   }
 });
+
+async function createShare(u: Awaited<ReturnType<typeof seedUser>>, nodeId: string): Promise<string> {
+  const res = await SELF.fetch("https://example.com/api/shares", {
+    method: "POST",
+    headers: { ...(await sessionHeaders(u)), ...json },
+    body: JSON.stringify({ nodeId }),
+  });
+  const { token } = (await res.json()) as { token: string };
+  // POST 响应只有 token/url，share id 从 DB 反查
+  const row = await env.DB.prepare("SELECT id FROM shares WHERE token = ?1").bind(token).first<{ id: string }>();
+  return row!.id;
+}
+
+test("batch-revoke revokes own shares and public access dies", async () => {
+  const u = await seedUser();
+  const f1 = await upload(u, "b1.txt", "x");
+  const f2 = await upload(u, "b2.txt", "x");
+  const id1 = await createShare(u, f1);
+  const id2 = await createShare(u, f2);
+  const res = await SELF.fetch("https://example.com/api/shares/batch-revoke", {
+    method: "POST",
+    headers: { ...(await sessionHeaders(u)), ...json },
+    body: JSON.stringify({ ids: [id1, id2] }),
+  });
+  expect(res.status).toBe(200);
+  const body = (await res.json()) as { ok: boolean; revoked: number; failed: { id: string }[] };
+  expect(body.ok).toBe(true);
+  expect(body.revoked).toBe(2);
+  expect(body.failed).toEqual([]);
+  const rows = await env.DB.prepare("SELECT id, revoked_at FROM shares WHERE id IN (?1, ?2)").bind(id1, id2).all<{ revoked_at: number | null }>();
+  expect(rows.results.every((r) => r.revoked_at !== null)).toBe(true);
+  // 撤销后列表为空
+  const list = (await (await SELF.fetch("https://example.com/api/shares", { headers: await sessionHeaders(u) })).json()) as { shares: unknown[] };
+  expect(list.shares).toEqual([]);
+});
+
+test("batch-revoke skips shares owned by others", async () => {
+  const u1 = await seedUser();
+  const u2 = await seedUser();
+  const f1 = await upload(u1, "mine.txt", "x");
+  const f2 = await upload(u2, "theirs.txt", "x");
+  const mineId = await createShare(u1, f1);
+  const theirsId = await createShare(u2, f2);
+  const res = await SELF.fetch("https://example.com/api/shares/batch-revoke", {
+    method: "POST",
+    headers: { ...(await sessionHeaders(u1)), ...json },
+    body: JSON.stringify({ ids: [mineId, theirsId] }),
+  });
+  expect(res.status).toBe(200);
+  const body = (await res.json()) as { revoked: number; failed: { id: string }[] };
+  expect(body.revoked).toBe(1);
+  expect(body.failed.map((f) => f.id)).toEqual([theirsId]);
+  const row = await env.DB.prepare("SELECT revoked_at FROM shares WHERE id = ?1").bind(theirsId).first<{ revoked_at: number | null }>();
+  expect(row!.revoked_at).toBeNull();
+});
+
+test("batch-revoke validates ids", async () => {
+  const u = await seedUser();
+  for (const ids of [[], ["", 1], Array.from({ length: 501 }, () => "x")]) {
+    const res = await SELF.fetch("https://example.com/api/shares/batch-revoke", {
+      method: "POST",
+      headers: { ...(await sessionHeaders(u)), ...json },
+      body: JSON.stringify({ ids }),
+    });
+    expect(res.status).toBe(400);
+  }
+});

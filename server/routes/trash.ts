@@ -92,8 +92,8 @@ export async function restoreTrashNode(db: D1Database, ownerId: string, id: stri
   }
 }
 
-// 批量请求体校验：非空字符串数组、≤500（与列表上限一致）
-function parseIds(body: { ids?: unknown }): string[] {
+// 批量请求体校验：非空字符串数组、≤500（与列表上限一致）；shares 批量撤销复用
+export function parseIds(body: { ids?: unknown }): string[] {
   const ids = body?.ids;
   if (!Array.isArray(ids) || ids.length === 0 || ids.length > 500 || ids.some((id) => typeof id !== "string" || !id)) {
     throw errors.badRequest("ids 必须为 1-500 个节点 id");

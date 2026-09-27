@@ -4,6 +4,7 @@ import type { AppEnv } from "../env";
 import { HttpError, errors } from "../lib/errors";
 import { pbkdf2Hash, pbkdf2Verify, randomToken } from "../lib/crypto";
 import { getNode, isDescendant, listChildren } from "../lib/nodes";
+import { parseIds } from "./trash";
 import { serveObject } from "../lib/serve";
 import type { NodeRow, ShareRow } from "../types";
 
@@ -45,6 +46,23 @@ shares.delete("/:id", async (c) => {
   ).bind(Date.now(), c.req.param("id"), c.get("user").id).run();
   if (!res.meta.changes) throw errors.notFound();
   return c.json({ ok: true });
+});
+
+// 批量撤销：owner 作用域逐条 UPDATE，单项失败（他人/不存在）记入 failed 不阻断
+shares.post("/batch-revoke", async (c) => {
+  const ids = parseIds(await c.req.json());
+  const userId = c.get("user").id;
+  let revoked = 0;
+  const failed: { id: string; reason: string }[] = [];
+  for (const id of ids) {
+    const res = await c.env.DB.prepare(
+      `UPDATE shares SET revoked_at = ?1
+       WHERE id = ?2 AND node_id IN (SELECT id FROM nodes WHERE owner_id = ?3)`
+    ).bind(Date.now(), id, userId).run();
+    if (res.meta.changes) revoked++;
+    else failed.push({ id, reason: "分享不存在" });
+  }
+  return c.json({ ok: true, revoked, failed });
 });
 
 export const publicShares = new Hono<AppEnv>();

@@ -16,10 +16,11 @@ function node(): Node {
   return { id: "f1", parent_id: "", name: "全家福.jpg", is_dir: 0, size: 10, mime: "image/jpeg", created_at: 1, updated_at: 2 };
 }
 
-test("creates share with expiry and password, shows url", async () => {
+test("默认 7 天有效期，带提取码创建分享", async () => {
   vi.mocked(createShare).mockResolvedValue({ token: "tok123", url: "https://stor.msxor.com/s/tok123" });
   const { user } = renderWith(<ShareDialog node={node()} onClose={() => {}} />);
-  await user.type(screen.getByLabelText("有效天数（可选）"), "7");
+  // 默认值即 7 天（用户反馈：默认永久改为默认 7 天）
+  expect(screen.getByLabelText("有效天数（可选）")).toHaveValue(7);
   await user.type(screen.getByLabelText("提取码（可选）"), "1234");
   await user.click(screen.getByRole("button", { name: "创建" }));
   await waitFor(() =>
