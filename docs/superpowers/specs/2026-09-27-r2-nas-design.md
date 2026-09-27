@@ -1,7 +1,8 @@
-# R2 NAS（家庭云盘）设计文档
+# MStor — R2 家庭云盘设计文档
 
 日期：2026-09-27
 状态：已与用户对齐，待实现
+项目名：**MStor**（域名 `stor.msxor.com`）
 
 ## 1. 背景与目标
 
@@ -171,7 +172,7 @@ wrangler.jsonc:
 ```
 
 - 部署：`npm run build && wrangler deploy`（后续可加 GitHub Actions）
-- 域名：`nas.msxor.com`（CNAME）
+- 域名：`stor.msxor.com`（CNAME）
 - 前端直传 CORS：R2 bucket 允许站点域名 PUT
 
 ## 11. 后续扩展（本期不做）
