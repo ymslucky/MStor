@@ -17,7 +17,12 @@ export function b64(d: Uint8Array): string {
 }
 
 export function unb64(s: string): Uint8Array<ArrayBuffer> {
-  return Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  // 兼容 base64url（JWT payload 等）：先归一化字符集，再补齐标准 base64 padding
+  let std = s.replace(/-/g, "+").replace(/_/g, "/");
+  const rem = std.length % 4;
+  if (rem === 2) std += "==";
+  else if (rem === 3) std += "=";
+  return Uint8Array.from(atob(std), (c) => c.charCodeAt(0));
 }
 
 async function derive(password: string, salt: BufferSource, iterations: number): Promise<Uint8Array> {

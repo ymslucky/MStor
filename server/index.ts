@@ -3,6 +3,7 @@ import type { AppEnv, Env } from "./env";
 import { errorHandler, errors } from "./lib/errors";
 import { sessionMiddleware } from "./middleware/session";
 import { me } from "./routes/me";
+import { auth } from "./routes/auth";
 
 const app = new Hono<AppEnv>();
 
@@ -14,6 +15,7 @@ app.get("/api/health", (c) => c.json({ ok: true }));
 
 app.use("/api/*", sessionMiddleware);
 app.route("/api/me", me);
+app.route("/auth", auth);
 
 export default {
   fetch: app.fetch,
