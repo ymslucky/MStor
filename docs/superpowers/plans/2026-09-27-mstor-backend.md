@@ -2296,6 +2296,13 @@ git add server/routes/search.ts server/index.ts test/search.test.ts
 git commit -m "feat: FTS5 filename search with owner scoping"
 ```
 
+> **审查记录（2026-09-27）**
+>
+> - 实现 `eaf30ad`；`npm test` 12 文件 65/65 绿、`npx tsc --noEmit` 零错误。spec review：SATISFIED；quality review：APPROVE（零严重/零建议）。
+> - 实现期修正计划 2 处问题：①测试 `res.json()` 解构改 `as` 断言（strict 下 unknown，仓库惯例）②URL 中文参数改 `encodeURIComponent`；另补 1 例 5 码点用例覆盖 FTS MATCH 分支（计划两例 `q=财报` 仅 2 码点只走 LIKE，MATCH 分支原计划零覆盖）。
+> - spec 核对确认：空查询按计划正文返回 200 `{nodes:[]}`（非 400）；FTS 同步策略成立——重命名/恢复经 `UPDATE ... name` 触发 `nodes_au` 刷新，软删靠查询过滤，purge `DELETE` 触发 `nodes_ad` 清理，无残留误命中路径。
+> - 可选取舍（未修，代码注释已声明）：搜索输入统一剥离 `' % _` 等字符，导致文件名含 `_` 时按空格改写可能漏检（如搜 `my_photo` 得 `my photo`）；后续可改 `LIKE ? ESCAPE '\'` 且 FTS 分支仅剥 `"`。两分支共用 safe 串，行为一致。
+
 ---
 
 ### Task 14: 分享（管理 + 公开访问 + 提取码 + 计数）
