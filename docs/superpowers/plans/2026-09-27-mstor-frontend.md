@@ -2263,6 +2263,12 @@ npm run test:client; npm run test:server; npm run check
 git add client; git commit -m "feat: upload queue with small-file direct upload"
 ```
 
+> **审查记录（2026-09-27）**
+>
+> - 实现：77f5353，client 15 绿 / server 99 绿 / check 双零。
+> - 偏离判定：仅 ReactNode 导入风格适配，成立。
+> - 规格审查 PASS；质量审查 APPROVE：drain 防重入无竞态、parts 乱序依赖后端 complete 排序（安全）、QUOTA_EXCEEDED 透传可达、etag 可读性由 CORS ExposeHeaders 保障。建议级（已知取舍）：上传失败未调 abortUpload 清理服务端 pending 分片（uploadId 未透出，MVP 依赖 R2 生命周期/后续 cron；abortUpload 导出暂无调用方）。吹毛求疵：retry 不重置 progress。
+
 ---
 
 ### Task 10: 大文件分片直传接线（>60MB 自动分流）
