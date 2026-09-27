@@ -4,6 +4,7 @@ import { getMe } from "./api/me";
 import AppShell, { makeQueryClient } from "./shell/AppShell";
 import Browser from "./pages/Browser";
 import SharesPage from "./pages/SharesPage";
+import TrashPage from "./pages/TrashPage";
 
 const queryClient = makeQueryClient();
 
@@ -22,6 +23,7 @@ export default function App() {
         <Route element={<RequireAuth />}>
           <Route path="/" element={<Browser />} />
           <Route path="/shares" element={<SharesPage />} />
+          <Route path="/trash" element={<TrashPage />} />
         </Route>
       </Routes>
     </QueryClientProvider>
