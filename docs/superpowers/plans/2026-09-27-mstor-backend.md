@@ -1590,6 +1590,8 @@ git add server/routes/files.ts test/upload-small.test.ts
 git commit -m "feat: streaming small-file upload with quota and auto-rename"
 ```
 
+> **审查记录（2026-09-27）**：spec review PASS；quality review APPROVE_WITH_NITS → commit `e6c0f8e` 修复（uniqueName↔INSERT TOCTOU：UNIQUE 冲突后换名重试一次（R2 key 随机不重传）；len 非有限/负值收紧 400；SMALL_FILE_LIMIT 配置错误显式 500；超限断言补 error.code）。最终 commit：`c1fc009` + `e6c0f8e`，43 tests passed、tsc 零错误。授权偏差：name 走 validateNodeName；body 为 null 抛 400；测试 put 加 async（计划代码语法错误）。**已知取舍（记录给后续任务）**：①quota 门禁按声明 content-length，落库 size=obj.size 实际值；②R2 put 成功后 DB 失败会遗留孤儿对象（无 GC，量级低可接受）；③mime 完全透传客户端——**Task 10 serve 端必须用 Content-Disposition/CSP 兜底防存储型 XSS（text/html 内联）**。
+
 ---
 
 ### Task 10: 下载 + Range 流式预览
