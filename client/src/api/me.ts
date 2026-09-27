@@ -6,5 +6,5 @@ export const setWebdavPassword = (password: string) => api<{ ok: true }>("/api/m
 export const listAdminUsers = () => api<{ users: AdminUser[] }>("/api/me/admin/users");
 export const patchAdminUser = (
   id: string,
-  body: { quota_bytes?: number; role?: "admin" | "member"; disabled?: boolean },
+  body: { quota_bytes?: number; role?: "admin" | "member"; disabled?: boolean; name?: string },
 ) => api<{ ok: true }>(`/api/me/admin/users/${id}`, { method: "PATCH", json: body });

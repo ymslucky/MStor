@@ -183,3 +183,52 @@ test("admin can act as another user; member cannot", async () => {
   });
   expect(missing.status).toBe(404);
 });
+
+test("admin can rename a user", async () => {
+  const admin = await seedUser({ role: "admin" });
+  const member = await seedUser();
+  const res = await SELF.fetch(`https://example.com/api/me/admin/users/${member.id}`, {
+    method: "PATCH",
+    headers: { ...(await sessionHeaders(admin)), "content-type": "application/json" },
+    body: JSON.stringify({ name: "  张三  " }),
+  });
+  expect(res.status).toBe(200);
+  const row = await env.DB.prepare("SELECT name FROM users WHERE id = ?1").bind(member.id).first<{ name: string }>();
+  // 存储前 trim
+  expect(row!.name).toBe("张三");
+});
+
+test("admin can rename self", async () => {
+  const admin = await seedUser({ role: "admin" });
+  const res = await SELF.fetch(`https://example.com/api/me/admin/users/${admin.id}`, {
+    method: "PATCH",
+    headers: { ...(await sessionHeaders(admin)), "content-type": "application/json" },
+    body: JSON.stringify({ name: "chief" }),
+  });
+  expect(res.status).toBe(200);
+  const row = await env.DB.prepare("SELECT name FROM users WHERE id = ?1").bind(admin.id).first<{ name: string }>();
+  expect(row!.name).toBe("chief");
+});
+
+test("rename rejects blank and oversized names", async () => {
+  const admin = await seedUser({ role: "admin" });
+  for (const name of ["", "   ", "x".repeat(65)]) {
+    const res = await SELF.fetch(`https://example.com/api/me/admin/users/${admin.id}`, {
+      method: "PATCH",
+      headers: { ...(await sessionHeaders(admin)), "content-type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { error: { code: string } }).error.code).toBe("BAD_REQUEST");
+  }
+});
+
+test("rename rejects non-string name", async () => {
+  const admin = await seedUser({ role: "admin" });
+  const res = await SELF.fetch(`https://example.com/api/me/admin/users/${admin.id}`, {
+    method: "PATCH",
+    headers: { ...(await sessionHeaders(admin)), "content-type": "application/json" },
+    body: JSON.stringify({ name: 42 }),
+  });
+  expect(res.status).toBe(400);
+});

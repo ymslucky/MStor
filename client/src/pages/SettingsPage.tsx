@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { HardDrive, Users } from "lucide-react";
+import { HardDrive, Pencil, Users } from "lucide-react";
 import { listAdminUsers, patchAdminUser, setWebdavPassword } from "../api/me";
 import type { AdminUser, Me } from "../api/types";
 import { formatDate } from "../lib/format";
+import NameDialog from "../components/NameDialog";
 import { toast } from "../components/Toaster";
 import { Button, GlassCard, Input } from "../components/ui";
 
@@ -49,19 +50,42 @@ function WebdavSection() {
 function AdminRow({ u, selfId }: { u: AdminUser; selfId: string }) {
   const queryClient = useQueryClient();
   const [gb, setGb] = useState(String(Math.round(u.quota_bytes / 1024 ** 3)));
+  const [renaming, setRenaming] = useState(false);
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["admin-users"] });
   const patch = useMutation({
     mutationFn: (body: Parameters<typeof patchAdminUser>[1]) => patchAdminUser(u.id, body),
     onSuccess: invalidate,
+    onError: (e) => toast(e instanceof Error ? e.message : "更新失败", "error"),
   });
   return (
-    <tr className="border-b border-line last:border-b-0">
+    <>
+      <tr className="border-b border-line last:border-b-0">
       <td className="py-2 text-ink">
         {u.name}
         {u.id === selfId && <span className="ml-1 text-xs text-ink-faint">（我）</span>}
         {u.disabled_at && <span className="ml-1 text-xs text-danger">已停用</span>}
+        <button
+          aria-label={`改名 ${u.name}`}
+          title="改名"
+          className="ml-1.5 align-middle text-ink-faint transition-colors hover:text-primary-text"
+          onClick={() => setRenaming(true)}
+        >
+          <Pencil size={12} aria-hidden />
+        </button>
       </td>
-      <td className="hidden py-2 text-xs sm:table-cell">{u.role}</td>
+      <td className="hidden py-2 text-xs sm:table-cell">
+        {/* 自己的角色不可改（服务端同样兜底：不能降级自己） */}
+        <select
+          aria-label={`角色（${u.name}）`}
+          disabled={u.id === selfId}
+          className="rounded-lg border border-line bg-white px-1.5 py-1 text-xs disabled:opacity-50"
+          value={u.role}
+          onChange={(e) => patch.mutate({ role: e.target.value as "admin" | "member" })}
+        >
+          <option value="admin">admin</option>
+          <option value="member">member</option>
+        </select>
+      </td>
       <td className="py-2">
         <Input
           aria-label={`配额 GB（${u.name}）`}
@@ -98,7 +122,28 @@ function AdminRow({ u, selfId }: { u: AdminUser; selfId: string }) {
           {u.disabled_at ? "启用" : "停用"}
         </button>
       </td>
-    </tr>
+      </tr>
+      {renaming && (
+        <NameDialog
+          title={`重命名用户「${u.name}」`}
+          initial={u.name}
+          busy={patch.isPending}
+          onSubmit={(name) =>
+            patch.mutate(
+              { name },
+              {
+                onSuccess: () => {
+                  setRenaming(false);
+                  // 名称即 WebDAV 登录名，也出现在顶部用户名（me 缓存）
+                  void queryClient.invalidateQueries({ queryKey: ["me"] });
+                },
+              },
+            )
+          }
+          onCancel={() => setRenaming(false)}
+        />
+      )}
+    </>
   );
 }
 
