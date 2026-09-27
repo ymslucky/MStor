@@ -3734,6 +3734,12 @@ npm run test:client; npm run test:server; npm run check
 git add client; git commit -m "feat: public share page with password gate and subtree browsing"
 ```
 
+> **审查记录（2026-09-27）**
+>
+> - 实现：e192a32 + 4e3a264（质量修复），最终 client 41 绿 / server 102 绿 / check 双零。
+> - 偏离判定（6 条均成立，多系计划自相矛盾）：测试须经 Routes 挂载（useParams 需 token）；emoji span 拆分；面包屑去重；错误态渲染服务端 message；单文件不渲染 nav；删未用导入。
+> - 规格审查 PASS；质量审查 APPROVE。安全专项通过：/api/s/ 401 不跳登录无死循环、queryKey 含密码无脏缓存、分享页不触 /api/me 且不消费 x-act-as。建议级已修（4e3a264）：错误提取码后门锁死 → SHARE_PASSWORD 失败时保持门可重试 +「提取码不正确」提示；面包屑点击重复 → slice(0,i)。
+
 ---
 
 ### Task 17: PWA + 构建收尾
