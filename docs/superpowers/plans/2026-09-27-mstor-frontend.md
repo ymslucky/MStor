@@ -265,6 +265,12 @@ $env:WRANGLER_LOG_PATH="c:\Users\YMS\Documents\Code\cf-storage\.wrangler\logs"; 
 git add migrations/0002_disable_users.sql server test; git commit -m "feat: user disable (migration 0002, session/login rejection, admin patch)"
 ```
 
+> **审查记录（2026-09-27）**
+>
+> - 实现：6503408 + ad038a3（规格修复）+ e6530cb（质量修复），最终 96/96 测试绿 + tsc 零错误。
+> - 规格审查（FAIL→已修）：①PATCH 缺 `disabled` 布尔类型校验（字符串 "false" 会误停用）→ 补校验；②计划中「disabled flag persists in admin list」测试缺失 → 补齐。偏差确认可接受：拒绝文案由 `errors.forbidden()` 支持自定义参数解决；测试拆分语义等价或更强。
+> - 质量审查（NEEDS_FIX→已修）：严重项——davauth.ts 不查 `disabled_at`，停用用户仍可 WebDAV Basic 认证读写 → 验密前短路拒绝（401），补 PROPFIND 401 回归测试；采纳建议——`errors.forbidden(m)` 支持自定义文案，两处拒绝改为「账号已被停用」。其余建议（admin 自锁守护）留待后续任务，本任务不强加。
+
 ---
 
 ### Task 2: 后端补遗——admin 切换空间（x-act-as）
