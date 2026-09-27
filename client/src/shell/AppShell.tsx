@@ -4,6 +4,7 @@ import { ApiError } from "../api/client";
 import { getMe } from "../api/me";
 import type { Me } from "../api/types";
 import { formatBytes } from "../lib/format";
+import SearchBox from "../components/SearchBox";
 import { Toaster, toast } from "../components/Toaster";
 
 export function makeQueryClient(): QueryClient {
@@ -53,6 +54,7 @@ export default function AppShell() {
               </NavLink>
             ))}
           </nav>
+          <SearchBox />
           <div className="ml-auto flex items-center gap-3 text-sm">
             <div className="hidden w-32 sm:block" title={`${formatBytes(me.usedBytes)} / ${formatBytes(me.quotaBytes)}`}>
               <div className="h-1.5 w-full rounded bg-slate-200">
