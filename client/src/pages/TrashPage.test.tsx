@@ -1,5 +1,5 @@
 import type { JSX } from "react";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
 import type { Node } from "../api/types";
@@ -44,25 +44,27 @@ test("restore calls restoreNode and refreshes", async () => {
   await waitFor(() => expect(screen.getByText(/回收站为空/)).toBeInTheDocument());
 });
 
-test("purge requires confirm", async () => {
+test("purge requires confirm dialog", async () => {
   vi.mocked(listTrash).mockResolvedValue({ nodes: [node()] });
   vi.mocked(purgeNode).mockResolvedValue({ ok: true });
-  const spy = vi.spyOn(window, "confirm").mockReturnValue(false);
   const { user } = renderWith(<TrashPage />);
   await screen.findByText(/旧文件\.txt/);
   await user.click(screen.getByRole("button", { name: "彻底删除" }));
+  expect(await screen.findByText(/彻底删除「旧文件\.txt」？此操作不可恢复。/)).toBeInTheDocument();
   expect(purgeNode).not.toHaveBeenCalled();
-  spy.mockReturnValue(true);
+  // 取消仅关弹窗
+  await user.click(screen.getByRole("button", { name: "取消" }));
+  expect(purgeNode).not.toHaveBeenCalled();
+  // 再次打开并在弹窗内确认（弹窗内确认按钮与行内 IconButton 同名，限定面板内点击）
   await user.click(screen.getByRole("button", { name: "彻底删除" }));
+  await user.click(within(await screen.findByTestId("dialog-panel")).getByRole("button", { name: "彻底删除" }));
   await waitFor(() => expect(purgeNode).toHaveBeenCalledWith("t1"));
-  vi.restoreAllMocks();
 });
 
 test("restore and purge also invalidate me for quota refresh", async () => {
   vi.mocked(listTrash).mockResolvedValue({ nodes: [node()] });
   vi.mocked(restoreNode).mockResolvedValue({ ok: true });
   vi.mocked(purgeNode).mockResolvedValue({ ok: true });
-  const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
   const { user, qc } = renderWith(<TrashPage />);
   const invalidateSpy = vi.spyOn(qc, "invalidateQueries");
   const meCalls = () =>
@@ -73,6 +75,6 @@ test("restore and purge also invalidate me for quota refresh", async () => {
   await user.click(screen.getByRole("button", { name: "恢复" }));
   await waitFor(() => expect(meCalls()).toHaveLength(1)); // 恢复占用配额，需刷新
   await user.click(screen.getByRole("button", { name: "彻底删除" }));
+  await user.click(within(await screen.findByTestId("dialog-panel")).getByRole("button", { name: "彻底删除" }));
   await waitFor(() => expect(meCalls()).toHaveLength(2)); // 彻底删除释放配额，需刷新
-  confirmSpy.mockRestore();
 });

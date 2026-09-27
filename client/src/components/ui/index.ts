@@ -1,6 +1,7 @@
 export * from "./Badge";
 export * from "./Dialog";
 export * from "./Button";
+export * from "./ConfirmDialog";
 export * from "./EmptyState";
 export * from "./GlassCard";
 export * from "./IconButton";

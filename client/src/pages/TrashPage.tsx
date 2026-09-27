@@ -1,13 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { listTrash, purgeNode, restoreNode } from "../api/trash";
 import type { Node } from "../api/types";
 import FileList from "../components/FileList";
-import { GlassCard, IconButton } from "../components/ui";
+import { ConfirmDialog, GlassCard, IconButton } from "../components/ui";
 import { formatBytes, formatDate } from "../lib/format";
 
 export default function TrashPage() {
   const queryClient = useQueryClient();
   const query = useQuery({ queryKey: ["trash"], queryFn: listTrash });
+  const [purging, setPurging] = useState<Node | null>(null);
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: ["trash"] });
     void queryClient.invalidateQueries({ queryKey: ["files"] });
@@ -37,16 +39,27 @@ export default function TrashPage() {
                 <IconButton label="恢复" onClick={() => restore.mutate(n.id)}>
                   <span aria-hidden>♻️</span>
                 </IconButton>
-                <IconButton
-                  label="彻底删除"
-                  onClick={() => window.confirm(`彻底删除「${n.name}」？此操作不可恢复。`) && purge.mutate(n.id)}
-                >
+                <IconButton label="彻底删除" onClick={() => setPurging(n)}>
                   <span aria-hidden>🗑️</span>
                 </IconButton>
               </>
             )}
           />
         </GlassCard>
+      )}
+      {purging && (
+        <ConfirmDialog
+          open
+          title={`彻底删除「${purging.name}」`}
+          description={`彻底删除「${purging.name}」？此操作不可恢复。`}
+          confirmText="彻底删除"
+          danger
+          onConfirm={() => {
+            purge.mutate(purging.id);
+            setPurging(null);
+          }}
+          onCancel={() => setPurging(null)}
+        />
       )}
     </div>
   );

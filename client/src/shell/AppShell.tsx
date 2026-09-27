@@ -1,10 +1,11 @@
 import { MutationCache, QueryCache, QueryClient, useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { ApiError, clearSessionFlag, handleSessionExpired } from "../api/client";
 import { getMe } from "../api/me";
 import type { Me } from "../api/types";
 import { formatBytes } from "../lib/format";
-import { Badge } from "../components/ui";
+import { Badge, ConfirmDialog, IconButton } from "../components/ui";
 import SearchBox from "../components/SearchBox";
 import OfflineBar from "../components/OfflineBar";
 import { Toaster, toast } from "../components/Toaster";
@@ -37,10 +38,6 @@ const NAV = [
   { to: "/settings", label: "设置", icon: "⚙️" },
 ];
 
-// 退出按钮（<a> 保持跳转语义与 href 断言）：移动顶栏与桌面档案行各一份
-const logoutCls =
-  "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-line bg-white text-ink-dim transition-colors hover:border-accent/40 hover:bg-accent-soft hover:text-accent";
-
 function greeting(): string {
   const h = new Date().getHours();
   if (h < 12) return "早上好";
@@ -50,6 +47,7 @@ function greeting(): string {
 
 export default function AppShell() {
   const me = useMe();
+  const [logoutOpen, setLogoutOpen] = useState(false);
   if (!me) return <div className="p-8 text-center text-ink-dim">加载中…</div>;
   const actAs = typeof localStorage !== "undefined" ? localStorage.getItem("mstor_act_as") : null;
   const pct = Math.min(100, Math.round((me.usedBytes / me.quotaBytes) * 100));
@@ -65,9 +63,10 @@ export default function AppShell() {
             </span>
             <span className="text-lg font-bold text-ink">MStor</span>
           </div>
-          <a href="/auth/logout" aria-label="退出" title="退出" onClick={() => clearSessionFlag()} className={`${logoutCls} md:hidden`}>
+          {/* 退出走确认弹窗：移动顶栏与桌面档案行各一份，共用同一弹窗 */}
+          <IconButton label="退出" onClick={() => setLogoutOpen(true)} className="md:hidden">
             <span aria-hidden>🚪</span>
-          </a>
+          </IconButton>
         </div>
         {/* 导航同一 DOM：移动端底部 Tab（fixed），md+ 侧边栏纵向链接 */}
         <nav
@@ -116,15 +115,15 @@ export default function AppShell() {
               <div className="truncate text-sm font-medium text-ink">{me.name}</div>
               <Badge tone="accent">{me.role === "admin" ? "管理员" : "成员"}</Badge>
             </div>
-            <a href="/auth/logout" aria-label="退出" title="退出" onClick={() => clearSessionFlag()} className={logoutCls}>
+            <IconButton label="退出" onClick={() => setLogoutOpen(true)}>
               <span aria-hidden>🚪</span>
-            </a>
+            </IconButton>
           </div>
         </div>
       </aside>
-      {/* 内容区 */}
+      {/* 内容区：不限宽铺满（px-4 sm:px-6） */}
       <div className="md:ml-60">
-        <main className="pb-nav mx-auto max-w-6xl p-4 md:p-6">
+        <main className="pb-nav px-4 py-4 sm:px-6 sm:py-6">
           <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
             <div>
               <h1 className="text-xl font-semibold text-ink">
@@ -151,6 +150,19 @@ export default function AppShell() {
           <Outlet context={me} />
         </main>
       </div>
+      <ConfirmDialog
+        open={logoutOpen}
+        title="退出登录"
+        description="确定要退出当前账号吗？"
+        confirmText="退出"
+        danger
+        onConfirm={() => {
+          setLogoutOpen(false);
+          clearSessionFlag();
+          window.location.href = "/auth/logout";
+        }}
+        onCancel={() => setLogoutOpen(false)}
+      />
       <OfflineBar />
       <Toaster />
     </div>

@@ -11,7 +11,7 @@ import NameDialog from "../components/NameDialog";
 import PreviewModal from "../components/PreviewModal";
 import ShareDialog from "../components/ShareDialog";
 import UploadPanel from "../components/UploadPanel";
-import { Button, EmptyState, GlassCard, IconButton, Skeleton } from "../components/ui";
+import { Button, ConfirmDialog, EmptyState, GlassCard, IconButton, Skeleton } from "../components/ui";
 import { useFiles } from "../hooks/useFiles";
 import { useUploadQueue } from "../hooks/useUploadQueue";
 import { formatBytes } from "../lib/format";
@@ -73,12 +73,9 @@ export default function Browser() {
   const [moving, setMoving] = useState<Node | null>(null);
   const [preview, setPreview] = useState<Node | null>(null);
   const [sharing, setSharing] = useState<Node | null>(null);
+  const [deleting, setDeleting] = useState<Node | null>(null);
 
   const openDir = (id: string) => setParams(id ? { dir: id } : {});
-
-  const confirmDelete = (node: Node) => {
-    if (window.confirm(`确定删除「${node.name}」？可在回收站恢复。`)) remove.mutate(node.id);
-  };
 
   const used = me?.usedBytes ?? 0;
   const quota = me?.quotaBytes ?? 0;
@@ -202,7 +199,7 @@ export default function Browser() {
                 <IconButton label={`移动 ${n.name}`} onClick={() => setMoving(n)}>
                   <span aria-hidden>📂</span>
                 </IconButton>
-                <IconButton label={`删除 ${n.name}`} onClick={() => confirmDelete(n)}>
+                <IconButton label={`删除 ${n.name}`} onClick={() => setDeleting(n)}>
                   <span aria-hidden>🗑️</span>
                 </IconButton>
               </>
@@ -228,6 +225,20 @@ export default function Browser() {
           busy={rename.isPending}
           onSubmit={(name) => rename.mutate({ id: renaming.id, name }, { onSuccess: () => setRenaming(null) })}
           onCancel={() => setRenaming(null)}
+        />
+      )}
+      {deleting && (
+        <ConfirmDialog
+          open
+          title={`删除「${deleting.name}」`}
+          description={`确定删除「${deleting.name}」？可在回收站恢复。`}
+          confirmText="删除"
+          danger
+          onConfirm={() => {
+            remove.mutate(deleting.id);
+            setDeleting(null);
+          }}
+          onCancel={() => setDeleting(null)}
         />
       )}
       {moving && (

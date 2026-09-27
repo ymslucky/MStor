@@ -1,5 +1,5 @@
 import type { JSX } from "react";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
 import type { Share } from "../api/types";
@@ -34,15 +34,17 @@ test("lists shares with url, downloads and expiry", async () => {
   expect(screen.getByText(/2029/)).toBeInTheDocument(); // 有效期至
 });
 
-test("revoke calls revokeShare and refreshes", async () => {
+test("revoke asks confirm then calls revokeShare and refreshes", async () => {
   // 首次返回一条，失效重拉后返回空，才能断言「暂无分享」
   vi.mocked(listShares).mockResolvedValueOnce({ shares: [share()] }).mockResolvedValue({ shares: [] });
   vi.mocked(revokeShare).mockResolvedValue({ ok: true });
-  vi.spyOn(window, "confirm").mockReturnValue(true);
   const { user } = renderWith(<SharesPage />);
   await screen.findByText(/全家福\.jpg/);
   await user.click(screen.getByRole("button", { name: "撤销" }));
+  expect(await screen.findByText(/撤销「全家福\.jpg」的分享？/)).toBeInTheDocument();
+  expect(revokeShare).not.toHaveBeenCalled();
+  // 弹窗内确认按钮与行内 IconButton 同名，限定面板内点击
+  await user.click(within(await screen.findByTestId("dialog-panel")).getByRole("button", { name: "撤销" }));
   await waitFor(() => expect(revokeShare).toHaveBeenCalledWith("sh1"));
   await waitFor(() => expect(screen.getByText(/暂无分享/)).toBeInTheDocument());
-  vi.restoreAllMocks();
 });

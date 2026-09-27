@@ -1,12 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { listShares, revokeShare } from "../api/shares";
-import { EmptyState, GlassCard, IconButton } from "../components/ui";
+import type { Share } from "../api/types";
+import { ConfirmDialog, EmptyState, GlassCard, IconButton } from "../components/ui";
 import { formatBytes, formatDate } from "../lib/format";
 
 export default function SharesPage() {
   const queryClient = useQueryClient();
   const query = useQuery({ queryKey: ["shares"], queryFn: listShares });
   const revoke = useMutation({ mutationFn: (id: string) => revokeShare(id), onSuccess: () => queryClient.invalidateQueries({ queryKey: ["shares"] }) });
+  const [revoking, setRevoking] = useState<Share | null>(null);
   const shares = query.data?.shares ?? [];
 
   return (
@@ -32,10 +35,7 @@ export default function SharesPage() {
                     <a href={`/s/${s.token}`} className="mr-3 text-accent hover:underline" target="_blank" rel="noreferrer">
                       打开
                     </a>
-                    <IconButton
-                      label="撤销"
-                      onClick={() => window.confirm(`撤销「${s.node_name}」的分享？`) && revoke.mutate(s.id)}
-                    >
+                    <IconButton label="撤销" onClick={() => setRevoking(s)}>
                       <span aria-hidden>🚫</span>
                     </IconButton>
                   </td>
@@ -44,6 +44,20 @@ export default function SharesPage() {
             </tbody>
           </table>
         </GlassCard>
+      )}
+      {revoking && (
+        <ConfirmDialog
+          open
+          title="撤销分享"
+          description={`撤销「${revoking.node_name}」的分享？`}
+          confirmText="撤销"
+          danger
+          onConfirm={() => {
+            revoke.mutate(revoking.id);
+            setRevoking(null);
+          }}
+          onCancel={() => setRevoking(null)}
+        />
       )}
     </div>
   );

@@ -82,16 +82,23 @@ test("rename via dialog calls renameNode", async () => {
   await waitFor(() => expect(renameNode).toHaveBeenCalledWith("f1", "world.txt"));
 });
 
-test("delete asks confirm then calls deleteNode", async () => {
+test("delete asks confirm dialog then calls deleteNode", async () => {
   vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
   vi.mocked(deleteNode).mockResolvedValue({ ok: true });
-  const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
   const { user } = renderWith(<Browser />);
   await screen.findByText("📄 hello.txt");
   await user.click(screen.getByRole("button", { name: /删除 hello.txt/ }));
+  // 弹窗出现且未确认前不调用删除
+  expect(await screen.findByText("确定删除「hello.txt」？可在回收站恢复。")).toBeInTheDocument();
+  expect(deleteNode).not.toHaveBeenCalled();
+  // 取消仅关弹窗
+  await user.click(screen.getByRole("button", { name: "取消" }));
+  expect(screen.queryByText("确定删除「hello.txt」？可在回收站恢复。")).not.toBeInTheDocument();
+  expect(deleteNode).not.toHaveBeenCalled();
+  // 再次打开并在弹窗内确认
+  await user.click(screen.getByRole("button", { name: /删除 hello.txt/ }));
+  await user.click(await screen.findByRole("button", { name: "删除" }));
   await waitFor(() => expect(deleteNode).toHaveBeenCalledWith("f1"));
-  expect(confirmSpy).toHaveBeenCalled();
-  vi.restoreAllMocks();
 });
 
 test("shows skeleton rows while loading", () => {
