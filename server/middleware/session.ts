@@ -29,6 +29,8 @@ export async function sessionMiddleware(c: Context<AppEnv>, next: Next) {
     if (target.disabled_at) throw errors.forbidden("目标用户已停用");
     user = target;
   }
+  // 记录会话原始用户：act-as 切换后 c.get("user") 是目标用户，self 类校验应以原始用户为准
+  c.set("selfId", sub);
   c.set("user", user);
   await next();
 }

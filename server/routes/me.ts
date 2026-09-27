@@ -39,6 +39,11 @@ me.patch("/admin/users/:id", requireAdmin, async (c) => {
   if (role && !["admin", "member"].includes(role)) throw errors.badRequest("角色不合法");
   if (quota_bytes !== undefined && (!Number.isFinite(quota_bytes) || quota_bytes < 0)) throw errors.badRequest("配额不合法");
   if (disabled !== undefined && typeof disabled !== "boolean") throw errors.badRequest("disabled 不合法");
+  // 兜底：不允许停用/降级自己（否则无其他 admin 时永久无法恢复）。
+  // selfId 是会话原始用户：act-as 切换空间后 c.get("user") 是目标用户，以原始用户判定才能封住借 act-as 绕过的口子。
+  if (c.req.param("id") === c.get("selfId") && (disabled === true || role === "member")) {
+    throw errors.badRequest("不能停用或降级自己");
+  }
   const sets: string[] = [];
   const vals: unknown[] = [];
   if (quota_bytes !== undefined) { sets.push("quota_bytes = ?"); vals.push(quota_bytes); }

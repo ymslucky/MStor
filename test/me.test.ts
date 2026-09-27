@@ -102,6 +102,40 @@ test("admin can disable and re-enable a user via PATCH", async () => {
   expect(reenabled!.disabled_at).toBeNull();
 });
 
+test("admin cannot disable self", async () => {
+  const admin = await seedUser({ role: "admin" });
+  const res = await SELF.fetch(`https://example.com/api/me/admin/users/${admin.id}`, {
+    method: "PATCH",
+    headers: { ...(await sessionHeaders(admin)), "content-type": "application/json" },
+    body: JSON.stringify({ disabled: true }),
+  });
+  expect(res.status).toBe(400);
+  expect(((await res.json()) as { error: { code: string } }).error.code).toBe("BAD_REQUEST");
+});
+
+test("admin cannot demote self", async () => {
+  const admin = await seedUser({ role: "admin" });
+  const res = await SELF.fetch(`https://example.com/api/me/admin/users/${admin.id}`, {
+    method: "PATCH",
+    headers: { ...(await sessionHeaders(admin)), "content-type": "application/json" },
+    body: JSON.stringify({ role: "member" }),
+  });
+  expect(res.status).toBe(400);
+  expect(((await res.json()) as { error: { code: string } }).error.code).toBe("BAD_REQUEST");
+});
+
+test("admin can still update own quota", async () => {
+  const admin = await seedUser({ role: "admin" });
+  const res = await SELF.fetch(`https://example.com/api/me/admin/users/${admin.id}`, {
+    method: "PATCH",
+    headers: { ...(await sessionHeaders(admin)), "content-type": "application/json" },
+    body: JSON.stringify({ quota_bytes: 4096 }),
+  });
+  expect(res.status).toBe(200);
+  const row = await env.DB.prepare("SELECT quota_bytes FROM users WHERE id = ?1").bind(admin.id).first<{ quota_bytes: number }>();
+  expect(row!.quota_bytes).toBe(4096);
+});
+
 test("disabled flag persists in admin list", async () => {
   const admin = await seedUser({ role: "admin" });
   const member = await seedUser();
