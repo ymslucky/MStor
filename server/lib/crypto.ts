@@ -1,5 +1,9 @@
 const enc = new TextEncoder();
 
+export function randomId(): string {
+  return crypto.randomUUID();
+}
+
 export function randomToken(bytes = 16): string {
   const b = new Uint8Array(bytes);
   crypto.getRandomValues(b);
@@ -27,13 +31,17 @@ export async function pbkdf2Hash(password: string, iterations = 100_000): Promis
 }
 
 export async function pbkdf2Verify(password: string, stored: string): Promise<boolean> {
-  const [, iters, saltB64, hashB64] = stored.split("$");
-  const hash = b64(await derive(password, unb64(saltB64), Number(iters)));
-  // 等长比较防时序
-  if (hash.length !== hashB64.length) return false;
-  let diff = 0;
-  for (let i = 0; i < hash.length; i++) diff |= hash.charCodeAt(i) ^ hashB64.charCodeAt(i);
-  return diff === 0;
+  try {
+    const [, iters, saltB64, hashB64] = stored.split("$");
+    if (!iters || !saltB64 || !hashB64) return false;
+    const hash = b64(await derive(password, unb64(saltB64), Number(iters)));
+    if (hash.length !== hashB64.length) return false;
+    let diff = 0;
+    for (let i = 0; i < hash.length; i++) diff |= hash.charCodeAt(i) ^ hashB64.charCodeAt(i);
+    return diff === 0;
+  } catch {
+    return false;
+  }
 }
 
 export async function sha256B64Url(input: string): Promise<string> {

@@ -16,3 +16,16 @@ test("randomToken is url-safe", () => {
 test("sha256B64Url matches known vector", async () => {
   expect(await sha256B64Url("abc")).toBe("ungWv48Bz-pBQUDeXa4iI7ADYaOWF3qctBD_YfIAFa0");
 });
+
+test("pbkdf2Verify returns false for tampered/malformed stored hash", async () => {
+  const stored = await pbkdf2Hash("secret-password");
+  expect(await pbkdf2Verify("secret-password", stored.slice(0, -4) + "AAAA")).toBe(false);
+  expect(await pbkdf2Verify("secret-password", stored.split("$")[0])).toBe(false);
+  expect(await pbkdf2Verify("secret-password", "not-a-hash")).toBe(false);
+});
+
+test("pbkdf2 roundtrip with unicode password", async () => {
+  const stored = await pbkdf2Hash("密码🔐123");
+  expect(await pbkdf2Verify("密码🔐123", stored)).toBe(true);
+  expect(await pbkdf2Verify("密码", stored)).toBe(false);
+});
