@@ -2754,6 +2754,12 @@ npm run test:client; npm run test:server; npm run check
 git add client; git commit -m "feat: debounced search with breadcrumb paths"
 ```
 
+> **审查记录（2026-09-27）**
+>
+> - 实现：ca7eac1，client 26 绿 / server 99 绿 / check 双零。
+> - 偏离判定（均成立）：renderWith 辅助、emoji 断言、第 3 用例 vi.clearAllMocks（config 无 clearMocks，防跨用例残留误报）。
+> - 规格审查 PASS；质量审查 APPROVE：queryKey 按 dq 隔离无防抖竞态；go() 清空输入无多余请求；paths 缺键 `?? ""` 兑现 Task 3 建议。建议级（不强加）：点击后 300ms 内重聚焦可能闪现旧结果；无键盘导航（计划未要求）。
+
 ---
 
 ### Task 13: 分享对话框 + 我的分享管理
