@@ -6,6 +6,7 @@ export interface UserRow {
   webdav_password_hash: string | null;
   quota_bytes: number;
   created_at: number;
+  disabled_at: number | null;
 }
 
 export interface NodeRow {

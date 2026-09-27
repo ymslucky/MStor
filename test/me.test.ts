@@ -80,3 +80,32 @@ test("admin endpoints enforce role", async () => {
   const row = await env.DB.prepare("SELECT quota_bytes FROM users WHERE id = ?1").bind(member.id).first<{ quota_bytes: number }>();
   expect(row!.quota_bytes).toBe(2048);
 });
+
+test("admin can disable and re-enable a user via PATCH", async () => {
+  const admin = await seedUser({ role: "admin" });
+  const member = await seedUser();
+  const disable = await SELF.fetch(`https://example.com/api/me/admin/users/${member.id}`, {
+    method: "PATCH",
+    headers: { ...(await sessionHeaders(admin)), "content-type": "application/json" },
+    body: JSON.stringify({ disabled: true }),
+  });
+  expect(disable.status).toBe(200);
+  const row = await env.DB.prepare("SELECT disabled_at FROM users WHERE id = ?1").bind(member.id).first<{ disabled_at: number | null }>();
+  expect(row!.disabled_at).not.toBeNull();
+  const enable = await SELF.fetch(`https://example.com/api/me/admin/users/${member.id}`, {
+    method: "PATCH",
+    headers: { ...(await sessionHeaders(admin)), "content-type": "application/json" },
+    body: JSON.stringify({ disabled: false }),
+  });
+  expect(enable.status).toBe(200);
+  const reenabled = await env.DB.prepare("SELECT disabled_at FROM users WHERE id = ?1").bind(member.id).first<{ disabled_at: number | null }>();
+  expect(reenabled!.disabled_at).toBeNull();
+});
+
+test("disabled user session is rejected", async () => {
+  const u = await seedUser();
+  await env.DB.prepare("UPDATE users SET disabled_at = ?1 WHERE id = ?2").bind(Date.now(), u.id).run();
+  const res = await SELF.fetch("https://example.com/api/me", { headers: await sessionHeaders(u) });
+  expect(res.status).toBe(403);
+  expect(((await res.json()) as { error: { code: string } }).error.code).toBe("FORBIDDEN");
+});

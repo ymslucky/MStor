@@ -13,11 +13,12 @@ export async function seedUser(overrides: Partial<UserRow> = {}): Promise<UserRo
     webdav_password_hash: null,
     quota_bytes: 10_737_418_240,
     created_at: Date.now(),
+    disabled_at: null,
     ...overrides,
   };
   await env.DB.prepare(
-    "INSERT INTO users (id, oidc_sub, name, role, webdav_password_hash, quota_bytes, created_at) VALUES (?1,?2,?3,?4,?5,?6,?7)"
-  ).bind(user.id, user.oidc_sub, user.name, user.role, user.webdav_password_hash, user.quota_bytes, user.created_at).run();
+    "INSERT INTO users (id, oidc_sub, name, role, webdav_password_hash, quota_bytes, created_at, disabled_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8)"
+  ).bind(user.id, user.oidc_sub, user.name, user.role, user.webdav_password_hash, user.quota_bytes, user.created_at, user.disabled_at).run();
   return user;
 }
 

@@ -69,7 +69,7 @@ auth.get("/callback", async (c) => {
   const claims = JSON.parse(new TextDecoder().decode(unb64(payloadB64))) as { sub: string; name?: string; preferred_username?: string; role?: string };
   const name = claims.name ?? claims.preferred_username ?? "user";
   const db = c.env.DB;
-  let user = await db.prepare("SELECT * FROM users WHERE oidc_sub = ?1").bind(claims.sub).first<{ id: string; role: string }>();
+  let user = await db.prepare("SELECT * FROM users WHERE oidc_sub = ?1").bind(claims.sub).first<{ id: string; role: string; disabled_at: number | null }>();
   if (!user) {
     const count = await db.prepare("SELECT COUNT(*) AS n FROM users").first<{ n: number }>();
     const role = count!.n === 0 || claims.role === "admin" ? "admin" : "member";
@@ -78,17 +78,18 @@ auth.get("/callback", async (c) => {
       await db.prepare(
         "INSERT INTO users (id, oidc_sub, name, role, webdav_password_hash, quota_bytes, created_at) VALUES (?1,?2,?3,?4,NULL,?5,?6)"
       ).bind(id, claims.sub, name, role, Number(c.env.DEFAULT_QUOTA_BYTES), Date.now()).run();
-      user = { id, role };
+      user = { id, role, disabled_at: null };
     } catch (e) {
       if (e instanceof Error && e.message.includes("UNIQUE constraint failed")) {
         // 并发首登：另一个请求已建号，幂等复用
-        user = await db.prepare("SELECT * FROM users WHERE oidc_sub = ?1").bind(claims.sub).first<{ id: string; role: string }>();
+        user = await db.prepare("SELECT * FROM users WHERE oidc_sub = ?1").bind(claims.sub).first<{ id: string; role: string; disabled_at: number | null }>();
         if (!user) throw e;
       } else {
         throw e;
       }
     }
   }
+  if (user.disabled_at) throw errors.forbidden();
   await ensureRootDir(db, user.id);
   const token = await sign({ sub: user.id, role: user.role, exp: Math.floor(Date.now() / 1000) + 7 * 86400 }, c.env.SESSION_SECRET);
   setCookie(c, SESSION_COOKIE, token, {

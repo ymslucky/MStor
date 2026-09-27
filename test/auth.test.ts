@@ -96,3 +96,16 @@ test("callback with wrong state is rejected", async () => {
   });
   expect(res.status).toBe(401);
 });
+
+test("disabled user cannot login", async () => {
+  const u = await seedUser({ oidc_sub: "s-disabled" });
+  await env.DB.prepare("UPDATE users SET disabled_at = ?1 WHERE id = ?2").bind(Date.now(), u.id).run();
+  mockDiscovery();
+  mockToken(idToken({ sub: "s-disabled", name: "Dis" }));
+  const res = await SELF.fetch("https://example.com/auth/callback?code=c&state=x", {
+    redirect: "manual",
+    headers: { cookie: `mstor_oidc=${encodeURIComponent(JSON.stringify({ state: "x", verifier: "v" }))}` },
+  });
+  expect(res.status).toBe(403);
+  expect(res.headers.get("set-cookie") ?? "").not.toContain("mstor_session=");
+});
