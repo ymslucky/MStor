@@ -11,36 +11,41 @@ export async function serveObject(c: Context<AppEnv>, node: NodeRow): Promise<Re
   const mime = (node.mime ?? "application/octet-stream").toLowerCase();
   const bare = mime.split(";")[0].trim();
   const disposition = c.req.query("dl") === "1" || UNSAFE_INLINE.includes(bare) ? "attachment" : "inline";
+  // RFC 5987 attr-char 之外的字元：encodeURIComponent 不转义 !'()*，这里补齐
+  const encodedName = encodeURIComponent(node.name).replace(/[!'()*]/g, (ch) => "%" + ch.charCodeAt(0).toString(16).toUpperCase());
   const base: Record<string, string> = {
     "content-type": node.mime ?? "application/octet-stream",
     "accept-ranges": "bytes",
     etag: `"${node.id}"`,
     "x-content-type-options": "nosniff",
     "content-security-policy": "sandbox",
-    "content-disposition": `${disposition}; filename*=UTF-8''${encodeURIComponent(node.name)}`,
+    "cache-control": "private, no-cache",
+    "content-disposition": `${disposition}; filename*=UTF-8''${encodedName}`,
   };
-  const rangeHeader = c.req.header("range");
-  if (!rangeHeader) {
-    const obj = await c.env.BUCKET.get(node.r2_key);
-    if (!obj) throw errors.notFound();
-    return new Response(obj.body, { status: 200, headers: { ...base, "content-length": String(obj.size) } });
-  }
-  const m = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader);
-  if (!m || (m[1] === "" && m[2] === "")) throw new HttpError(416, "RANGE_INVALID", "Range 不合法");
+  // 不可解析的 Range 视为不存在（RFC 9110），回落全量 200；语法合法但空范围（bytes=-）才 416
+  const rangeHeader = c.req.header("range")?.toLowerCase();
+  const m = rangeHeader ? /^bytes=(\d*)-(\d*)$/.exec(rangeHeader) : null;
+  if (m && m[1] === "" && m[2] === "") throw new HttpError(416, "RANGE_INVALID", "Range 不合法");
   const size = node.size ?? 0;
-  let offset: number;
+  let offset = 0;
   let length: number | undefined;
-  if (m[1] === "") {
-    // 后缀语义 bytes=-N：最后 N 字节
-    length = Math.min(Number(m[2]), size);
-    offset = size - length;
-  } else {
-    offset = Number(m[1]);
-    length = m[2] === "" ? undefined : Number(m[2]) - offset + 1;
+  let range: { offset: number; length?: number } | undefined;
+  if (m) {
+    if (m[1] === "") {
+      // 后缀语义 bytes=-N：最后 N 字节
+      length = Math.min(Number(m[2]), size);
+      offset = size - length;
+    } else {
+      offset = Number(m[1]);
+      // end >= size 按剩余全部解释（RFC 9110），钳制而非谎报 content-length
+      length = m[2] === "" ? undefined : Math.min(Number(m[2]) - offset + 1, size - offset);
+    }
+    if (offset >= size || (length !== undefined && length <= 0)) throw new HttpError(416, "RANGE_INVALID", "Range 越界");
+    range = length !== undefined ? { offset, length } : { offset };
   }
-  if (offset >= size || (length !== undefined && length <= 0)) throw new HttpError(416, "RANGE_INVALID", "Range 越界");
-  const obj = await c.env.BUCKET.get(node.r2_key, { range: { offset, length } });
+  const obj = range ? await c.env.BUCKET.get(node.r2_key, { range }) : await c.env.BUCKET.get(node.r2_key);
   if (!obj) throw errors.notFound();
+  if (!range) return new Response(obj.body, { status: 200, headers: { ...base, "content-length": String(obj.size) } });
   // 不依赖 R2 range get 返回的 obj.size 语义，用计算出的 length 推导
   const actualLen = length ?? size - offset;
   const end = offset + actualLen - 1;

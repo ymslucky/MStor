@@ -30,6 +30,7 @@ test("range bytes=0-4 returns 206 slice", async () => {
   });
   expect(res.status).toBe(206);
   expect(res.headers.get("content-range")).toBe("bytes 0-4/11");
+  expect(res.headers.get("etag")).toBe(`"${id}"`);
   expect(await res.text()).toBe("hello");
 });
 
@@ -69,4 +70,37 @@ test("html upload forces attachment with sandbox CSP", async () => {
   expect(res.headers.get("content-security-policy")).toBe("sandbox");
   expect(res.headers.get("x-content-type-options")).toBe("nosniff");
   await res.arrayBuffer(); // 消费 R2 流，避免 vitest-pool-workers isolated storage 悬挂
+});
+
+test("range end beyond size clamps to remainder", async () => {
+  const u = await seedUser();
+  const id = await upload(u, "a.txt", "hello world");
+  const res = await SELF.fetch(`https://example.com/api/files/${id}/content`, {
+    headers: { ...(await sessionHeaders(u)), range: "bytes=0-999999999" },
+  });
+  expect(res.status).toBe(206);
+  expect(await res.text()).toBe("hello world");
+  expect(res.headers.get("content-range")).toBe("bytes 0-10/11");
+  expect(res.headers.get("content-length")).toBe("11");
+});
+
+test("inverted and zero-suffix ranges return 416", async () => {
+  const u = await seedUser();
+  const id = await upload(u, "a.txt", "hello world");
+  for (const range of ["bytes=5-2", "bytes=-0"]) {
+    const res = await SELF.fetch(`https://example.com/api/files/${id}/content`, {
+      headers: { ...(await sessionHeaders(u)), range },
+    });
+    expect(res.status, range).toBe(416);
+  }
+});
+
+test("multi-range falls back to full 200", async () => {
+  const u = await seedUser();
+  const id = await upload(u, "a.txt", "hello world");
+  const res = await SELF.fetch(`https://example.com/api/files/${id}/content`, {
+    headers: { ...(await sessionHeaders(u)), range: "bytes=0-1,3-4" },
+  });
+  expect(res.status).toBe(200);
+  expect(await res.text()).toBe("hello world");
 });
