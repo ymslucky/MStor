@@ -1,12 +1,16 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useRef, useState } from "react";
+import { ensureDir } from "../api/nodes";
 import { SMALL_FILE_LIMIT, abortUpload, uploadLarge, uploadSmall } from "../api/uploads";
+import type { PendingUpload } from "../lib/dirscan";
 
 export type QueueStatus = "pending" | "uploading" | "done" | "error";
 
 export interface QueueItem {
   key: number;
   name: string;
+  /** 相对上传根路径（嵌套文件夹上传），如 "photos/2024/a.jpg"；平铺上传省略 */
+  path?: string;
   size: number;
   parentId: string;
   file: File;
@@ -32,6 +36,30 @@ export function useUploadQueue() {
     setItems([...itemsRef.current]);
   }, []);
 
+  // 已建目录缓存：key = `${parentId}/${段}`，同目录多文件只 ensure 一次（Promise 复用）
+  const dirCache = useRef(new Map<string, Promise<string>>());
+  // 按 path 逐级 ensure 目录，返回文件最终所属目录 id（顺序 await，父子依赖）
+  const ensureDirs = useCallback(async (parentId: string, path: string): Promise<string> => {
+    const segments = path.split("/").slice(0, -1).filter(Boolean);
+    let parent = parentId;
+    for (const seg of segments) {
+      const key = `${parent}/${seg}`;
+      let p = dirCache.current.get(key);
+      if (!p) {
+        p = ensureDir({ parentId: parent || undefined, name: seg }).then(
+          (n) => n.id,
+          (e) => {
+            dirCache.current.delete(key); // 失败不缓存，重试可重新建
+            throw e;
+          },
+        );
+        dirCache.current.set(key, p);
+      }
+      parent = await p;
+    }
+    return parent;
+  }, []);
+
   const drain = useCallback(async () => {
     if (running.current) return;
     running.current = true;
@@ -48,13 +76,15 @@ export function useUploadQueue() {
       const controller = new AbortController();
       controllers.current.set(next.key, controller);
       try {
+        // 嵌套上传：先逐级 ensure 中间目录，得到最终父目录
+        const parentId = next.path ? await ensureDirs(next.parentId, next.path) : next.parentId;
         if (next.file.size > SMALL_FILE_LIMIT) {
-          await uploadLarge(next.file, next.parentId, (p) => update(next.key, { progress: p }), 1000, {
+          await uploadLarge(next.file, parentId, (p) => update(next.key, { progress: p }), 1000, {
             signal: controller.signal,
             onUploadId: (uploadId) => update(next.key, { uploadId }),
           });
         } else {
-          await uploadSmall(next.file, next.parentId);
+          await uploadSmall(next.file, parentId);
         }
         // 上传期间被取消：保持「已取消」，不标完成
         if (!cancelled.current.has(next.key)) {
@@ -73,17 +103,18 @@ export function useUploadQueue() {
       }
     }
     running.current = false;
-  }, [queryClient, update]);
+  }, [ensureDirs, queryClient, update]);
 
   const add = useCallback(
-    (files: File[], parentId: string) => {
-      itemsRef.current = [
-        ...itemsRef.current,
-        ...files.map((file) => ({
-          key: ++seq.current, name: file.name, size: file.size,
+    (items: (File | PendingUpload)[], parentId: string) => {
+      const normalized = items.map((it) => {
+        const [file, path] = it instanceof File ? [it, undefined] : [it.file, it.path];
+        return {
+          key: ++seq.current, name: file.name, path, size: file.size,
           parentId, file, status: "pending" as QueueStatus, progress: 0,
-        })),
-      ];
+        };
+      });
+      itemsRef.current = [...itemsRef.current, ...normalized];
       setItems([...itemsRef.current]);
       void drain();
     },

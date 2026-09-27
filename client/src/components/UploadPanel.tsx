@@ -21,7 +21,8 @@ export default function UploadPanel({ queue }: { queue: Queue }) {
         {queue.items.map((it) => (
           <li key={it.key} className="text-xs">
             <div className="flex items-center justify-between gap-2">
-              <span className="truncate text-ink" title={it.name}>{it.name}</span>
+              {/* 嵌套上传显示相对路径（含目录），title 兜底悬停全文 */}
+              <span className="truncate text-ink" title={it.path ?? it.name}>{it.path ?? it.name}</span>
               <span className="flex shrink-0 items-center gap-1">
                 <span className="text-ink-3">{formatBytes(it.size)}</span>
                 {/* 「暂停」= 中止该项（续传需后端，备案）：文案用「取消」 */}
