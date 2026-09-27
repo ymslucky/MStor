@@ -3876,6 +3876,13 @@ git add client vite.config.ts package.json package-lock.json; git commit -m "fea
 
 ## 计划自审记录
 
+> **整体终审记录（2026-09-27）**
+>
+> - 终审范围：45b2efc..eb0607c 前端全量 + 与后端集成面；修复提交 d7a9e77。最终 client 46 绿 / server 102 绿 / check 双零 / build 成功。
+> - 集成缝隙：api/ 全部端点与 server 路由一一对应；SMALL_FILE_LIMIT 前后端一致（62914560）；Task 1-4 补遗契约（ShareInfo.id、paths、x-act-as、disabled、children/:dirId）消费端全部正确；queryKey 与 invalidate 范围一致；错误链路（api()→ApiError→toast/组件内）闭合。
+> - 规格 §2 MVP 十项全部有对应实现（详见逐项清单）。verdict：APPROVE。
+> - 建议级已修（d7a9e77）：①SharePage children 用已提交密码 + 失败态渲染；②downloadShared rejection toast；③TrashPage 恢复/彻底删除后失效 ["me"] 刷新配额。遗留吹毛求疵（不强加）：SettingsPage 测试 undefined data 噪音；MoveDialog N+1 递归（限深 8，家庭规模可接受）。
+
 **Spec 覆盖对照**（spec 前端相关条目 → 任务）：
 - §2 文件管理（浏览/上传/下载/删除/重命名/新建文件夹）→ Task 7/8/9/11
 - §2/§7.2 在线预览（图片/视频音频 Range/PDF/文本前 1MB）→ Task 11
