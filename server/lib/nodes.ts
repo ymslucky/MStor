@@ -1,0 +1,105 @@
+import { randomId } from "./crypto";
+import { errors } from "./errors";
+import type { NodeRow } from "../types";
+
+const now = () => Date.now();
+
+export async function ensureRootDir(db: D1Database, ownerId: string): Promise<NodeRow> {
+  const found = await db.prepare("SELECT * FROM nodes WHERE owner_id = ?1 AND parent_id = '' LIMIT 1").bind(ownerId).first<NodeRow>();
+  if (found) return found;
+  const id = randomId();
+  await db.prepare(
+    "INSERT INTO nodes (id, owner_id, parent_id, name, is_dir, r2_key, size, mime, created_at, updated_at, deleted_at) VALUES (?1,?2,'','',1,NULL,NULL,NULL,?3,?3,NULL)"
+  ).bind(id, ownerId, now()).run();
+  return (await db.prepare("SELECT * FROM nodes WHERE id = ?1").bind(id).first<NodeRow>())!;
+}
+
+export async function getNode(db: D1Database, ownerId: string, id: string): Promise<NodeRow | null> {
+  return db.prepare("SELECT * FROM nodes WHERE id = ?1 AND owner_id = ?2").bind(id, ownerId).first<NodeRow>();
+}
+
+export async function childByName(db: D1Database, ownerId: string, parentId: string, name: string): Promise<NodeRow | null> {
+  return db.prepare("SELECT * FROM nodes WHERE owner_id = ?1 AND parent_id = ?2 AND name = ?3").bind(ownerId, parentId, name).first<NodeRow>();
+}
+
+export async function createDir(db: D1Database, ownerId: string, parentId: string, name: string): Promise<NodeRow> {
+  if (await childByName(db, ownerId, parentId, name)) throw errors.conflict();
+  const id = randomId();
+  await db.prepare(
+    "INSERT INTO nodes (id, owner_id, parent_id, name, is_dir, r2_key, size, mime, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,1,NULL,NULL,NULL,?5,?5,NULL)"
+  ).bind(id, ownerId, parentId, name, now()).run();
+  return (await db.prepare("SELECT * FROM nodes WHERE id = ?1").bind(id).first<NodeRow>())!;
+}
+
+export async function listChildren(db: D1Database, ownerId: string, parentId: string): Promise<NodeRow[]> {
+  const { results } = await db.prepare(
+    "SELECT * FROM nodes WHERE owner_id = ?1 AND parent_id = ?2 AND deleted_at IS NULL ORDER BY is_dir DESC, name"
+  ).bind(ownerId, parentId).all<NodeRow>();
+  return results;
+}
+
+export async function breadcrumb(db: D1Database, ownerId: string, dirId: string): Promise<NodeRow[]> {
+  const { results } = await db.prepare(`
+    WITH RECURSIVE up AS (
+      SELECT * FROM nodes WHERE id = ?1 AND owner_id = ?2
+      UNION ALL
+      SELECT n.* FROM nodes n JOIN up u ON n.id = u.parent_id
+    ) SELECT * FROM up WHERE name != ''
+  `).bind(dirId, ownerId).all<NodeRow>();
+  return results.reverse();
+}
+
+export async function uniqueName(db: D1Database, ownerId: string, parentId: string, name: string): Promise<string> {
+  if (!(await childByName(db, ownerId, parentId, name))) return name;
+  const dot = name.lastIndexOf(".");
+  const base = dot > 0 ? name.slice(0, dot) : name;
+  const ext = dot > 0 ? name.slice(dot) : "";
+  for (let i = 2; ; i++) {
+    const candidate = `${base} (${i})${ext}`;
+    if (!(await childByName(db, ownerId, parentId, candidate))) return candidate;
+  }
+}
+
+export async function isDescendant(db: D1Database, ownerId: string, ancestorId: string, nodeId: string): Promise<boolean> {
+  const { results } = await db.prepare(`
+    WITH RECURSIVE sub AS (
+      SELECT id FROM nodes WHERE id = ?1 AND owner_id = ?2
+      UNION ALL
+      SELECT n.id FROM nodes n JOIN sub s ON n.parent_id = s.id
+    ) SELECT id FROM sub WHERE id = ?3
+  `).bind(ancestorId, ownerId, nodeId).all();
+  return results.length > 0;
+}
+
+export async function moveNode(db: D1Database, ownerId: string, id: string, newParentId: string, newName: string): Promise<void> {
+  const node = await getNode(db, ownerId, id);
+  if (!node) throw errors.notFound();
+  const parent = newParentId === "" ? await ensureRootDir(db, ownerId) : await getNode(db, ownerId, newParentId);
+  if (!parent || !parent.is_dir) throw errors.badRequest("目标目录不存在");
+  if (node.is_dir && await isDescendant(db, ownerId, id, newParentId)) throw errors.badRequest("不能移动到自身子目录");
+  if (await childByName(db, ownerId, newParentId, newName)) throw errors.conflict();
+  await db.prepare("UPDATE nodes SET parent_id = ?1, name = ?2, updated_at = ?3 WHERE id = ?4 AND owner_id = ?5")
+    .bind(newParentId, newName, now(), id, ownerId).run();
+}
+
+export async function subtreeIds(db: D1Database, ownerId: string, rootId: string): Promise<string[]> {
+  const { results } = await db.prepare(`
+    WITH RECURSIVE sub AS (
+      SELECT id FROM nodes WHERE id = ?1 AND owner_id = ?2
+      UNION ALL
+      SELECT n.id FROM nodes n JOIN sub s ON n.parent_id = s.id
+    ) SELECT id FROM sub
+  `).bind(rootId, ownerId).all<{ id: string }>();
+  return results.map((r) => r.id);
+}
+
+export async function usedBytes(db: D1Database, ownerId: string): Promise<number> {
+  const row = await db.prepare("SELECT COALESCE(SUM(size),0) AS s FROM nodes WHERE owner_id = ?1 AND deleted_at IS NULL").bind(ownerId).first<{ s: number }>();
+  return row!.s;
+}
+
+export async function assertQuota(db: D1Database, ownerId: string, extraBytes: number, defaultQuota = 10_737_418_240): Promise<void> {
+  const user = await db.prepare("SELECT quota_bytes FROM users WHERE id = ?1").bind(ownerId).first<{ quota_bytes: number }>();
+  const used = await usedBytes(db, ownerId);
+  if (used + extraBytes > (user?.quota_bytes ?? defaultQuota)) throw errors.quotaExceeded();
+}
