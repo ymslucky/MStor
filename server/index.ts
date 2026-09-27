@@ -8,6 +8,7 @@ import { files } from "./routes/files";
 import { dirs } from "./routes/dirs";
 import { uploads } from "./routes/uploads";
 import { purgeExpiredTrash, trash } from "./routes/trash";
+import { search } from "./routes/search";
 
 const app = new Hono<AppEnv>();
 
@@ -24,6 +25,7 @@ app.route("/api/files", files);
 app.route("/api/dirs", dirs);
 app.route("/api/uploads", uploads);
 app.route("/api/trash", trash);
+app.route("/api/search", search);
 
 export default {
   fetch: app.fetch,
