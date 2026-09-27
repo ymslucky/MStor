@@ -18,7 +18,7 @@ test("unknown errors become 500 envelope", async () => {
   app.get("/boom", () => { throw new Error("x"); });
   const res = await app.request("/boom");
   expect(res.status).toBe(500);
-  expect((await res.json()).error.code).toBe("INTERNAL");
+  expect(((await res.json()) as { error: { code: string } }).error.code).toBe("INTERNAL");
 });
 
 test("health still ok via SELF (error handler wired)", async () => {
