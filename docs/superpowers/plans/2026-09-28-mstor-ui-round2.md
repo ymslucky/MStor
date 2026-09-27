@@ -36,3 +36,11 @@
 
 ## 约束（同前轮）
 aria-label 与文案语义保留；API 零改动；每批次独立 commit；验收 = test:client 全绿 + check 零错误 + build 成功。
+
+## 执行记录（2026-09-28）
+三批次全部完成并已部署（版本 9c2ffed4，推送至 d93db3b）：
+- Batch 1 `eedf4f0`：ConfirmDialog 组件 + 全宽布局；退出/删除/彻底删除/撤销四处 window.confirm 全部替换
+- Batch 2 `cc57351`：批量选择（checkbox/全选/批量操作条/批量删除/移动/下载 300ms 间隔）+ 列表⇆网格切换（localStorage 持久化，网格图片缩略图懒加载）
+- Batch 3 `d93db3b`：拖拽上传（dragenter 计数法覆盖层 + 目录条目忽略提示）、ContextMenu 右键菜单（指针定位越界翻转/Esc/点外关闭）、面包屑 › 分隔 + >4 级「…」折叠、空目录 CTA
+- 偏离备案：批量操作条与弹窗互斥显示防同名歧义；TrashPage 非选择模式 DOM 不变；IconButton 增可选 active 态；userEvent v14 右键用 pointer keys 模拟
+- 回归：client 76/76、server 102/102、check 双零、build 成功
