@@ -1,4 +1,4 @@
-import { SELF } from "cloudflare:test";
+import { env, SELF } from "cloudflare:test";
 import { expect, test } from "vitest";
 import { seedUser, davHeaders, sessionHeaders } from "./helpers";
 
@@ -108,4 +108,99 @@ test("invalid node name and malformed percent-encoding are 400", async () => {
   expect((await SELF.fetch("https://example.com/dav/bad%07name.txt", { method: "PUT", headers: h, body: "x" })).status).toBe(400);
   // 畸形百分号序列：URIError 应映射 400 而非 500
   expect((await SELF.fetch("https://example.com/dav/%zz.txt", { method: "PUT", headers: h, body: "x" })).status).toBe(400);
+});
+
+// --- Task 16: WebDAV B（MKCOL / MOVE / COPY / DELETE / LOCK）---
+
+async function mkcol(u: Awaited<ReturnType<typeof seedUser>>, path: string) {
+  return SELF.fetch(`https://example.com/dav${path}`, { method: "MKCOL", headers: await davHeaders(u) });
+}
+
+test("MKCOL creates directory visible via API", async () => {
+  const u = await seedUser();
+  expect((await mkcol(u, "/photos")).status).toBe(201);
+  const list = (await (await SELF.fetch("https://example.com/api/files", { headers: await sessionHeaders(u) })).json()) as { nodes: { name: string }[] };
+  expect(list.nodes.map((n) => n.name)).toContain("photos");
+  expect((await mkcol(u, "/photos")).status).toBe(405);
+});
+
+test("MOVE renames file", async () => {
+  const u = await seedUser();
+  await upload(u, "old.txt", "x");
+  const res = await SELF.fetch("https://example.com/dav/old.txt", {
+    method: "MOVE",
+    headers: { ...(await davHeaders(u)), destination: "https://example.com/dav/new.txt" },
+  });
+  expect(res.status).toBe(201);
+  const list = (await (await SELF.fetch("https://example.com/api/files", { headers: await sessionHeaders(u) })).json()) as { nodes: { name: string }[] };
+  expect(list.nodes[0].name).toBe("new.txt");
+});
+
+test("COPY duplicates file (independent R2 object)", async () => {
+  const u = await seedUser();
+  await upload(u, "src.txt", "copy-me");
+  const res = await SELF.fetch("https://example.com/dav/src.txt", {
+    method: "COPY",
+    headers: { ...(await davHeaders(u)), destination: "https://example.com/dav/dst.txt" },
+  });
+  expect(res.status).toBe(201);
+  const list = (await (await SELF.fetch("https://example.com/api/files", { headers: await sessionHeaders(u) })).json()) as { nodes: { name: string; id: string }[] };
+  expect(list.nodes.map((n) => n.name).sort()).toEqual(["dst.txt", "src.txt"]);
+  expect(list.nodes[0].id).not.toBe(list.nodes[1].id);
+});
+
+test("DELETE via dav permanently removes", async () => {
+  const u = await seedUser();
+  const fid = await upload(u, "gone.txt", "bye");
+  expect((await SELF.fetch("https://example.com/dav/gone.txt", {
+    method: "DELETE", headers: await davHeaders(u),
+  })).status).toBe(204);
+  expect(await env.DB.prepare("SELECT * FROM nodes WHERE id = ?1").bind(fid).first()).toBeNull();
+});
+
+test("LOCK returns token", async () => {
+  const u = await seedUser();
+  await upload(u, "l.txt", "x");
+  const res = await SELF.fetch("https://example.com/dav/l.txt", {
+    method: "LOCK", headers: await davHeaders(u),
+  });
+  expect(res.status).toBe(200);
+  expect(res.headers.get("lock-token")).toContain("opaquelocktoken:");
+  expect(await res.text()).toContain("lockdiscovery");
+});
+
+test("root sentinel cannot be DELETEd, MOVEd or COPYd", async () => {
+  const u = await seedUser();
+  const h = await davHeaders(u);
+  const dest = { destination: "https://example.com/dav/t" };
+  expect((await SELF.fetch("https://example.com/dav/", { method: "DELETE", headers: h })).status).toBe(404);
+  expect((await SELF.fetch("https://example.com/dav/", { method: "MOVE", headers: { ...h, ...dest } })).status).toBe(404);
+  expect((await SELF.fetch("https://example.com/dav/", { method: "COPY", headers: { ...h, ...dest } })).status).toBe(404);
+});
+
+test("MKCOL nests under existing dir; file as parent is 409", async () => {
+  const u = await seedUser();
+  await upload(u, "f.txt", "x");
+  expect((await mkcol(u, "/dir")).status).toBe(201);
+  expect((await mkcol(u, "/dir/sub")).status).toBe(201);
+  expect((await mkcol(u, "/f.txt/x")).status).toBe(409);
+});
+
+test("MOVE without destination is 400; MOVE onto itself is 403", async () => {
+  const u = await seedUser();
+  await upload(u, "a.txt", "x");
+  const h = await davHeaders(u);
+  expect((await SELF.fetch("https://example.com/dav/a.txt", { method: "MOVE", headers: h })).status).toBe(400);
+  expect((await SELF.fetch("https://example.com/dav/a.txt", {
+    method: "MOVE", headers: { ...h, destination: "https://example.com/dav/a.txt" },
+  })).status).toBe(403);
+});
+
+test("DELETE under a file path is 404 and keeps the file", async () => {
+  const u = await seedUser();
+  const fid = await upload(u, "f.txt", "x");
+  expect((await SELF.fetch("https://example.com/dav/f.txt/child", {
+    method: "DELETE", headers: await davHeaders(u),
+  })).status).toBe(404);
+  expect(await env.DB.prepare("SELECT * FROM nodes WHERE id = ?1").bind(fid).first()).not.toBeNull();
 });
