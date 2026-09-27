@@ -1647,6 +1647,12 @@ npm run test:client; npm run test:server; npm run check
 git add client; git commit -m "feat: file browser with breadcrumb and folder creation"
 ```
 
+> **审查记录（2026-09-27）**
+>
+> - 实现：12251aa，client 8 绿 / server 99 绿 / check 双零。
+> - 偏离判定（均成立，属计划适配缺陷）：JSX 类型导入（React 19 无 UMD 全局）；vi.mock 用 importOriginal 保留 contentUrl（全量 mock 会致 FileList 渲染崩）；断言带 emoji 前缀（testing-library 只匹配直接文本节点）。
+> - 规格审查 PASS；质量审查 APPROVE：URL 编码、跨目录 invalidate、目录行无下载链接均核实。建议级：列表请求失败时页面静默空白（计划自身缺陷，Task 17 收尾统一补错误态）；Breadcrumb 链接未编码 dir id（UUID 无碍）。
+
 ---
 
 ### Task 8: 重命名、移动、删除（软删除）
