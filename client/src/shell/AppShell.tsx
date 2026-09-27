@@ -5,6 +5,7 @@ import { getMe } from "../api/me";
 import type { Me } from "../api/types";
 import { formatBytes } from "../lib/format";
 import SearchBox from "../components/SearchBox";
+import OfflineBar from "../components/OfflineBar";
 import { Toaster, toast } from "../components/Toaster";
 
 export function makeQueryClient(): QueryClient {
@@ -115,6 +116,7 @@ export default function AppShell() {
       <main className="pb-nav mx-auto max-w-5xl p-4">
         <Outlet context={me} />
       </main>
+      <OfflineBar />
       <Toaster />
     </div>
   );
