@@ -1,7 +1,7 @@
 import type { JSX } from "react";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { expect, test, vi } from "vitest";
+import { expect, test, vi, beforeEach } from "vitest";
 import type { Node } from "../api/types";
 import { renderWithProviders } from "../test/utils";
 import TrashPage from "./TrashPage";
@@ -10,9 +10,16 @@ vi.mock("../api/trash", () => ({
   listTrash: vi.fn(),
   restoreNode: vi.fn(),
   purgeNode: vi.fn(),
+  batchRestore: vi.fn(),
+  batchPurge: vi.fn(),
 }));
 
-import { listTrash, purgeNode, restoreNode } from "../api/trash";
+import { batchPurge, batchRestore, listTrash, purgeNode, restoreNode } from "../api/trash";
+
+// 模块级 mock 跨用例累积调用计数，每例清零
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 function node(over: Partial<Node> = {}): Node {
   return {
@@ -77,4 +84,53 @@ test("restore and purge also invalidate me for quota refresh", async () => {
   await user.click(screen.getByRole("button", { name: "彻底删除" }));
   await user.click(within(await screen.findByTestId("dialog-panel")).getByRole("button", { name: "彻底删除" }));
   await waitFor(() => expect(meCalls()).toHaveLength(2)); // 彻底删除释放配额，需刷新
+});
+
+// —— 批量管理 ——
+
+test("selecting items shows batch bar; batch restore calls batchRestore with ids", async () => {
+  vi.mocked(listTrash).mockResolvedValue({ nodes: [node(), { ...node(), id: "t2", name: "b.txt" }] });
+  vi.mocked(batchRestore).mockResolvedValue({ ok: true, restored: 2, failed: [] });
+  const { user } = renderWith(<TrashPage />);
+  await screen.findByText(/旧文件\.txt/);
+  await user.click(screen.getByRole("checkbox", { name: "选择 旧文件.txt" }));
+  expect(await screen.findByText("已选 1 项")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "还原" }));
+  await waitFor(() => expect(batchRestore).toHaveBeenCalledWith(["t1"]));
+});
+
+test("batch purge requires confirm dialog", async () => {
+  vi.mocked(listTrash).mockResolvedValue({ nodes: [node()] });
+  vi.mocked(batchPurge).mockResolvedValue({ ok: true, purged: 1, failed: [] });
+  const { user } = renderWith(<TrashPage />);
+  await screen.findByText(/旧文件\.txt/);
+  await user.click(screen.getByRole("checkbox", { name: "选择 旧文件.txt" }));
+  await user.click(screen.getByRole("button", { name: "批量彻底删除" }));
+  expect(await screen.findByText(/彻底删除选中的 1 项？此操作不可恢复。/)).toBeInTheDocument();
+  expect(batchPurge).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button", { name: "取消" }));
+  expect(batchPurge).not.toHaveBeenCalled();
+  // 取消仅关弹窗，选择仍在：再开并确认（弹窗内按钮与批量条按钮同名，限定面板内点击）
+  await user.click(screen.getByRole("button", { name: "批量彻底删除" }));
+  await user.click(within(await screen.findByTestId("dialog-panel")).getByRole("button", { name: "彻底删除" }));
+  await waitFor(() => expect(batchPurge).toHaveBeenCalledWith(["t1"]));
+});
+
+test("empty trash button purges all listed ids after confirm", async () => {
+  vi.mocked(listTrash).mockResolvedValue({ nodes: [node(), { ...node(), id: "t2", name: "b.txt" }] });
+  vi.mocked(batchPurge).mockResolvedValue({ ok: true, purged: 2, failed: [] });
+  const { user } = renderWith(<TrashPage />);
+  await screen.findByText(/旧文件\.txt/);
+  await user.click(screen.getByRole("button", { name: "清空回收站" }));
+  expect(await screen.findByText(/彻底删除回收站中的全部内容？此操作不可恢复。/)).toBeInTheDocument();
+  expect(batchPurge).not.toHaveBeenCalled();
+  await user.click(within(await screen.findByTestId("dialog-panel")).getByRole("button", { name: "清空" }));
+  await waitFor(() => expect(batchPurge).toHaveBeenCalledWith(["t1", "t2"]));
+});
+
+test("empty trash hidden when trash is empty", async () => {
+  vi.mocked(listTrash).mockResolvedValue({ nodes: [] });
+  renderWith(<TrashPage />);
+  expect(await screen.findByText("回收站为空")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "清空回收站" })).not.toBeInTheDocument();
 });
