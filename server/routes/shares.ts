@@ -68,6 +68,7 @@ async function loadShare(c: Context<AppEnv>, token: string): Promise<{ share: Sh
 publicShares.get("/:token", async (c) => {
   const { share, node } = await loadShare(c, c.req.param("token"));
   const base = {
+    id: node.id,
     name: node.name,
     isDir: !!node.is_dir,
     size: node.size,
@@ -95,4 +96,19 @@ publicShares.get("/:token/raw/:fileId", async (c) => {
   const res = await serveObject(c, target);
   await c.env.DB.prepare("UPDATE shares SET downloads = downloads + 1 WHERE id = ?1").bind(share.id).run();
   return res;
+});
+
+// 文件夹分享的子树浏览：dirId 必须在分享根子树内（含根本身）且未删除
+publicShares.get("/:token/children/:dirId", async (c) => {
+  const { node } = await loadShare(c, c.req.param("token"));
+  if (!node.is_dir) throw errors.notFound();
+  const dirId = c.req.param("dirId");
+  if (!(await isDescendant(c.env.DB, node.owner_id, node.id, dirId))) throw errors.notFound();
+  const dir = await getNode(c.env.DB, node.owner_id, dirId);
+  if (!dir || !dir.is_dir || dir.deleted_at) throw errors.notFound();
+  const children = await listChildren(c.env.DB, node.owner_id, dirId);
+  return c.json({
+    name: dir.name,
+    children: children.map((x) => ({ id: x.id, name: x.name, isDir: !!x.is_dir, size: x.size, mime: x.mime })),
+  });
 });

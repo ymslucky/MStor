@@ -107,6 +107,31 @@ test("soft-deleted descendant is not downloadable; R2 miss does not bump counter
   expect(row!.downloads).toBe(0);
 });
 
+test("public share children browses subtree", async () => {
+  const user = await seedUser();
+  const dir = await seedNode({ owner_id: user.id, name: "share-root", is_dir: 1 });
+  const sub = await seedNode({ owner_id: user.id, parent_id: dir.id, name: "sub", is_dir: 1 });
+  const file = await seedNode({ owner_id: user.id, parent_id: sub.id, name: "a.txt", size: 3 });
+  const created = await SELF.fetch("https://example.com/api/shares", {
+    method: "POST",
+    headers: { ...(await sessionHeaders(user)), ...json },
+    body: JSON.stringify({ nodeId: dir.id }),
+  });
+  const { token } = (await created.json()) as { token: string };
+  const res = await SELF.fetch(`https://example.com/api/s/${token}/children/${sub.id}`);
+  expect(res.status).toBe(200);
+  const data = (await res.json()) as { name: string; children: { id: string; name: string }[] };
+  expect(data.name).toBe("sub");
+  expect(data.children.map((x) => x.id)).toContain(file.id);
+  // 非子树目录 → 404
+  const outsider = await seedNode({ owner_id: user.id, name: "outside", is_dir: 1 });
+  const bad = await SELF.fetch(`https://example.com/api/s/${token}/children/${outsider.id}`);
+  expect(bad.status).toBe(404);
+  // 分享根自身可作为入口
+  const rootSelf = await SELF.fetch(`https://example.com/api/s/${token}/children/${dir.id}`);
+  expect(rootSelf.status).toBe(200);
+});
+
 test("invalid expiresInDays is rejected", async () => {
   const u = await seedUser();
   const fid = await upload(u, "v.txt", "x");
