@@ -2,6 +2,7 @@ import { SELF } from "cloudflare:test";
 import { expect, test } from "vitest";
 import { Hono } from "hono";
 import { errors, errorHandler } from "../server/lib/errors";
+import { seedUser, sessionHeaders } from "./helpers";
 
 test("errorHandler formats HttpError", async () => {
   const app = new Hono();
@@ -27,7 +28,9 @@ test("health still ok via SELF (error handler wired)", async () => {
 });
 
 test("unmatched route returns 404 envelope via SELF", async () => {
-  const res = await SELF.fetch("https://example.com/api/nope");
+  // /api/* 受 session 中间件保护且为 run_worker_first，404 envelope 需带合法 session 探测
+  const u = await seedUser();
+  const res = await SELF.fetch("https://example.com/api/nope", { headers: await sessionHeaders(u) });
   expect(res.status).toBe(404);
   expect(await res.json()).toEqual({ error: { code: "NOT_FOUND", message: "资源不存在" } });
 });
