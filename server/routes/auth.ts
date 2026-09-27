@@ -43,6 +43,40 @@ auth.get("/login", async (c) => {
   return c.redirect(url.toString());
 });
 
+// DPoP（RFC 9449）：MSAuth 对 token 端点强制要求 ES256 证明。每次回调生成临时密钥对，
+// 证明绑定 htm/htu/iat/jti；若服务端下发 use_dpop_nonce 挑战，用同一密钥带 nonce 重试。
+function b64UrlJson(obj: unknown): string {
+  const json = new TextEncoder().encode(JSON.stringify(obj));
+  let s = "";
+  for (const c of json) s += String.fromCharCode(c);
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function b64UrlRaw(d: Uint8Array): string {
+  let s = "";
+  for (const c of d) s += String.fromCharCode(c);
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+async function createDpopKeyPair(): Promise<CryptoKeyPair> {
+  return crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign"]);
+}
+
+async function dpopProof(keyPair: CryptoKeyPair, htu: string, nonce?: string): Promise<string> {
+  const jwk = await crypto.subtle.exportKey("jwk", keyPair.publicKey);
+  const header = { typ: "dpop+jwt", alg: "ES256", jwk: { kty: jwk.kty, crv: jwk.crv, x: jwk.x, y: jwk.y } };
+  const payload = {
+    jti: randomToken(16),
+    htm: "POST",
+    htu,
+    iat: Math.floor(Date.now() / 1000),
+    ...(nonce ? { nonce } : {}),
+  };
+  const input = `${b64UrlJson(header)}.${b64UrlJson(payload)}`;
+  const sig = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, keyPair.privateKey, new TextEncoder().encode(input));
+  return `${input}.${b64UrlRaw(new Uint8Array(sig))}`;
+}
+
 auth.get("/callback", async (c) => {
   const raw = getCookie(c, "mstor_oidc");
   if (!raw) throw errors.unauthorized();
@@ -55,20 +89,29 @@ auth.get("/callback", async (c) => {
   }
   if (c.req.query("state") !== saved.state) throw errors.unauthorized();
   const cfg = await discover(c.env);
-  const res = await fetch(cfg.token_endpoint, {
-    method: "POST",
-    headers: {
-      // MSAuth 客户端注册为 client_secret_basic：凭据必须走 HTTP Basic 头（RFC 6749 §2.3.1，值需先 form-encode）
-      authorization: `Basic ${btoa(`${encodeURIComponent(c.env.OIDC_CLIENT_ID)}:${encodeURIComponent(c.env.OIDC_CLIENT_SECRET)}`)}`,
-      "content-type": "application/x-www-form-urlencoded",
-    },
-    body: new URLSearchParams({
-      grant_type: "authorization_code",
-      code: c.req.query("code") ?? "",
-      redirect_uri: `${c.env.PUBLIC_URL}/auth/callback`,
-      code_verifier: saved.verifier,
-    }),
-  });
+  const postToken = (proof: string) =>
+    fetch(cfg.token_endpoint, {
+      method: "POST",
+      headers: {
+        // MSAuth 客户端注册为 client_secret_basic：凭据必须走 HTTP Basic 头（RFC 6749 §2.3.1，值需先 form-encode）
+        authorization: `Basic ${btoa(`${encodeURIComponent(c.env.OIDC_CLIENT_ID)}:${encodeURIComponent(c.env.OIDC_CLIENT_SECRET)}`)}`,
+        "content-type": "application/x-www-form-urlencoded",
+        dpop: proof,
+      },
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code: c.req.query("code") ?? "",
+        redirect_uri: `${c.env.PUBLIC_URL}/auth/callback`,
+        code_verifier: saved.verifier,
+      }),
+    });
+  const keyPair = await createDpopKeyPair();
+  let res = await postToken(await dpopProof(keyPair, cfg.token_endpoint));
+  // RFC 9449：首次请求会被 use_dpop_nonce 挑战，DPoP-Nonce 响应头带回值，需同密钥重签重放
+  const nonce = res.headers.get("dpop-nonce");
+  if (res.status === 400 && nonce) {
+    res = await postToken(await dpopProof(keyPair, cfg.token_endpoint, nonce));
+  }
   if (!res.ok) {
     // 诊断：记录 IdP 的拒绝原因（响应体不含本方密钥），便于区分 invalid_grant/invalid_client/DPoP 等
     console.error("token exchange failed", res.status, await res.text());
