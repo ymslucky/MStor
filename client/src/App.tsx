@@ -1,12 +1,20 @@
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, useOutletContext } from "react-router-dom";
 import { getMe } from "./api/me";
+import type { Me } from "./api/types";
 import AppShell, { makeQueryClient } from "./shell/AppShell";
 import Browser from "./pages/Browser";
+import SettingsPage from "./pages/SettingsPage";
 import SharesPage from "./pages/SharesPage";
 import TrashPage from "./pages/TrashPage";
 
 const queryClient = makeQueryClient();
+
+// AppShell 的 <Outlet context={me} /> 提供当前用户
+function SettingsRoute() {
+  const me = useOutletContext<Me>();
+  return <SettingsPage me={me} />;
+}
 
 // /api/me 401 时 api() 已跳转登录页；这里只负责加载态与 layout 挂载
 function RequireAuth() {
@@ -24,6 +32,7 @@ export default function App() {
           <Route path="/" element={<Browser />} />
           <Route path="/shares" element={<SharesPage />} />
           <Route path="/trash" element={<TrashPage />} />
+          <Route path="/settings" element={<SettingsRoute />} />
         </Route>
       </Routes>
     </QueryClientProvider>
