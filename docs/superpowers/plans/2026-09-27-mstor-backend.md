@@ -2201,6 +2201,13 @@ git add server/routes/trash.ts server/routes/files.ts server/index.ts test/trash
 git commit -m "feat: trash (soft delete/restore/purge) with daily cron cleanup"
 ```
 
+> **审查记录（2026-09-27）**
+>
+> - 实现 `811e5e5` + 审查修复 `73a69f2`；`npm test` 62/62 绿（trash 5 用例）、`npx tsc --noEmit` 零错误。spec review：SATISFIED；quality review：APPROVE。
+> - 实现期修正 6 处计划 bug：①restore 的 IN 占位符从 `?${i+3}` 改 `?${i+2}`（配 `bind(user.id,...)` 起始下标错位）②restore 的 uniqueName 须传 excludeId 排除自身（节点软删除态仍在表内，否则恢复后改名 "f (2).txt"）③softDelete/restore 的 IN 子句分片（90/99）④permanentDeleteNode 校验 `deleted_at` 非空（活跃节点 404；purge 选中行均为已删态，不受影响）⑤restore 的清标记+改名+移父合并为一次 `db.batch` ⑥根判定须用 `parent_id==='' AND name===''` 双条件（顶层目录 parent_id 同为 `''`）。另修正计划代码里 `ensureRootDir(env,…)` 签名为 `env.DB`。
+> - 审查修复：softDelete 多分片 UPDATE 收进一次 `db.batch` 保证原子；restore 的 batch 撞 UNIQUE 映射 409（与 createDir 惯例一致）；purge 单节点失败改 `console.warn` 可观测（子行随父删除的 404 静默属预期）；补「恢复改名」测试（原父目录在回收站 → 落根目录与活跃同名兄弟冲突 → 改 "f (2).txt"）。
+> - 已知取舍：`uniqueName`/`childByName` 不过滤回收站行，故同名文件被删后重新上传会得到 "f (2).txt"（schema 级 `UNIQUE(owner_id,parent_id,name)` 连回收站行一起约束，同目录无法同时存在活跃与已删同名行）；restore 的 uniqueName 先查后写存在并发 TOCTOU，由 UNIQUE 兜底映射 409。
+
 ---
 
 ### Task 13: FTS5 搜索
