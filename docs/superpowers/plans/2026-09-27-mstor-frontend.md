@@ -375,6 +375,12 @@ $env:WRANGLER_LOG_PATH="c:\Users\YMS\Documents\Code\cf-storage\.wrangler\logs"; 
 git add server test; git commit -m "feat: admin act-as via x-act-as header"
 ```
 
+> **审查记录（2026-09-27）**
+>
+> - 实现：daca66d，97/97 测试绿 + tsc 零错误。
+> - 规格审查 PASS：diff 与计划逐字一致；测试数多于计划预期系 Task 1 审查修复新增，非缺陷。
+> - 质量审查 APPROVE：无严重/建议项。关键行为确认——act-as 后 requireAdmin 对被切换的 admin 拒绝 admin 路由（权限降向，符合预期）；`/dav` 走 davAuth 不读 `x-act-as`，无泄漏；不存在→404、停用→403 仅 admin 可见，无额外信息泄漏。吹毛求疵两条（忽略断言未同时断言空列表、两次查询可合并）均按计划保持现状。
+
 ---
 
 ### Task 3: 后端补遗——搜索结果带面包屑路径
