@@ -1299,6 +1299,12 @@ npm run test:client; npm run test:server; npm run check
 git add client; git commit -m "feat: api client, app shell, auth flow"
 ```
 
+> **审查记录（2026-09-27）**
+>
+> - 实现：07c43ac，client 6 绿 / server 99 绿 / check 双零。
+> - **计划缺口修正**：main.tsx 补 BrowserRouter（计划 main.tsx 无 Router 但 App 用 Routes）；ApiInit 补回 body 字段（计划 Omit 又引用 init.body 自相矛盾）；setup.ts 补 localStorage polyfill（Node 实验性 webstorage 返回 undefined，jsdom 未覆盖）。
+> - 规格审查 PASS；质量审查 APPROVE：认证/act-as/错误解析单点收敛于 api()；`/api/s/` 白名单经实证精确（/api/shares、/api/search 不受影响）；onError 对 401 静默与 api() 重定向互补。吹毛求疵：分享页 SHARE_PASSWORD 错误由组件内呈现（Task 16 设计如此）。
+
 ---
 
 ### Task 7: 文件列表页（面包屑、列表、新建文件夹、URL dir 参数）
