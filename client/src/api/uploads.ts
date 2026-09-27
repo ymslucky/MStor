@@ -22,6 +22,7 @@ export async function uploadLarge(
   file: File,
   parentId: string,
   onProgress?: (ratio: number) => void,
+  baseDelayMs = 1000,
 ): Promise<{ nodeId: string; name: string }> {
   const { uploadId, partSize } = await api<InitUpload>("/api/uploads", {
     method: "POST",
@@ -34,7 +35,7 @@ export async function uploadLarge(
   const worker = async () => {
     while (next <= totalParts) {
       const partNumber = next++;
-      parts.push({ partNumber, etag: await putPartWithRetry(file, uploadId, partNumber, partSize) });
+      parts.push({ partNumber, etag: await putPartWithRetry(file, uploadId, partNumber, partSize, baseDelayMs) });
       onProgress?.(++done / totalParts);
     }
   };
@@ -46,7 +47,13 @@ export async function uploadLarge(
 }
 
 // spec §7.1：分片失败自动重试 3 次（指数退避），超限抛错由队列标记失败
-async function putPartWithRetry(file: File, uploadId: string, partNumber: number, partSize: number): Promise<string> {
+async function putPartWithRetry(
+  file: File,
+  uploadId: string,
+  partNumber: number,
+  partSize: number,
+  baseDelayMs = 1000,
+): Promise<string> {
   for (let attempt = 0; ; attempt++) {
     try {
       const { urls } = await api<{ urls: string[] }>(`/api/uploads/${uploadId}/part-urls`, {
@@ -60,7 +67,7 @@ async function putPartWithRetry(file: File, uploadId: string, partNumber: number
       return res.headers.get("etag") ?? (await res.text());
     } catch (e) {
       if (attempt >= 2) throw e;
-      await new Promise((r) => setTimeout(r, 1000 * 2 ** attempt));
+      await new Promise((r) => setTimeout(r, baseDelayMs * 2 ** attempt));
     }
   }
 }
