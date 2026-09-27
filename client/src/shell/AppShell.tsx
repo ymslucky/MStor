@@ -61,6 +61,8 @@ export default function AppShell() {
   const { pathname } = useLocation();
   if (!me) return <div className="p-8 text-center text-ink-dim">加载中…</div>;
   const actAs = typeof localStorage !== "undefined" ? localStorage.getItem("mstor_act_as") : null;
+  // 侧栏档案行始终显示登录账号（self）：act-as 查看他人空间时当前空间用户会变化
+  const account = me.self ?? me;
 
   // 退出按钮共用同一确认弹窗：移动顶栏与桌面档案行各一份
   const logoutButton = (className = "") => (
@@ -116,15 +118,15 @@ export default function AppShell() {
             <div className={`flex items-center gap-2.5 ${collapsed ? "flex-col" : "px-1"}`}>
               <span
                 aria-hidden
-                title={collapsed ? me.name : undefined}
+                title={collapsed ? account.name : undefined}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-soft text-sm font-semibold text-primary-text"
               >
-                {me.name.charAt(0)}
+                {account.name.charAt(0)}
               </span>
               {!collapsed && (
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium text-ink">{me.name}</div>
-                  <Badge tone="accent">{me.role === "admin" ? "管理员" : "成员"}</Badge>
+                  <div className="truncate text-sm font-medium text-ink">{account.name}</div>
+                  <Badge tone="accent">{account.role === "admin" ? "管理员" : "成员"}</Badge>
                 </div>
               )}
               {logoutButton()}

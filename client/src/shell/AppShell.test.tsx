@@ -6,7 +6,7 @@ import { beforeAll, beforeEach, expect, test, vi } from "vitest";
 import AppShell from "./AppShell";
 
 vi.mock("../api/me", () => ({
-  getMe: async () => ({ id: "u1", name: "Alice", role: "admin", quotaBytes: 100, usedBytes: 40 }),
+  getMe: vi.fn(async () => ({ id: "u1", name: "Alice", role: "admin", quotaBytes: 100, usedBytes: 40, self: { id: "u1", name: "Alice", role: "admin" } })),
 }));
 
 // clearSessionFlag 由退出确认触发；保留 ApiError/handleSessionExpired 真实现供 QueryCache 使用
@@ -16,6 +16,7 @@ vi.mock("../api/client", async (importOriginal) => ({
 }));
 
 import { clearSessionFlag } from "../api/client";
+import { getMe } from "../api/me";
 
 beforeAll(() => {
   // 退出确认后 window.location.href 跳转，jsdom 无真实导航，替换为可断言对象
@@ -87,4 +88,20 @@ test("logout confirm clears session flag and redirects", async () => {
   await user.click(within(screen.getByTestId("dialog-panel")).getByRole("button", { name: "退出" }));
   expect(clearSessionFlag).toHaveBeenCalledTimes(1);
   expect(window.location.href).toBe("/auth/logout");
+});
+
+test("sidebar shows login account (self) while acting as another user", async () => {
+  localStorage.setItem("mstor_act_as", "u2");
+  // admin 进入 Bob 的空间：/api/me 返回当前空间用户 Bob + 登录账号 self=Alice
+  vi.mocked(getMe).mockResolvedValueOnce({
+    id: "u2", name: "Bob", role: "member", quotaBytes: 100, usedBytes: 40,
+    self: { id: "u1", name: "Alice", role: "admin" },
+  });
+  renderShell();
+  // 档案行显示登录账号 Alice，而非当前空间用户 Bob
+  expect(await screen.findByText("Alice")).toBeInTheDocument();
+  expect(screen.queryByText("Bob")).not.toBeInTheDocument();
+  // act-as 横幅显示的是目标空间用户
+  expect(screen.getByText(/查看「Bob」的空间/)).toBeInTheDocument();
+  localStorage.removeItem("mstor_act_as");
 });

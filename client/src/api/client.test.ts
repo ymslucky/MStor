@@ -70,3 +70,13 @@ test("sends x-act-as header when set", async () => {
   expect(headers.get("x-act-as")).toBe("u-123");
   localStorage.removeItem("mstor_act_as");
 });
+
+test("skipActAs omits x-act-as header (global admin ops)", async () => {
+  localStorage.setItem("mstor_act_as", "u-123");
+  const fetchMock = vi.fn(async (_path: string, _init?: RequestInit) => new Response("{}", { status: 200 }));
+  vi.stubGlobal("fetch", fetchMock);
+  await api("/api/me/admin/users", { skipActAs: true });
+  const headers = fetchMock.mock.calls[0]![1]!.headers as Headers;
+  expect(headers.get("x-act-as")).toBeNull();
+  localStorage.removeItem("mstor_act_as");
+});

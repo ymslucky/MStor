@@ -148,11 +148,13 @@ function AdminRow({ u, selfId }: { u: AdminUser; selfId: string }) {
 }
 
 export default function SettingsPage({ me }: { me: Me }) {
-  const users = useQuery({ queryKey: ["admin-users"], queryFn: listAdminUsers, enabled: me.role === "admin" });
+  // 管理面板看登录账号角色（self）：act-as 查看他人空间时 admin 身份不变
+  const account = me.self ?? me;
+  const users = useQuery({ queryKey: ["admin-users"], queryFn: listAdminUsers, enabled: account.role === "admin" });
   return (
     <div className="space-y-4">
       <WebdavSection />
-      {me.role === "admin" && (
+      {account.role === "admin" && (
         <GlassCard className="p-4">
           <h2 className="mb-3 flex items-center gap-1.5 font-semibold text-ink">
             <Users size={16} aria-hidden className="text-primary-text" />
@@ -170,7 +172,7 @@ export default function SettingsPage({ me }: { me: Me }) {
               </tr>
             </thead>
             <tbody>
-              {users.data?.users.map((u) => <AdminRow key={u.id} u={u} selfId={me.id} />)}
+              {users.data?.users.map((u) => <AdminRow key={u.id} u={u} selfId={account.id} />)}
             </tbody>
           </table>
         </GlassCard>

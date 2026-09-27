@@ -9,12 +9,15 @@ export const me = new Hono<AppEnv>();
 
 me.get("/", async (c) => {
   const u = c.get("user");
+  // self = 会话原始用户（登录账号）：act-as 查看他人空间时，前端据此区分「登录账号」与「当前空间」
+  const s = c.get("selfUser");
   return c.json({
     id: u.id,
     name: u.name,
     role: u.role,
     quotaBytes: u.quota_bytes,
     usedBytes: await usedBytes(c.env.DB, u.id),
+    self: { id: s.id, name: s.name, role: s.role },
   });
 });
 

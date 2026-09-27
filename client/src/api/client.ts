@@ -50,20 +50,23 @@ export function handleSessionExpired(): boolean {
 interface ApiInit extends Omit<RequestInit, "body"> {
   json?: unknown;
   body?: BodyInit | null;
+  /** 不附带 x-act-as 头：全局管理类操作（如 admin 用户管理）与空间无关 */
+  skipActAs?: boolean;
 }
 
 // 统一封装：错误 envelope → ApiError。401 只抛错不跳转，重定向策略见 handleSessionExpired
 export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
-  const headers = new Headers(init.headers);
-  if (init.json !== undefined) headers.set("content-type", "application/json");
-  if (typeof localStorage !== "undefined") {
+  const { skipActAs, ...rest } = init;
+  const headers = new Headers(rest.headers);
+  if (rest.json !== undefined) headers.set("content-type", "application/json");
+  if (!skipActAs && typeof localStorage !== "undefined") {
     const actAs = localStorage.getItem("mstor_act_as");
     if (actAs) headers.set("x-act-as", actAs);
   }
   const res = await fetch(path, {
-    ...init,
+    ...rest,
     headers,
-    body: init.json !== undefined ? JSON.stringify(init.json) : (init.body as BodyInit | null | undefined),
+    body: rest.json !== undefined ? JSON.stringify(rest.json) : (rest.body as BodyInit | null | undefined),
   });
   if (res.status === 401 && !path.startsWith("/api/s/")) {
     throw new ApiError(401, "UNAUTHORIZED", "请先登录");

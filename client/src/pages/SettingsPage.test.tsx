@@ -14,7 +14,7 @@ vi.mock("../api/me", () => ({
 
 import { listAdminUsers, patchAdminUser, setWebdavPassword } from "../api/me";
 
-const ME: Me = { id: "u-admin", name: "Alice", role: "admin", quotaBytes: 100, usedBytes: 10 };
+const ME: Me = { id: "u-admin", name: "Alice", role: "admin", quotaBytes: 100, usedBytes: 10, self: { id: "u-admin", name: "Alice", role: "admin" } };
 
 function mkUser(over: Partial<AdminUser> = {}): AdminUser {
   return { id: "u1", name: "Bob", role: "member", quota_bytes: 10737418240, created_at: 1, disabled_at: null, ...over };

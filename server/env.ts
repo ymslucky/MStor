@@ -18,5 +18,5 @@ export type Env = {
   TRASH_RETENTION_DAYS: string;
 };
 
-export type AppEnv = { Bindings: Env; Variables: { user: UserRow; selfId: string } };
+export type AppEnv = { Bindings: Env; Variables: { user: UserRow; selfId: string; selfUser: UserRow } };
 export type App = Hono<AppEnv>;

@@ -232,3 +232,30 @@ test("rename rejects non-string name", async () => {
   });
   expect(res.status).toBe(400);
 });
+
+test("GET /api/me when acting as returns target user plus self", async () => {
+  const admin = await seedUser({ role: "admin" });
+  const member = await seedUser();
+  const res = await SELF.fetch("https://example.com/api/me", {
+    headers: { ...(await sessionHeaders(admin)), "x-act-as": member.id },
+  });
+  expect(res.status).toBe(200);
+  const body = (await res.json()) as {
+    id: string; name: string; role: string;
+    self: { id: string; name: string; role: string };
+  };
+  // 空间信息 = 目标用户
+  expect(body.id).toBe(member.id);
+  expect(body.name).toBe(member.name);
+  expect(body.role).toBe(member.role);
+  // 登录账号 = 管理员自己
+  expect(body.self).toEqual({ id: admin.id, name: admin.name, role: "admin" });
+});
+
+test("GET /api/me self mirrors user when not acting as", async () => {
+  const u = await seedUser();
+  const res = await SELF.fetch("https://example.com/api/me", { headers: await sessionHeaders(u) });
+  expect(res.status).toBe(200);
+  const body = (await res.json()) as { id: string; name: string; role: string; self: { id: string; name: string; role: string } };
+  expect(body.self).toEqual({ id: body.id, name: body.name, role: body.role });
+});
