@@ -1,13 +1,18 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../env";
 import { errors } from "../lib/errors";
-import { createDir } from "../lib/nodes";
+import { createDir, getNode, validateNodeName } from "../lib/nodes";
 
 export const dirs = new Hono<AppEnv>();
 
 dirs.post("/", async (c) => {
+  const user = c.get("user");
   const { parentId = "", name } = await c.req.json<{ parentId?: string; name: string }>();
-  if (!name?.trim()) throw errors.badRequest("名称不能为空");
-  const node = await createDir(c.env.DB, c.get("user").id, parentId, name.trim());
+  const validName = validateNodeName(name);
+  if (parentId !== "") {
+    const parent = await getNode(c.env.DB, user.id, parentId);
+    if (!parent || !parent.is_dir) throw errors.notFound();
+  }
+  const node = await createDir(c.env.DB, user.id, parentId, validName);
   return c.json(node, 201);
 });

@@ -58,7 +58,7 @@ test("callback upserts user (first is admin), creates root, sets session", async
   expect(res.headers.get("set-cookie")).toContain("mstor_session=");
   const user = await env.DB.prepare("SELECT * FROM users WHERE oidc_sub = 's1'").first<{ id: string; role: string }>();
   expect(user!.role).toBe("admin"); // 首个用户
-  const root = await env.DB.prepare("SELECT * FROM nodes WHERE owner_id = ?1 AND parent_id = ''").bind(user!.id).first();
+  const root = await env.DB.prepare("SELECT * FROM nodes WHERE owner_id = ?1 AND parent_id = '' AND name = ''").bind(user!.id).first();
   expect(root).toBeTruthy();
 });
 

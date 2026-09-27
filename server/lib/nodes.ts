@@ -30,8 +30,20 @@ export async function getNode(db: D1Database, ownerId: string, id: string): Prom
 }
 
 // 有意不过滤 deleted_at：与 UNIQUE(owner_id,parent_id,name) 约束保持一致，软删除仍占用目录名称
-export async function childByName(db: D1Database, ownerId: string, parentId: string, name: string): Promise<NodeRow | null> {
+export async function childByName(db: D1Database, ownerId: string, parentId: string, name: string, excludeId?: string): Promise<NodeRow | null> {
+  if (excludeId !== undefined) {
+    return db.prepare("SELECT * FROM nodes WHERE owner_id = ?1 AND parent_id = ?2 AND name = ?3 AND id != ?4")
+      .bind(ownerId, parentId, name, excludeId).first<NodeRow>();
+  }
   return db.prepare("SELECT * FROM nodes WHERE owner_id = ?1 AND parent_id = ?2 AND name = ?3").bind(ownerId, parentId, name).first<NodeRow>();
+}
+
+// 目录/文件名统一校验：非空、长度、保留名与非法字符，返回 trim 后的名称
+export function validateNodeName(name: unknown): string {
+  if (typeof name !== "string" || !name.trim()) throw errors.badRequest("名称不能为空");
+  const n = name.trim();
+  if (n.length > 255 || n === "." || n === ".." || /[\\/\x00-\x1f]/.test(n)) throw errors.badRequest("名称不合法");
+  return n;
 }
 
 export async function createDir(db: D1Database, ownerId: string, parentId: string, name: string): Promise<NodeRow> {
@@ -50,8 +62,9 @@ export async function createDir(db: D1Database, ownerId: string, parentId: strin
 }
 
 export async function listChildren(db: D1Database, ownerId: string, parentId: string): Promise<NodeRow[]> {
+  // name != '' 排除根目录哨兵行（其 parent_id 与顶层节点相同）
   const { results } = await db.prepare(
-    "SELECT * FROM nodes WHERE owner_id = ?1 AND parent_id = ?2 AND deleted_at IS NULL ORDER BY is_dir DESC, name"
+    "SELECT * FROM nodes WHERE owner_id = ?1 AND parent_id = ?2 AND deleted_at IS NULL AND name != '' ORDER BY is_dir DESC, name"
   ).bind(ownerId, parentId).all<NodeRow>();
   return results;
 }
@@ -95,7 +108,8 @@ export async function moveNode(db: D1Database, ownerId: string, id: string, newP
   const parent = newParentId === "" ? await ensureRootDir(db, ownerId) : await getNode(db, ownerId, newParentId);
   if (!parent || !parent.is_dir) throw errors.badRequest("目标目录不存在");
   if (node.is_dir && await isDescendant(db, ownerId, id, newParentId)) throw errors.badRequest("不能移动到自身子目录");
-  if (await childByName(db, ownerId, newParentId, newName)) throw errors.conflict();
+  // 排除自身：改回原名 / no-op PATCH 时不能命中自己
+  if (await childByName(db, ownerId, newParentId, newName, id)) throw errors.conflict();
   await db.prepare("UPDATE nodes SET parent_id = ?1, name = ?2, updated_at = ?3 WHERE id = ?4 AND owner_id = ?5")
     .bind(newParentId, newName, now(), id, ownerId).run();
 }
