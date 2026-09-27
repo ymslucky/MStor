@@ -1,3 +1,272 @@
+# MStor 前端实现计划
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** 为 MStor（R2 家庭云盘）构建 React 前端：文件浏览/上传/下载/预览、搜索、分享、回收站、设置与管理面板、公开分享页、PWA，部署为 Workers Assets。
+
+**Architecture:** 单体 Worker 已就绪（后端 17 任务全绿）。前端为 `client/` 下的 Vite + React SPA，构建产物输出到 `client/dist`（wrangler.jsonc 的 assets 已指向该目录，`run_worker_first` 已覆盖 `/api/*`、`/auth/*`、`/dav/*`）。开发期 Vite dev server（5173）代理 API 到 wrangler dev（8787）。服务端状态统一走 TanStack Query。计划前 4 个任务为**后端补遗**（spec §6/§7 要求但后端尚未覆盖的 4 个缺口），之后是前端任务。
+
+**Tech Stack:** React 19 + Vite + TailwindCSS v4 + TanStack Query + react-router v7 + vite-plugin-pwa；测试 Vitest + Testing Library（jsdom）。
+
+---
+
+## 执行须知（每个任务开始前必读）
+
+- **环境**：Windows PowerShell。多条命令用 `;` 分隔；不要用 `&&`、heredoc。
+- **运行服务端测试**（Task 1-4）前先设：`$env:WRANGLER_LOG_PATH="c:\Users\YMS\Documents\Code\cf-storage\.wrangler\logs"`。miniflare EBUSY / workerd "Can't read from request stream" 为无害噪音。
+- **验收标准**：
+  - Task 1-4（后端）：`npm test` 全绿 + `npx tsc --noEmit` 零错误（此阶段 `npm test` 仍= `vitest run`）。
+  - Task 5-17（前端）：`npm run test:client` 全绿 + `npm run test:server` 全绿 + `npm run check` 零错误；涉及构建的任务额外 `npm run build` 成功。
+- **代码规范**：`server/` 禁 `any`（测试文件可 `as`）；`client/` 同样 strict。不加计划外功能。
+- **每任务一个 commit**（可拆多个），消息用 `feat:`/`fix:`/`test:` 前缀，与后端阶段风格一致。
+- **工作分支**：`feat/backend`（延续，不新建 worktree）。
+
+---
+
+## 后端 API 契约速查（前端任务的事实来源）
+
+统一错误 envelope：`{ "error": { "code": "...", "message": "..." } }`，非 2xx 时返回。已知 code：`UNAUTHORIZED(401)`、`FORBIDDEN(403)`、`QUOTA_EXCEEDED(403)`、`NOT_FOUND(404)`、`CONFLICT(409)`、`BAD_REQUEST(400)`、`SHARE_EXPIRED(410)`、`SHARE_PASSWORD(401)`。
+
+| 端点 | 方法 | 请求 | 响应 |
+|---|---|---|---|
+| `/api/health` | GET | - | `{ok:true}` |
+| `/auth/login` | GET | - | 302 → IdP（浏览器跳转） |
+| `/auth/callback` | GET | `?code&state` | 302 → `/` + session cookie |
+| `/auth/logout` | GET | - | 302 → `/` + 清 cookie |
+| `/api/me` | GET | - | `{id,name,role,quotaBytes,usedBytes}` |
+| `/api/me/webdav-password` | PUT | `{password}`（≥8位） | `{ok:true}` |
+| `/api/me/admin/users` | GET | admin | `{users: AdminUser[]}` |
+| `/api/me/admin/users/:id` | PATCH | admin `{quota_bytes?, role?, disabled?}` | `{ok:true}` |
+| `/api/files` | GET | `?parentId=`（默认 ""=根） | `{nodes: Node[], breadcrumb: Node[], rootId}` |
+| `/api/files/upload` | PUT | `?name=&parentId=`，body=文件（≤60MB） | 201 `{id,name,size}` |
+| `/api/files/:id` | PATCH | `{name?, parentId?}` | `{ok:true}` |
+| `/api/files/:id/content` | GET | `?dl=1` 下载；支持 Range | 文件流（inline/attachment） |
+| `/api/files/:id` | DELETE | - | `{ok:true}`（软删除） |
+| `/api/dirs` | POST | `{parentId?, name}` | 201 `Node` |
+| `/api/uploads` | POST | `{parentId?, name, size, mime?}`（>60MB） | 201 `{uploadId, partSize}`（16MB） |
+| `/api/uploads/:id/part-urls` | POST | `{partNumbers: number[]}` | `{urls: string[]}`（presigned PUT） |
+| `/api/uploads/:id/complete` | POST | `{parts: {partNumber,etag}[], mime?}` | 201 `{nodeId, name}` |
+| `/api/uploads/:id` | DELETE | - | `{ok:true}`（中止） |
+| `/api/trash` | GET | - | `{nodes: Node[]}`（含 deleted_at） |
+| `/api/trash/:id/restore` | POST | - | `{ok:true}` |
+| `/api/trash/:id` | DELETE | - | `{ok:true}`（彻底删除） |
+| `/api/search` | GET | `?q=` | `{nodes: Node[], paths}` |
+| `/api/shares` | POST | `{nodeId, expiresInDays?, password?}` | 201 `{token, url}` |
+| `/api/shares` | GET | - | `{shares: Share[]}` |
+| `/api/shares/:id` | DELETE | - | `{ok:true}`（撤销） |
+| `/api/s/:token` | GET | header `x-share-password`（有码时） | `ShareInfo`（文件夹含 children） |
+| `/api/s/:token/children/:dirId` | GET | 同上（Task 4 新增） | `{name, children: PublicNode[]}` |
+| `/api/s/:token/raw/:fileId` | GET | 同上 | 文件流 |
+
+**行形状**（D1 原样返回，snake_case）：
+
+```ts
+Node = { id, owner_id, parent_id, name, is_dir: 0|1, r2_key, size: number|null, mime: string|null, created_at: number, updated_at: number, deleted_at: number|null }
+// 前端类型只取用到字段，但保持 snake_case 以免映射层
+AdminUser = { id, name, role: "admin"|"member", quota_bytes, created_at, disabled_at: number|null }   // Task 1 起
+Share = { id, node_id, token, expires_at: number|null, downloads, created_at, node_name, node_is_dir: 0|1, node_size: number|null }
+ShareInfo = { id, name, isDir: boolean, size: number|null, mime: string|null, hasPassword: boolean, expiresAt: number|null, children?: PublicNode[] }
+PublicNode = { id, name, isDir: boolean, size: number|null, mime: string|null }
+```
+
+**关键行为**：顶级节点 `parent_id === ""`（根是 `parent_id='' AND name=''` 的哨兵行，`/api/files` 的 nodes 已过滤它）；面包屑含自身所在各级目录（不含根哨兵）；同目录同名由后端处理（新建不会撞名，除并发 409）；`etag` 响应头已列入 CORS ExposeHeaders（分片直传取 ETag 用）。
+
+---
+
+## 文件结构（前端全貌）
+
+```
+vite.config.ts                 # root=client，build.outDir=../client/dist，dev 代理 /api /auth /dav → 8787
+vitest.client.config.ts        # jsdom + @vitejs/plugin-react，include client/src/**/*.test.*
+client/
+  index.html
+  tsconfig.json                # DOM lib、react-jsx、strict（与根 tsconfig 隔离，根只含 server/test）
+  vite-env.d.ts
+  public/icon.svg              # PWA 图标
+  src/
+    main.tsx                   # QueryClientProvider + RouterProvider + PWA 注册
+    App.tsx                    # RequireAuth + 路由表
+    shell/AppShell.tsx         # 头部（搜索、导航、配额、用户、act-as 横幅）、Toaster
+    pages/Browser.tsx          # 主文件浏览页
+    pages/TrashPage.tsx
+    pages/SharesPage.tsx
+    pages/SettingsPage.tsx     # WebDAV 密码 + admin 用户管理
+    pages/SharePage.tsx        # 公开分享页 /s/:token（无登录）
+    components/FileList.tsx    # 列表（响应式，文件/文件夹行 + 行操作）
+    components/Breadcrumb.tsx
+    components/NameDialog.tsx  # 新建文件夹/重命名共用
+    components/MoveDialog.tsx
+    components/ShareDialog.tsx
+    components/PreviewModal.tsx
+    components/UploadPanel.tsx
+    components/Toaster.tsx
+    hooks/useFiles.ts          # 列表 query + 各 mutation（失效策略集中于此）
+    hooks/useUploadQueue.ts
+    hooks/useDebounce.ts
+    api/client.ts              # api() 封装 + ApiError + 401 跳登录 + x-act-as
+    api/types.ts
+    api/nodes.ts               # files/dirs/搜索跳转用的目录树
+    api/uploads.ts             # 小文件直传 + 分片直传
+    api/trash.ts
+    api/search.ts
+    api/shares.ts              # 我的分享 + 公开分享
+    api/me.ts
+    lib/format.ts              # formatBytes/formatDate
+    lib/preview.ts             # mime → 预览类型
+    index.css                  # @import "tailwindcss"
+    test/setup.ts              # jest-dom + cleanup
+    test/utils.tsx             # renderWithProviders
+```
+
+---
+---
+
+### Task 1: 后端补遗——用户停用（migration 0002 + 登录/会话拒绝 + admin PATCH）
+
+spec §6「admin 管理配额/停用」中的停用尚未实现。停用 = `users.disabled_at` 打时间戳；会话请求 403、OIDC 回调 403。
+
+**Files:**
+- Create: `migrations/0002_disable_users.sql`
+- Modify: `server/types.ts`（UserRow 加 disabled_at）
+- Modify: `server/middleware/session.ts`（拒绝停用用户）
+- Modify: `server/routes/auth.ts`（callback 拒绝停用用户）
+- Modify: `server/routes/me.ts`（PATCH 支持 disabled）
+- Modify: `test/helpers.ts`（seedUser 加字段）
+- Test: `test/me.test.ts`、`test/auth.test.ts`
+
+- [ ] **Step 1: 写失败的测试**
+
+在 `test/me.test.ts` 末尾追加（该文件已有 `seedUser/sessionHeaders/SELF` 导入，若无则按文件头部现状补）：
+
+```ts
+test("admin can disable and enable users", async () => {
+  const admin = await seedUser({ role: "admin" });
+  const member = await seedUser();
+  const disable = await SELF.fetch(`https://example.com/api/me/admin/users/${member.id}`, {
+    method: "PATCH",
+    headers: { ...(await sessionHeaders(admin)), "content-type": "application/json" },
+    body: JSON.stringify({ disabled: true }),
+  });
+  expect(disable.status).toBe(200);
+  const blocked = await SELF.fetch("https://example.com/api/me", { headers: await sessionHeaders(member) });
+  expect(blocked.status).toBe(403);
+  expect((await blocked.json()).error.code).toBe("FORBIDDEN");
+  const enable = await SELF.fetch(`https://example.com/api/me/admin/users/${member.id}`, {
+    method: "PATCH",
+    headers: { ...(await sessionHeaders(admin)), "content-type": "application/json" },
+    body: JSON.stringify({ disabled: false }),
+  });
+  expect(enable.status).toBe(200);
+  const ok = await SELF.fetch("https://example.com/api/me", { headers: await sessionHeaders(member) });
+  expect(ok.status).toBe(200);
+});
+
+test("disabled flag persists in admin list", async () => {
+  const admin = await seedUser({ role: "admin" });
+  const member = await seedUser();
+  await SELF.fetch(`https://example.com/api/me/admin/users/${member.id}`, {
+    method: "PATCH",
+    headers: { ...(await sessionHeaders(admin)), "content-type": "application/json" },
+    body: JSON.stringify({ disabled: true }),
+  });
+  const res = await SELF.fetch("https://example.com/api/me/admin/users", { headers: await sessionHeaders(admin) });
+  const data = await res.json<{ users: { id: string; disabled_at: number | null }[] }>();
+  expect(data.users.find((u) => u.id === member.id)!.disabled_at).not.toBeNull();
+});
+```
+
+在 `test/auth.test.ts` 末尾追加（沿用文件内 `mockDiscovery/mockToken/idToken/seedUser`）：
+
+```ts
+test("disabled user cannot log in via callback", async () => {
+  const user = await seedUser({ oidc_sub: "disabled-sub" });
+  await env.DB.prepare("UPDATE users SET disabled_at = ?1 WHERE id = ?2").bind(Date.now(), user.id).run();
+  mockDiscovery();
+  mockToken(idToken({ sub: "disabled-sub", name: "Dave" }));
+  const res = await SELF.fetch("https://example.com/auth/callback?code=c&state=x", {
+    redirect: "manual",
+    headers: { cookie: `mstor_oidc=${encodeURIComponent(JSON.stringify({ state: "x", verifier: "v" }))}` },
+  });
+  expect(res.status).toBe(403);
+  expect((await res.json()).error.code).toBe("FORBIDDEN");
+});
+```
+
+- [ ] **Step 2: 跑测试确认失败**
+
+```powershell
+$env:WRANGLER_LOG_PATH="c:\Users\YMS\Documents\Code\cf-storage\.wrangler\logs"; npx vitest run test/me.test.ts test/auth.test.ts
+```
+
+预期：me.test.ts 两个新测试失败（disabled 字段被忽略/请求 200 而非 403）；auth 新测试失败（302 而非 403）。既有 91 测试不受影响。
+
+- [ ] **Step 3: 实现**
+
+`migrations/0002_disable_users.sql`：
+
+```sql
+ALTER TABLE users ADD COLUMN disabled_at INTEGER;
+```
+
+`server/types.ts` 的 `UserRow` 加一行（放 `role` 之后）：
+
+```ts
+  disabled_at: number | null;
+```
+
+`server/middleware/session.ts`：`user` 取到后（`c.set("user", user)` 之前）加：
+
+```ts
+  if (user.disabled_at) throw errors.forbidden("账号已被停用");
+```
+
+`server/routes/auth.ts`：callback 里 upsert 收敛后（`await ensureRootDir(db, user.id);` 之前）加：
+
+```ts
+  if (user.disabled_at) throw errors.forbidden("账号已被停用");
+```
+
+并把两处 `SELECT * FROM users WHERE oidc_sub = ?1` 的 `.first<{ id: string; role: string }>()` 泛型改为 `.first<{ id: string; role: string; disabled_at: number | null }>()`（UNIQUE catch 分支同改）。
+
+`server/routes/me.ts` 的 `me.patch("/admin/users/:id")`：请求体类型加 `disabled?: boolean`，校验与 set 子句：
+
+```ts
+  const { quota_bytes, role, disabled } = await c.req.json<{ quota_bytes?: number; role?: "admin" | "member"; disabled?: boolean }>();
+  if (role && !["admin", "member"].includes(role)) throw errors.badRequest("角色不合法");
+  if (quota_bytes !== undefined && (!Number.isFinite(quota_bytes) || quota_bytes < 0)) throw errors.badRequest("配额不合法");
+  if (disabled !== undefined && typeof disabled !== "boolean") throw errors.badRequest("disabled 不合法");
+```
+
+sets/vals 组装处追加：
+
+```ts
+  if (disabled !== undefined) { sets.push("disabled_at = ?"); vals.push(disabled ? Date.now() : null); }
+```
+
+另外 `me.get("/admin/users")` 的 SELECT 列表补 `disabled_at`（返回 AdminUser 形状需要它）：
+
+```ts
+    "SELECT id, name, role, quota_bytes, disabled_at, created_at FROM users ORDER BY created_at"
+```
+
+`test/helpers.ts` 的 seedUser 对象字面量加 `disabled_at: null,`（INSERT 语句同步加列 `disabled_at` 与占位符）。
+
+- [ ] **Step 4: 全量验证**
+
+```powershell
+$env:WRANGLER_LOG_PATH="c:\Users\YMS\Documents\Code\cf-storage\.wrangler\logs"; npm test; npx tsc --noEmit
+```
+
+预期：全部绿（91 + 3 新 = 94）。注意：现有 INSERT users 的语句都是显式列名，新增可空列不影响。
+
+- [ ] **Step 5: 提交**
+
+```powershell
+git add migrations/0002_disable_users.sql server test; git commit -m "feat: user disable (migration 0002, session/login rejection, admin patch)"
+```
+
+---
+
 ### Task 2: 后端补遗——admin 切换空间（x-act-as）
 
 spec §6「admin 可切换任意用户空间」。实现：session 中间件识别 `x-act-as: <userId>` 请求头，仅当会话用户是 admin 时把 `c.get("user")` 换成目标用户。所有 `/api/*` 路由自动生效，无需改动业务路由。前端 Task 15 的「进入空间」依赖此头。
