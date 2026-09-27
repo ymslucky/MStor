@@ -3173,6 +3173,14 @@ git add cors.json server/index.ts
 git commit -m "chore: cors config, final route wiring, deploy checklist"
 ```
 
+> **审查记录（2026-09-27）**
+>
+> - 实现 `beb68d3`；`npm test` 14 文件 91/91 绿、`npx tsc --noEmit` 零错误。spec review：SATISFIED；quality review：APPROVE（零严重/零建议）。**17 个任务全部完成。**
+> - 交付：`cors.json`（R2 直传 CORS：PUT、stor.msxor.com + localhost:5173、ExposeHeaders etag，与 uploads.ts presigned PUT 链路精确匹配）；index.ts 达计划最终形态（import 重排、删未用 errors 导入、/auth 移至 session 前的免登录区——session 仅挂 /api/*，行为等价）；接线三向核对通过（env.ts 14 项绑定 ↔ wrangler.jsonc ↔ 代码使用；crons/assets run_worker_first/migrations 均在位）。
+> - 实现期修正：计划 `ScheduledEvent` → `ScheduledController`（workers-types 签名即此，按计划写法编译失败）；计划 Task 17 无 Hono CORS 中间件，CORS 即 R2 bucket 级 cors.json（核实计划正文属实）。
+> - 部署清单为计划内人工操作（未另写文档）：4 个 `wrangler secret put`、回填 `database_id` 与 `<ACCOUNT_ID>`、`d1 migrations apply --remote`、`r2 bucket cors set mstor --file cors.json`、`wrangler deploy`、DNS CNAME、auth.msxor.com 注册 redirect_uri。
+> - 可选备注：cors.json 生产规则含 localhost:5173 开发源，上线后可按需收紧。
+
 ---
 
 ## 计划自审记录
