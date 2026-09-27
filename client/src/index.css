@@ -1,85 +1,65 @@
 @import "tailwindcss";
 
 @theme {
-  /* —— 语义色板（暗色单主题，预留浅色扩展）—— */
-  --color-ink: #e8edf7;          /* 主文字 */
-  --color-ink-dim: #9aa7bd;      /* 次级文字 */
-  --color-ink-faint: #5c6a85;    /* 弱化文字/边框 */
-  --color-surface: #0d1322;      /* 最底层页面底色 */
-  --color-surface-raised: #131b30;
-  --color-accent: #38bdf8;       /* sky-400 */
-  --color-accent-strong: #0ea5e9;
-  --color-accent-deep: #0369a1;
-  --color-danger: #f87171;
-  --color-success: #34d399;
-  --color-warning: #fbbf24;
+  /* —— 语义色板（浅色仪表盘主题，参考 Workly 风格）—— */
+  --color-ink: #1c2b24;          /* 主文字（墨绿黑） */
+  --color-ink-dim: #5c6f64;      /* 次级文字 */
+  --color-ink-faint: #93a29a;    /* 弱化文字/占位 */
+  --color-surface: #f4f6f4;      /* 页面底色（暖灰绿白） */
+  --color-surface-raised: #ffffff;
+  --color-line: #e4eae5;         /* 卡片描边 */
+  --color-accent: #059669;       /* emerald-600 主色 */
+  --color-accent-strong: #047857;
+  --color-accent-deep: #065f46;
+  --color-accent-soft: #ecfdf5;  /* emerald-50 激活底 */
+  --color-danger: #dc2626;
+  --color-success: #059669;
+  --color-warning: #d97706;
 
-  /* —— 圆角 / 阴影 —— */
+  /* —— 粉彩图标芯片（参考图的彩色小方块）—— */
+  --color-chip-amber-bg: #fef3c7;
+  --color-chip-amber-fg: #b45309;
+  --color-chip-blue-bg: #dbeafe;
+  --color-chip-blue-fg: #1d4ed8;
+  --color-chip-violet-bg: #ede9fe;
+  --color-chip-violet-fg: #6d28d9;
+  --color-chip-rose-bg: #ffe4e6;
+  --color-chip-rose-fg: #be123c;
+
+  /* —— 圆角 / 阴影（柔和、大圆角）—— */
   --radius-card: 1rem;
   --radius-panel: 1.25rem;
-  --shadow-glass: 0 8px 32px rgb(0 0 0 / 0.35);
-  --shadow-lift: 0 4px 16px rgb(2 6 23 / 0.4);
+  --shadow-card: 0 1px 2px rgb(28 43 36 / 0.04), 0 8px 24px rgb(28 43 36 / 0.05);
+  --shadow-lift: 0 2px 6px rgb(28 43 36 / 0.08);
 
   /* —— 动效 token —— */
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
   --duration-fast: 150ms;
   --duration-slow: 320ms;
-
-  /* —— Tailwind 原生覆盖 —— */
-  --color-slate-50: #f1f5f9;
 }
 
-/* 页面背景：深色极光渐变（固定 attachment，移动端省电不随滚动重绘） */
+/* 页面底色 */
 body {
-  background:
-    radial-gradient(1200px 600px at 85% -10%, rgb(56 189 248 / 0.14), transparent 60%),
-    radial-gradient(900px 500px at -10% 30%, rgb(99 102 241 / 0.16), transparent 55%),
-    radial-gradient(700px 700px at 60% 110%, rgb(14 165 233 / 0.10), transparent 60%),
-    var(--color-surface);
+  background: var(--color-surface);
   color: var(--color-ink);
-  background-attachment: fixed;
   min-height: 100dvh;
 }
 
-/* —— 玻璃层级（全站唯三的 backdrop-filter 出口，见计划头部规范）—— */
-/* G1 以 @utility 注册：支持 hover:glass-subtle 等变体（如分享行 hover） */
-@utility glass-subtle {
-  background-color: rgb(255 255 255 / 0.05);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-.glass-panel, .glass-modal {
-  background-color: rgb(255 255 255 / 0.05);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+/* —— 「玻璃」类名保留为浅色柔和面板（组件零改动迁移）——
+   浅色主题下不使用 backdrop-filter 模糊（性能预算），改为白底细边+柔影 */
+.glass-subtle {
+  background-color: #f2f5f2;
 }
 .glass-panel {
-  background-color: rgb(15 23 42 / 0.72);
-  backdrop-filter: blur(16px) saturate(140%);
-  -webkit-backdrop-filter: blur(16px) saturate(140%);
-  border-bottom: 1px solid rgb(255 255 255 / 0.08);
+  background-color: rgb(255 255 255 / 0.92);
+  backdrop-filter: blur(10px) saturate(130%);
+  -webkit-backdrop-filter: blur(10px) saturate(130%);
+  border-bottom: 1px solid var(--color-line);
 }
 .glass-modal {
-  background-color: rgb(15 23 42 / 0.82);
-  backdrop-filter: blur(24px) saturate(140%);
-  -webkit-backdrop-filter: blur(24px) saturate(140%);
-  border: 1px solid rgb(255 255 255 / 0.10);
-  border-top-color: rgb(255 255 255 / 0.16);
-  box-shadow: var(--shadow-glass);
-}
-
-/* 回退：不支持 backdrop-filter 时用不透明底，保证文字可读 */
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .glass-subtle { background-color: #17203a; }
-  .glass-panel  { background-color: #101a30; border-bottom-color: rgb(255 255 255 / 0.08); }
-  .glass-modal  { background-color: #121c33; }
-}
-
-/* 降级：用户偏好低透明度 → 全部玻璃变实底 */
-@media (prefers-reduced-transparency: reduce) {
-  .glass-subtle { background-color: #17203a; backdrop-filter: none; -webkit-backdrop-filter: none; }
-  .glass-panel  { background-color: #101a30; backdrop-filter: none; -webkit-backdrop-filter: none; }
-  .glass-modal  { background-color: #121c33; backdrop-filter: none; -webkit-backdrop-filter: none; }
+  background-color: #ffffff;
+  border: 1px solid var(--color-line);
+  box-shadow: 0 12px 40px rgb(28 43 36 / 0.14);
 }
 
 /* 降级：减少动效 */
