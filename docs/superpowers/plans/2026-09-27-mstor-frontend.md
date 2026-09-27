@@ -3223,6 +3223,12 @@ npm run test:client; npm run test:server; npm run check
 git add client; git commit -m "feat: trash page with restore and purge"
 ```
 
+> **审查记录（2026-09-27）**
+>
+> - 实现：31854ff，client 33 绿 / server 99 绿 / check 双零。
+> - 偏离判定（均成立）：文件名正则断言（emoji 文本节点拆分）；JSX 类型导入；mutationFn 包箭头函数（react-query v5 context 参数）。
+> - 规格审查 PASS；质量审查 APPROVE：失败走全局 toast、目录行无下载链接、confirm 取消不发请求。建议级（不强加）：回收站文件行仍显「下载」（后端对软删节点 content 会正常返回——节点本身未删时可下载，行为可接受）。
+
 ---
 
 ### Task 15: 设置页（WebDAV 密码）+ admin 管理面板（配额/停用/进入空间）
