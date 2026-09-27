@@ -1,7 +1,8 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
+import { Copy, Download, ExternalLink, FolderInput, Info, Pencil, Share2, Trash2 } from "lucide-react";
 import { listShares } from "../api/shares";
 import { listTrash } from "../api/trash";
 import type { Me, Node } from "../api/types";
@@ -16,10 +17,12 @@ import PreviewModal from "../components/PreviewModal";
 import ShareDialog from "../components/ShareDialog";
 import UploadPanel from "../components/UploadPanel";
 import { toast } from "../components/Toaster";
-import { Button, ConfirmDialog, EmptyState, GlassCard, IconButton, Skeleton } from "../components/ui";
+import { Button, ConfirmDialog, Dialog, EmptyState, GlassCard, IconButton, Skeleton } from "../components/ui";
 import { useFiles } from "../hooks/useFiles";
+import { useFileSelection } from "../hooks/useFileSelection";
+import { useKeyboardNav } from "../hooks/useKeyboardNav";
 import { useUploadQueue } from "../hooks/useUploadQueue";
-import { formatBytes } from "../lib/format";
+import { formatBytes, formatDate } from "../lib/format";
 
 // 粉彩图标芯片：浅底 + 饱和前景（token 见 index.css chip-*）
 function KpiChip({ tone, icon }: { tone: "amber" | "blue" | "violet" | "rose"; icon: string }) {
@@ -74,6 +77,81 @@ function StorageRing({ pct }: { pct: number }) {
 const quickCls =
   "flex min-h-[44px] items-center gap-3 rounded-card border border-line bg-white p-3 text-sm font-medium text-ink shadow-card transition-shadow hover:shadow-lift";
 
+// —— 前端过滤 chips（类型/时间）：纯前端过滤当前目录列表，不新增后端调用 ——
+type TypeFilter = "all" | "image" | "video" | "doc";
+type TimeFilter = "all" | "today" | "7d" | "30d";
+
+const TYPE_CHIPS: { value: TypeFilter; label: string }[] = [
+  { value: "all", label: "全部" },
+  { value: "image", label: "图片" },
+  { value: "video", label: "视频" },
+  { value: "doc", label: "文档" },
+];
+// 时间组无「全部」项：点击已选 chip 再次取消
+const TIME_CHIPS: { value: TimeFilter; label: string }[] = [
+  { value: "today", label: "今天" },
+  { value: "7d", label: "7 天" },
+  { value: "30d", label: "30 天" },
+];
+
+function matchType(n: Node, f: TypeFilter): boolean {
+  if (f === "all") return true;
+  if (n.is_dir) return false;
+  const mime = n.mime ?? "";
+  if (f === "image") return mime.startsWith("image/");
+  if (f === "video") return mime.startsWith("video/");
+  return (
+    mime.startsWith("text/") ||
+    mime.startsWith("application/pdf") ||
+    mime.startsWith("application/json") ||
+    mime.startsWith("application/msword") ||
+    mime.startsWith("application/rtf") ||
+    mime.includes("officedocument") ||
+    mime.includes("spreadsheet") ||
+    mime.includes("presentation")
+  );
+}
+
+function matchTime(n: Node, f: TimeFilter): boolean {
+  if (f === "all") return true;
+  if (f === "today") {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return n.updated_at >= d.getTime();
+  }
+  return n.updated_at >= Date.now() - (f === "7d" ? 7 : 30) * 24 * 60 * 60 * 1000;
+}
+
+function FilterChips<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  const idle = "rounded-full border border-line bg-white px-2.5 py-1 text-xs text-ink-2 transition-colors hover:border-accent/40";
+  const active = "rounded-full border border-primary bg-primary-soft px-2.5 py-1 text-xs font-medium text-primary-text";
+  return (
+    <div role="group" aria-label={label} className="flex items-center gap-1">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          aria-pressed={value === o.value}
+          className={value === o.value ? active : idle}
+          onClick={() => onChange(value === o.value && !options.some((x) => x.value === "all") ? ("all" as T) : o.value)}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function Browser() {
   const [params, setParams] = useSearchParams();
   const dir = params.get("dir") ?? "";
@@ -82,6 +160,7 @@ export default function Browser() {
   const sharesQuery = useQuery({ queryKey: ["shares"], queryFn: listShares });
   const trashQuery = useQuery({ queryKey: ["trash"], queryFn: listTrash });
   const fileInput = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const queue = useUploadQueue();
   const [creating, setCreating] = useState(false);
   const [renaming, setRenaming] = useState<Node | null>(null);
@@ -89,8 +168,8 @@ export default function Browser() {
   const [preview, setPreview] = useState<Node | null>(null);
   const [sharing, setSharing] = useState<Node | null>(null);
   const [deleting, setDeleting] = useState<Node | null>(null);
-  // 批量选择状态（换目录清空）
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [detail, setDetail] = useState<Node | null>(null);
+  // 批量操作状态
   const [batchDeleting, setBatchDeleting] = useState(false);
   const [batchMoving, setBatchMoving] = useState(false);
   const [batchBusy, setBatchBusy] = useState(false);
@@ -100,19 +179,51 @@ export default function Browser() {
   const [dragDepth, setDragDepth] = useState(0);
   // 右键菜单：当前节点 + 指针位置
   const [menu, setMenu] = useState<{ node: Node; x: number; y: number } | null>(null);
+  // 前端过滤 chips
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
   const queryClient = useQueryClient();
-
-  useEffect(() => setSelected(new Set()), [dir]);
 
   const openDir = (id: string) => setParams(id ? { dir: id } : {});
 
-  const toggleSelect = (id: string) =>
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  // 过滤后的当前目录列表（键盘导航/选择/渲染都以可见列表为准）
+  const allNodes = useMemo(() => query.data?.nodes ?? [], [query.data]);
+  const filtered = typeFilter !== "all" || timeFilter !== "all";
+  const nodes = useMemo(
+    () => allNodes.filter((n) => matchType(n, typeFilter) && matchTime(n, timeFilter)),
+    [allNodes, typeFilter, timeFilter],
+  );
+
+  // 多选（受控 ids + Shift 范围锚点；换目录自动清空）
+  const visibleIds = useMemo(() => nodes.map((n) => n.id), [nodes]);
+  const selection = useFileSelection(visibleIds, dir);
+
+  // 键盘导航：↑↓（网格加 ←→）移动焦点，Enter 打开 / Delete 删除 / F2 重命名 / Space 预览 / Ctrl+A 全选
+  const keyboard = useKeyboardNav({
+    count: nodes.length,
+    horizontal: view === "grid",
+    resetKey: dir,
+    containerRef: listRef,
+    onOpen: (i) => {
+      const n = nodes[i];
+      if (!n) return;
+      if (n.is_dir) openDir(n.id);
+      else setPreview(n);
+    },
+    onPreview: (i) => {
+      const n = nodes[i];
+      if (n && !n.is_dir) setPreview(n);
+    },
+    onDelete: (i) => {
+      const n = nodes[i];
+      if (n) setDeleting(n);
+    },
+    onRename: (i) => {
+      const n = nodes[i];
+      if (n) setRenaming(n);
+    },
+    onSelectAll: () => selection.selectAll(),
+  });
 
   const switchView = (v: "list" | "grid") => {
     setView(v);
@@ -123,8 +234,8 @@ export default function Browser() {
   const runBatchDelete = async () => {
     setBatchBusy(true);
     try {
-      for (const id of selected) await deleteNode(id);
-      setSelected(new Set());
+      for (const id of selection.selected) await deleteNode(id);
+      selection.clear();
     } finally {
       setBatchBusy(false);
       setBatchDeleting(false);
@@ -137,8 +248,8 @@ export default function Browser() {
   const runBatchMove = async (to: string) => {
     setBatchBusy(true);
     try {
-      for (const id of selected) await moveNode(id, to);
-      setSelected(new Set());
+      for (const id of selection.selected) await moveNode(id, to);
+      selection.clear();
     } finally {
       setBatchBusy(false);
       setBatchMoving(false);
@@ -148,7 +259,7 @@ export default function Browser() {
 
   // 批量下载：仅文件，300ms 间隔逐个触发（避免浏览器拦截）
   const batchDownload = () => {
-    const files = (query.data?.nodes ?? []).filter((n) => selected.has(n.id) && !n.is_dir);
+    const files = allNodes.filter((n) => selection.selected.has(n.id) && !n.is_dir);
     files.forEach((n, i) =>
       window.setTimeout(() => {
         const a = document.createElement("a");
@@ -160,7 +271,7 @@ export default function Browser() {
     );
   };
 
-  const selectedNodes = (query.data?.nodes ?? []).filter((n) => selected.has(n.id));
+  const selectedNodes = allNodes.filter((n) => selection.selected.has(n.id));
   const hasFileSelected = selectedNodes.some((n) => !n.is_dir);
 
   // 单文件下载：临时 <a> 触发 content?dl=1
@@ -172,11 +283,23 @@ export default function Browser() {
     a.remove();
   };
 
-  // 右键菜单项：复用既有打开/分享/重命名/移动/删除处理，目录无下载
+  // 拖拽移动（文件夹行/面包屑 drop）：复用既有 moveNode
+  const dropMove = (id: string, to: string) => {
+    if (!id) return;
+    move.mutate({ id, to });
+  };
+
+  // 共享标记：shares 列表里的节点 id
+  const sharedIds = useMemo(
+    () => new Set((sharesQuery.data?.shares ?? []).map((s) => s.node_id)),
+    [sharesQuery.data],
+  );
+
+  // 右键菜单项：Lucide 图标；文件加复制链接（content URL）与详情
   const menuItemsFor = (n: Node): ContextMenuItem[] => [
     {
       label: "打开",
-      icon: "↗️",
+      icon: <ExternalLink size={14} aria-hidden />,
       onClick: () => {
         setMenu(null);
         if (n.is_dir) openDir(n.id);
@@ -188,7 +311,7 @@ export default function Browser() {
       : [
           {
             label: "下载",
-            icon: "⬇️",
+            icon: <Download size={14} aria-hidden />,
             onClick: () => {
               setMenu(null);
               downloadNode(n);
@@ -197,7 +320,7 @@ export default function Browser() {
         ]),
     {
       label: "分享",
-      icon: "🔗",
+      icon: <Share2 size={14} aria-hidden />,
       onClick: () => {
         setMenu(null);
         setSharing(n);
@@ -205,7 +328,7 @@ export default function Browser() {
     },
     {
       label: "重命名",
-      icon: "✏️",
+      icon: <Pencil size={14} aria-hidden />,
       onClick: () => {
         setMenu(null);
         setRenaming(n);
@@ -213,19 +336,41 @@ export default function Browser() {
     },
     {
       label: "移动",
-      icon: "📂",
+      icon: <FolderInput size={14} aria-hidden />,
       onClick: () => {
         setMenu(null);
         setMoving(n);
       },
     },
+    ...(n.is_dir
+      ? []
+      : [
+          {
+            label: "复制链接",
+            icon: <Copy size={14} aria-hidden />,
+            onClick: () => {
+              setMenu(null);
+              const url = new URL(contentUrl(n.id), window.location.origin).href;
+              void navigator.clipboard?.writeText(url);
+              toast("链接已复制", "info");
+            },
+          },
+        ]),
     {
       label: "删除",
-      icon: "🗑️",
+      icon: <Trash2 size={14} aria-hidden />,
       danger: true,
       onClick: () => {
         setMenu(null);
         setDeleting(n);
+      },
+    },
+    {
+      label: "详情",
+      icon: <Info size={14} aria-hidden />,
+      onClick: () => {
+        setMenu(null);
+        setDetail(n);
       },
     },
   ];
@@ -340,7 +485,7 @@ export default function Browser() {
       />
       {query.data && (
         <div className="mb-3">
-          <Breadcrumb crumbs={query.data.breadcrumb} />
+          <Breadcrumb crumbs={query.data.breadcrumb} onDropNode={dropMove} />
         </div>
       )}
       {query.isPending && (
@@ -373,8 +518,12 @@ export default function Browser() {
       )}
       {query.data && (
         <GlassCard className="p-3 sm:p-4">
-          {/* 工具栏：右侧列表/网格分段控件 */}
-          <div className="mb-3 flex items-center justify-end">
+          {/* 工具栏：左侧类型/时间过滤 chips（纯前端过滤），右侧列表/网格分段控件 */}
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <FilterChips label="类型过滤" options={TYPE_CHIPS} value={typeFilter} onChange={setTypeFilter} />
+              <FilterChips label="时间过滤" options={TIME_CHIPS} value={timeFilter} onChange={setTimeFilter} />
+            </div>
             <div role="group" aria-label="视图切换" className="inline-flex items-center gap-1 rounded-xl border border-line bg-gray-50 p-1">
               <IconButton label="列表视图" active={view === "list"} aria-pressed={view === "list"} onClick={() => switchView("list")}>
                 <span aria-hidden>☰</span>
@@ -385,15 +534,23 @@ export default function Browser() {
             </div>
           </div>
           <FileList
-            nodes={query.data.nodes}
+            nodes={nodes}
             view={view}
             selectable
-            selected={selected}
-            onToggle={toggleSelect}
+            selected={selection.selected}
+            onToggle={selection.toggle}
+            onSelectRange={selection.selectRange}
+            onRowFocus={keyboard.focusRow}
+            sharedIds={sharedIds}
+            focusIndex={keyboard.focusIndex}
+            containerRef={listRef}
+            onContainerKeyDown={keyboard.onKeyDown}
+            onDropMove={dropMove}
             onOpenDir={openDir}
             onOpenFile={setPreview}
             onNodeContextMenu={onNodeContextMenu}
-            emptyActions={emptyDirActions}
+            emptyText={filtered ? "没有符合筛选条件的文件" : "该目录为空"}
+            emptyActions={filtered ? undefined : emptyDirActions}
             actions={(n) => (
               <>
                 <IconButton label={`分享 ${n.name}`} onClick={() => setSharing(n)}>
@@ -415,10 +572,10 @@ export default function Browser() {
       )}
       <UploadPanel queue={queue} />
       {/* 批量操作条：选中 ≥1 项时浮出，移动端避让底部导航（bottom-20） */}
-      {selected.size > 0 && !batchDeleting && !batchMoving && (
+      {selection.selected.size > 0 && !batchDeleting && !batchMoving && (
         <div className="fixed inset-x-0 bottom-20 z-40 flex justify-center px-4 sm:bottom-6">
           <div className="flex items-center gap-1.5 rounded-card border border-line bg-white p-2 shadow-card">
-            <span className="whitespace-nowrap px-2 text-sm font-medium text-ink">已选 {selected.size} 项</span>
+            <span className="whitespace-nowrap px-2 text-sm font-medium text-ink">已选 {selection.selected.size} 项</span>
             {hasFileSelected && (
               <Button size="sm" onClick={batchDownload}>
                 下载
@@ -430,7 +587,7 @@ export default function Browser() {
             <Button size="sm" variant="danger" onClick={() => setBatchDeleting(true)}>
               删除
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
+            <Button size="sm" variant="ghost" onClick={() => selection.clear()}>
               取消
             </Button>
           </div>
@@ -481,8 +638,8 @@ export default function Browser() {
       {batchDeleting && (
         <ConfirmDialog
           open
-          title={`删除选中的 ${selected.size} 项`}
-          description={`确定删除选中的 ${selected.size} 项？可在回收站恢复。`}
+          title={`删除选中的 ${selection.selected.size} 项`}
+          description={`确定删除选中的 ${selection.selected.size} 项？可在回收站恢复。`}
           confirmText="删除"
           danger
           busy={batchBusy}
@@ -492,11 +649,34 @@ export default function Browser() {
       )}
       {batchMoving && (
         <MoveDialog
-          title={`移动 ${selected.size} 项到…`}
+          title={`移动 ${selection.selected.size} 项到…`}
           busy={batchBusy}
           onSubmit={(to) => void runBatchMove(to)}
           onCancel={() => setBatchMoving(false)}
         />
+      )}
+      {/* 详情只读弹窗：名称/大小/类型/修改时间 */}
+      {detail && (
+        <Dialog open onClose={() => setDetail(null)} title="详情">
+          <dl className="space-y-2 text-sm">
+            <div className="flex items-start justify-between gap-4">
+              <dt className="shrink-0 text-ink-dim">名称</dt>
+              <dd className="break-all text-right font-medium text-ink">{detail.name}</dd>
+            </div>
+            <div className="flex items-start justify-between gap-4">
+              <dt className="shrink-0 text-ink-dim">大小</dt>
+              <dd className="tabular-nums text-ink">{formatBytes(detail.is_dir ? null : detail.size)}</dd>
+            </div>
+            <div className="flex items-start justify-between gap-4">
+              <dt className="shrink-0 text-ink-dim">类型</dt>
+              <dd className="text-ink">{detail.is_dir ? "文件夹" : (detail.mime ?? "未知")}</dd>
+            </div>
+            <div className="flex items-start justify-between gap-4">
+              <dt className="shrink-0 text-ink-dim">修改时间</dt>
+              <dd className="tabular-nums text-ink">{formatDate(detail.updated_at)}</dd>
+            </div>
+          </dl>
+        </Dialog>
       )}
       {/* 拖拽全屏覆盖层：白底 80% + 内嵌虚线框；drop/离开窗口后关闭（计数法归零） */}
       {dragDepth > 0 && (

@@ -38,4 +38,24 @@ if (typeof sessionStorage === "undefined") {
   });
 }
 
+// jsdom 无 ResizeObserver（@tanstack/react-virtual 依赖）：stub 在 observe 时同步回调一次
+// 800×480 视口，让虚拟列表在测试中能计算出渲染区间
+if (typeof globalThis.ResizeObserver === "undefined") {
+  class ResizeObserverStub {
+    callback: ResizeObserverCallback;
+    constructor(callback: ResizeObserverCallback) {
+      this.callback = callback;
+    }
+    observe() {
+      this.callback(
+        [{ borderBoxSize: [{ inlineSize: 800, blockSize: 480 }] } as unknown as ResizeObserverEntry],
+        this as unknown as ResizeObserver,
+      );
+    }
+    unobserve() {}
+    disconnect() {}
+  }
+  Object.defineProperty(globalThis, "ResizeObserver", { configurable: true, value: ResizeObserverStub });
+}
+
 afterEach(() => cleanup());

@@ -226,6 +226,11 @@ body {
   to { background-position: -200% 0; }
 }
 
+/* 列表项/卡片入场（≤10 项启用；inline style 提供 i*20ms stagger） */
+.anim-item-in {
+  animation: item-in 250ms var(--ease-spring) both;
+}
+
 /* 降级：减少动效 */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

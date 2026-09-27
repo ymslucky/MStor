@@ -1,8 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 
 export interface ContextMenuItem {
   label: string;
-  icon?: string;
+  /** Lucide 图标节点 */
+  icon?: ReactNode;
   danger?: boolean;
   onClick: () => void;
 }
