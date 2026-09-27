@@ -1,16 +1,20 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { Node } from "../api/types";
 import Breadcrumb from "../components/Breadcrumb";
 import FileList from "../components/FileList";
 import MoveDialog from "../components/MoveDialog";
 import NameDialog from "../components/NameDialog";
+import UploadPanel from "../components/UploadPanel";
 import { useFiles } from "../hooks/useFiles";
+import { useUploadQueue } from "../hooks/useUploadQueue";
 
 export default function Browser() {
   const [params, setParams] = useSearchParams();
   const dir = params.get("dir") ?? "";
   const { query, mkDir, rename, move, remove } = useFiles(dir);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const queue = useUploadQueue();
   const [creating, setCreating] = useState(false);
   const [renaming, setRenaming] = useState<Node | null>(null);
   const [moving, setMoving] = useState<Node | null>(null);
@@ -30,6 +34,22 @@ export default function Browser() {
           onClick={() => setCreating(true)}
         >
           新建文件夹
+        </button>
+        <input
+          ref={fileInput}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            if (e.target.files?.length) queue.add(Array.from(e.target.files), dir);
+            e.target.value = "";
+          }}
+        />
+        <button
+          className="shrink-0 rounded bg-green-600 px-3 py-1.5 text-sm text-white hover:bg-green-700"
+          onClick={() => fileInput.current?.click()}
+        >
+          上传
         </button>
       </div>
       {query.isPending && <div className="py-16 text-center text-sm text-slate-400">加载中…</div>}
@@ -53,6 +73,7 @@ export default function Browser() {
           )}
         />
       )}
+      <UploadPanel queue={queue} />
       {creating && (
         <NameDialog
           title="新建文件夹"
