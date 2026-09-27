@@ -7,7 +7,7 @@ app.get("/api/health", (c) => c.json({ ok: true }));
 
 export default {
   fetch: app.fetch,
-  async scheduled(_event: ScheduledEvent, _env: Env, ctx: ExecutionContext) {
+  async scheduled(_event: ScheduledController, _env: Env, ctx: ExecutionContext) {
     ctx.waitUntil(Promise.resolve());
   },
 } satisfies ExportedHandler<Env>;
