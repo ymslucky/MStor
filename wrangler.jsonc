@@ -15,7 +15,7 @@
   "triggers": { "crons": ["0 3 * * *"] },
   "vars": {
     "OIDC_ISSUER": "https://auth.msxor.com",
-    "OIDC_CLIENT_ID": "nXkJYhtDkyjGbNHayEOhmjqVfwTKvlEW",
+    "OIDC_CLIENT_ID": "huEjzaToFyCWfhDRUMAXnkqcAbxFTkaO",
     "PUBLIC_URL": "https://stor.msxor.com",
     "R2_ENDPOINT": "https://1c8085f64526758e5e231ee2f5395a2e.r2.cloudflarestorage.com/mstor",
     "DEFAULT_QUOTA_BYTES": "10737418240",
