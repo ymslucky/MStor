@@ -3052,6 +3052,14 @@ git add server/routes/dav.ts test/dav.test.ts
 git commit -m "feat: webdav part B (mkcol/move/copy/delete/lock)"
 ```
 
+> **审查记录（2026-09-27）**
+>
+> - 实现 `ba610b1` + 审查修复 `e872a23`；`npm test` 14 文件 91/91 绿、`npx tsc --noEmit` 零错误。spec review：SATISFIED；quality review：REQUEST_CHANGES → 修复后双绿通过。
+> - **实现期修正 8 处计划 bug**（spec 逐条核实属实）：①`BUCKET.copy` 在本 workers-types/miniflare 版本不存在 → get+put 流式复制 ②`permanentDeleteNode` 仅删回收站态节点，DAV DELETE 活跃节点必 404 → 新增 `purgeNode`（活跃先软删再永久清；**DAV DELETE 终态=永久删除，不进回收站**，与计划测试断言一致；DAV 覆盖写撞回收站占名节点时直接永久清）③计划 walkSegments/davMkcol/davMove/davCopy 用根哨兵行 id 当顶级父 → 跟踪 parentId（''）④walkSegments 改 liveChild 过滤回收站 ⑤源路径中间是文件时计划会误删最深命中节点 → 404 ⑥MKCOL 漏判父路径中间是文件 → 409；MKCOL/MOVE/COPY 目标名补 validateNodeName ⑦护根补强：COPY 根 404、MOVE/COPY 原地自指 403、COPY 目录入自身子树 409 ⑧Destination 同源 origin 校验。另落实 Task 15 遗留项：davPut chunked（无 Content-Length）事后结算——新建失败删孤儿回滚，覆盖保持 DB/R2 一致后报错。
+> - **审查修复（严重）**：MOVE 目标在源子树内时（如 `MOVE /a → /a/b`）计划顺序是先 purge 目标再由 moveNode 抛 400，失败请求会静默永久删除数据——前置 isDescendant 预检返回 409，并补回归测试断言目标文件存活。
+> - 审查修复（建议/可选）：copyInto DB 插入失败清理已复制 R2 对象（对齐 davPut 新建分支）；Destination 前缀严格匹配 `/dav`/`/dav/`；COPY 测试改查 DB 断言 r2_key 独立（原 id 不等断言恒真）。
+> - 已知取舍（计划原样）：Overwrite:T 覆盖回收站占名节点会永久删除它（与 UI PUT 撞占名 409 不一致，DAV 覆盖写语义使然）；COPY 无配额预检（大目录复制可超配额，后续任务可补）；递归 COPY 中途失败无整体回滚；LOCK 为假锁（无锁表、不校验 If 头、last-writer-wins）；Overwrite 非法值按 T 处理。
+
 ---
 
 ### Task 17: 收尾（CORS 配置、最终接线检查、部署清单）
