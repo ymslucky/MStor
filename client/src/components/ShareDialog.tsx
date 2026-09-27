@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { createShare } from "../api/shares";
 import type { Node } from "../api/types";
+import { toast } from "../components/Toaster";
 
 interface Props {
   node: Node;
@@ -14,6 +15,10 @@ export default function ShareDialog({ node, onClose }: Props) {
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
+    if (days && !(Number(days) > 0)) {
+      toast("有效天数须为正数");
+      return;
+    }
     setBusy(true);
     try {
       const res = await createShare({
@@ -22,6 +27,8 @@ export default function ShareDialog({ node, onClose }: Props) {
         password: password || undefined,
       });
       setUrl(res.url);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "创建分享失败");
     } finally {
       setBusy(false);
     }

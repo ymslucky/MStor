@@ -3,6 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
 import type { Node } from "../api/types";
+import { Toaster } from "./Toaster";
 import ShareDialog from "./ShareDialog";
 
 vi.mock("../api/shares", () => ({
@@ -26,6 +27,18 @@ test("creates share with expiry and password, shows url", async () => {
   );
   // URL 渲染在只读 input 的 value 里，需用 displayValue 断言
   expect(await screen.findByDisplayValue(/\/s\/tok123/)).toBeInTheDocument();
+});
+
+test("createShare reject 时显示错误提示", async () => {
+  vi.mocked(createShare).mockRejectedValueOnce(new Error("名称已存在"));
+  const { user } = renderWith(
+    <>
+      <ShareDialog node={node()} onClose={() => {}} />
+      <Toaster />
+    </>,
+  );
+  await user.click(screen.getByRole("button", { name: "创建" }));
+  expect(await screen.findByText("名称已存在")).toBeInTheDocument();
 });
 
 function renderWith(ui: JSX.Element) {
