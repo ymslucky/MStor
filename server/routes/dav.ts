@@ -150,7 +150,8 @@ function destinationSegments(c: Context<AppEnv>): string[] | null {
   try {
     const u = new URL(dest, c.req.url);
     if (u.origin !== new URL(c.req.url).origin) return null;
-    if (!u.pathname.startsWith("/dav")) return null;
+    // 严格前缀：/davX 不算 DAV 路径
+    if (u.pathname !== "/dav" && !u.pathname.startsWith("/dav/")) return null;
     const segs = decodeURIComponent(u.pathname.slice("/dav".length)).split("/").filter(Boolean);
     return segs.length ? segs : null;
   } catch {
@@ -204,8 +205,11 @@ async function davMove(c: Context<AppEnv>): Promise<Response> {
   const existing = await childByName(c.env.DB, user.id, destParentId, destName);
   if (existing && existing.id === r.node.id) return new Response(null, { status: 403 }); // 原地 MOVE 会先毁源
   if (existing && c.req.header("overwrite")?.toLowerCase() === "f") return new Response(null, { status: 412 });
+  // 目录不能移入自身子树：purge 先于 moveNode 执行，必须先拒绝，否则目标子树会被永久删除后才报错
+  if (r.node.is_dir && await isDescendant(c.env.DB, user.id, r.node.id, destParentId))
+    return new Response(null, { status: 409 });
   if (existing) await purgeNode(c.env, user.id, existing.id, existing.deleted_at);
-  // 目录移入自身子树由 moveNode 内的 isDescendant 检查拒绝（400）
+  // 目录移入自身子树已在上面的预检拒绝；其余冲突由 moveNode 内的 isDescendant 兜底
   await moveNode(c.env.DB, user.id, r.node.id, destParentId, destName);
   return new Response(null, { status: existing ? 204 : 201 });
 }
@@ -226,9 +230,15 @@ async function copyInto(c: Context<AppEnv>, src: NodeRow, destParentId: string, 
     if (!obj) throw errors.notFound();
     await c.env.BUCKET.put(key, obj.body, { httpMetadata: obj.httpMetadata });
     const now = Date.now();
-    await c.env.DB.prepare(
-      "INSERT INTO nodes (id, owner_id, parent_id, name, is_dir, r2_key, size, mime, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,0,?5,?6,?7,?8,?8,NULL)"
-    ).bind(id, user.id, destParentId, name, key, src.size, src.mime, now).run();
+    try {
+      await c.env.DB.prepare(
+        "INSERT INTO nodes (id, owner_id, parent_id, name, is_dir, r2_key, size, mime, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,0,?5,?6,?7,?8,?8,NULL)"
+      ).bind(id, user.id, destParentId, name, key, src.size, src.mime, now).run();
+    } catch (e) {
+      // 对齐 davPut 新建分支：DB 插入失败清掉已复制的 R2 对象，不留孤儿
+      await c.env.BUCKET.delete(key);
+      throw e;
+    }
   }
 }
 

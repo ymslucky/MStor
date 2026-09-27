@@ -146,7 +146,33 @@ test("COPY duplicates file (independent R2 object)", async () => {
   expect(res.status).toBe(201);
   const list = (await (await SELF.fetch("https://example.com/api/files", { headers: await sessionHeaders(u) })).json()) as { nodes: { name: string; id: string }[] };
   expect(list.nodes.map((n) => n.name).sort()).toEqual(["dst.txt", "src.txt"]);
-  expect(list.nodes[0].id).not.toBe(list.nodes[1].id);
+  // id 随机必然不同，真正要验证的是 R2 对象独立（新 r2_key）
+  const rows = await env.DB.prepare("SELECT name, r2_key FROM nodes WHERE owner_id = ?1 AND is_dir = 0 AND deleted_at IS NULL")
+    .bind(u.id).all<{ name: string; r2_key: string }>();
+  const keys = Object.fromEntries(rows.results.map((r) => [r.name, r.r2_key]));
+  expect(keys["dst.txt"]).not.toBe(keys["src.txt"]);
+});
+
+test("MOVE into own subtree is 409 without destroying the target", async () => {
+  const u = await seedUser();
+  const dir = (await (await SELF.fetch("https://example.com/api/dirs", {
+    method: "POST",
+    headers: { ...(await sessionHeaders(u)), "content-type": "application/json" },
+    body: JSON.stringify({ parentId: "", name: "a" }),
+  })).json()) as { id: string };
+  const fid = await upload(u, "b.txt", "precious");
+  await SELF.fetch(`https://example.com/api/files/${fid}`, {
+    method: "PATCH",
+    headers: { ...(await sessionHeaders(u)), "content-type": "application/json" },
+    body: JSON.stringify({ parentId: dir.id }),
+  });
+  // MOVE /a → /a/b：目标在源子树内，必须先拒绝；否则 existing(b) 被永久删除后才报错
+  const res = await SELF.fetch("https://example.com/dav/a", {
+    method: "MOVE",
+    headers: { ...(await davHeaders(u)), destination: "https://example.com/dav/a/b" },
+  });
+  expect(res.status).toBe(409);
+  expect(await env.DB.prepare("SELECT * FROM nodes WHERE id = ?1").bind(fid).first()).not.toBeNull();
 });
 
 test("DELETE via dav permanently removes", async () => {
