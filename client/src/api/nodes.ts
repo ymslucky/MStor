@@ -1,4 +1,5 @@
 import { api } from "./client";
+import { purgeNode } from "./trash";
 import type { ListFilesResult, Node } from "./types";
 
 export const listFiles = (parentId: string) =>
@@ -19,5 +20,11 @@ export const moveNode = (id: string, parentId: string) =>
 
 export const deleteNode = (id: string) =>
   api<{ ok: true }>(`/api/files/${id}`, { method: "DELETE" });
+
+// 浏览器内彻底删除：先软删（进回收站语义）再 purge（purge 仅对软删态生效）
+export async function deleteNodePermanently(id: string): Promise<void> {
+  await deleteNode(id);
+  await purgeNode(id);
+}
 
 export const contentUrl = (id: string, dl = false) => `/api/files/${id}/content${dl ? "?dl=1" : ""}`;

@@ -7,7 +7,7 @@ import type { LucideIcon } from "lucide-react";
 import { listShares } from "../api/shares";
 import { listTrash } from "../api/trash";
 import type { Me, Node } from "../api/types";
-import { contentUrl, deleteNode, moveNode } from "../api/nodes";
+import { contentUrl, deleteNode, deleteNodePermanently, moveNode } from "../api/nodes";
 import Breadcrumb from "../components/Breadcrumb";
 import ContextMenu from "../components/ContextMenu";
 import type { ContextMenuItem } from "../components/ContextMenu";
@@ -166,6 +166,7 @@ export default function Browser() {
   const [batchDeleting, setBatchDeleting] = useState(false);
   const [batchMoving, setBatchMoving] = useState(false);
   const [batchBusy, setBatchBusy] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
   // 视图偏好持久化，缺省 list
   const [view, setView] = useState<"list" | "grid">(() => (localStorage.getItem("mstor_view") === "grid" ? "grid" : "list"));
   // 拖拽上传：dragenter/leave 计数法防子元素闪烁，>0 时显示全屏覆盖层
@@ -223,18 +224,42 @@ export default function Browser() {
     localStorage.setItem("mstor_view", v);
   };
 
-  // 批量删除：顺序逐个删除，完成后失效 files + trash 缓存
-  const runBatchDelete = async () => {
+  // 批量删除：顺序逐个删除（permanent 时软删后立即 purge），完成后失效 files + trash 缓存
+  const runBatchDelete = async (permanent = false) => {
     setBatchBusy(true);
     try {
-      for (const id of selection.selected) await deleteNode(id);
+      for (const id of selection.selected) {
+        if (permanent) await deleteNodePermanently(id);
+        else await deleteNode(id);
+      }
       selection.clear();
+      toast(permanent ? "已彻底删除选中项" : "已移入回收站", "info");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "批量删除失败", "error");
     } finally {
       setBatchBusy(false);
       setBatchDeleting(false);
     }
     void queryClient.invalidateQueries({ queryKey: ["files"] });
     void queryClient.invalidateQueries({ queryKey: ["trash"] });
+    if (permanent) void queryClient.invalidateQueries({ queryKey: ["me"] });
+  };
+
+  // 单项彻底删除：弹窗保持打开（busy），成功后关闭
+  const purgeNow = async (id: string) => {
+    setDeleteBusy(true);
+    try {
+      await deleteNodePermanently(id);
+      setDeleting(null);
+      toast("已彻底删除", "info");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "彻底删除失败", "error");
+    } finally {
+      setDeleteBusy(false);
+    }
+    void queryClient.invalidateQueries({ queryKey: ["files"] });
+    void queryClient.invalidateQueries({ queryKey: ["trash"] });
+    void queryClient.invalidateQueries({ queryKey: ["me"] });
   };
 
   // 批量移动：顺序逐个移动
@@ -638,6 +663,8 @@ export default function Browser() {
           description={`确定删除「${deleting.name}」？可在回收站恢复。`}
           confirmText="删除"
           danger
+          busy={deleteBusy}
+          extraAction={{ label: "彻底删除", onClick: () => void purgeNow(deleting.id) }}
           onConfirm={() => {
             remove.mutate(deleting.id);
             setDeleting(null);
@@ -662,7 +689,8 @@ export default function Browser() {
           confirmText="删除"
           danger
           busy={batchBusy}
-          onConfirm={() => void runBatchDelete()}
+          extraAction={{ label: "彻底删除", onClick: () => void runBatchDelete(true) }}
+          onConfirm={() => void runBatchDelete(false)}
           onCancel={() => setBatchDeleting(false)}
         />
       )}

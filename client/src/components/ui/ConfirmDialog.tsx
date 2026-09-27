@@ -11,6 +11,8 @@ interface ConfirmDialogProps {
   busy?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  /** 可选第二动作（如「彻底删除」），置于 footer 左侧 */
+  extraAction?: { label: string; onClick: () => void };
 }
 
 // 通用确认弹窗：基于 Dialog 外壳（Esc/遮罩关闭）；danger 时确认按钮为 danger 变体
@@ -24,6 +26,7 @@ export function ConfirmDialog({
   busy = false,
   onConfirm,
   onCancel,
+  extraAction,
 }: ConfirmDialogProps) {
   return (
     <Dialog
@@ -32,6 +35,11 @@ export function ConfirmDialog({
       title={title}
       footer={
         <>
+          {extraAction && (
+            <Button variant="ghost" className="mr-auto! text-danger-text!" disabled={busy} onClick={extraAction.onClick}>
+              {extraAction.label}
+            </Button>
+          )}
           <Button variant="ghost" onClick={onCancel}>
             {cancelText}
           </Button>
