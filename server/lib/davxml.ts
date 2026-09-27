@@ -15,8 +15,10 @@ export function propResponse(href: string, node: {
   const fileProps = isDir
     ? ""
     : `<D:getcontentlength>${node.size ?? 0}</D:getcontentlength><D:getcontenttype>${escapeXml(node.mime ?? "application/octet-stream")}</D:getcontenttype>`;
+  // encodeURI 不转义 #/?，会被客户端截为 fragment/query，需补百分号编码
+  const uri = encodeURI(href).replace(/#/g, "%23").replace(/\?/g, "%3F");
   return (
-    `<D:response><D:href>${escapeXml(encodeURI(href))}</D:href><D:propstat><D:prop>${rtype}${fileProps}` +
+    `<D:response><D:href>${escapeXml(uri)}</D:href><D:propstat><D:prop>${rtype}${fileProps}` +
     `<D:displayname>${escapeXml(node.name)}</D:displayname>` +
     `<D:getlastmodified>${new Date(node.updated_at).toUTCString()}</D:getlastmodified>` +
     `<D:creationdate>${new Date(node.updated_at).toISOString()}</D:creationdate>` +

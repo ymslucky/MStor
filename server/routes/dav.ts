@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import type { AppEnv } from "../env";
 import { errors } from "../lib/errors";
-import { assertQuota, childByName, ensureRootDir, listChildren } from "../lib/nodes";
+import { assertQuota, childByName, ensureRootDir, listChildren, validateNodeName } from "../lib/nodes";
 import { serveObject } from "../lib/serve";
 import { multistatus, propResponse } from "../lib/davxml";
 import { davAuth } from "../middleware/davauth";
@@ -29,7 +29,13 @@ async function liveChild(db: D1Database, ownerId: string, parentId: string, name
 
 async function resolvePath(c: Context<AppEnv>): Promise<Resolved> {
   const user = c.get("user");
-  const rel = decodeURIComponent(new URL(c.req.url).pathname.slice("/dav".length));
+  let rel: string;
+  try {
+    rel = decodeURIComponent(new URL(c.req.url).pathname.slice("/dav".length));
+  } catch {
+    // 畸形百分号序列（如 %zz）：按 400 处理而非 URIError 500
+    throw errors.badRequest("路径编码不合法");
+  }
   const segments = rel.split("/").filter(Boolean);
   const root = await ensureRootDir(c.env.DB, user.id);
   let parent = root;
@@ -79,7 +85,8 @@ async function davPut(c: Context<AppEnv>): Promise<Response> {
   const user = c.get("user");
   const r = await resolvePath(c);
   if (!r.segments.length || !r.parent.is_dir) return new Response(null, { status: 409 });
-  const name = r.segments[r.segments.length - 1];
+  // 与 API 同款校验（空/超长/`.`/`..`/非法字符），防止 DAV 侧创建 UI 拒绝的节点名
+  const name = validateNodeName(r.segments[r.segments.length - 1]);
   const mime = c.req.header("content-type") ?? "application/octet-stream";
   // 对齐 files.ts：按 Content-Length 做配额预检（WebDAV 无小文件直传上限，大文件即 PUT 本意）
   const len = Number(c.req.header("content-length") ?? "0");

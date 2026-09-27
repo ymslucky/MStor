@@ -84,3 +84,28 @@ test("dav PUT enforces quota", async () => {
   });
   expect(res.status).toBe(403);
 });
+
+test("nested PUT lands under the subdir; subdir PROPFIND hrefs carry the prefix", async () => {
+  const u = await seedUser();
+  await SELF.fetch("https://example.com/api/dirs", {
+    method: "POST",
+    headers: { ...(await sessionHeaders(u)), "content-type": "application/json" },
+    body: JSON.stringify({ parentId: "", name: "docs" }),
+  });
+  const h = await davHeaders(u);
+  expect((await SELF.fetch("https://example.com/dav/docs/nested.txt", { method: "PUT", headers: h, body: "deep" })).status).toBe(201);
+  const pf = await SELF.fetch("https://example.com/dav/docs", { method: "PROPFIND", headers: { ...h, depth: "1" } });
+  expect(pf.status).toBe(207);
+  const xml = await pf.text();
+  expect(xml).toContain("<D:href>/dav/docs</D:href>");
+  expect(xml).toContain("<D:href>/dav/docs/nested.txt</D:href>");
+});
+
+test("invalid node name and malformed percent-encoding are 400", async () => {
+  const u = await seedUser();
+  const h = await davHeaders(u);
+  // 控制字符名：API 侧 validateNodeName 同款拒绝
+  expect((await SELF.fetch("https://example.com/dav/bad%07name.txt", { method: "PUT", headers: h, body: "x" })).status).toBe(400);
+  // 畸形百分号序列：URIError 应映射 400 而非 500
+  expect((await SELF.fetch("https://example.com/dav/%zz.txt", { method: "PUT", headers: h, body: "x" })).status).toBe(400);
+});
