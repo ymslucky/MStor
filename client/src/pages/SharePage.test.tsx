@@ -66,6 +66,26 @@ test("password gate: asks code then retries with header", async () => {
   expect(fetchShare).toHaveBeenLastCalledWith("tok123", "8888");
 });
 
+test("wrong password keeps gate open and can retry", async () => {
+  // 文件未配置 clearMocks，调用次数跨用例累计，先清掉历史再断言次数
+  vi.mocked(fetchShare).mockClear();
+  vi.mocked(fetchShare)
+    .mockRejectedValueOnce(new ApiError(401, "SHARE_PASSWORD", "需要提取码"))
+    .mockRejectedValueOnce(new ApiError(401, "SHARE_PASSWORD", "提取码不正确"))
+    .mockResolvedValue(info({ hasPassword: true, children: [{ id: "p1", name: "机密.pdf", isDir: false, size: 1, mime: "application/pdf" }] }));
+  const { user } = renderWith(<SharePage />);
+  expect(await screen.findByText(/需要提取码/)).toBeInTheDocument();
+  await user.type(screen.getByLabelText("提取码"), "wrong");
+  await user.click(screen.getByRole("button", { name: "解锁" }));
+  expect(await screen.findByText(/提取码不正确/)).toBeInTheDocument();
+  await user.clear(screen.getByLabelText("提取码"));
+  await user.type(screen.getByLabelText("提取码"), "8888");
+  await user.click(screen.getByRole("button", { name: "解锁" }));
+  expect(await screen.findByText("机密.pdf")).toBeInTheDocument();
+  expect(fetchShare).toHaveBeenCalledTimes(3);
+  expect(fetchShare).toHaveBeenLastCalledWith("tok123", "8888");
+});
+
 test("shows expired and revoked states", async () => {
   vi.mocked(fetchShare).mockRejectedValue(new ApiError(410, "SHARE_EXPIRED", "分享已过期"));
   renderWith(<SharePage />);

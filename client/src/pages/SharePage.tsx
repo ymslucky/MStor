@@ -15,12 +15,14 @@ export default function SharePage() {
   const { token = "" } = useParams();
   const [password, setPassword] = useState("");
   const [entered, setEntered] = useState(false);
+  // 已提交查询用的提取码：仅点「解锁」时更新，输入过程不触发请求
+  const [usedPassword, setUsedPassword] = useState("");
   const [crumbs, setCrumbs] = useState<Crumb[]>([]);
   const [current, setCurrent] = useState<{ id: string; name: string } | null>(null);
 
   const info = useQuery({
-    queryKey: ["share", token, entered ? password : ""],
-    queryFn: () => fetchShare(token, entered ? password : undefined),
+    queryKey: ["share", token, entered ? usedPassword : ""],
+    queryFn: () => fetchShare(token, entered ? usedPassword : undefined),
     retry: false,
   });
 
@@ -35,10 +37,11 @@ export default function SharePage() {
   });
 
   if (info.isPending) return <div className="p-10 text-center text-sm text-slate-400">加载中…</div>;
-  if (needsPassword && !entered)
+  // 已提交且因提取码失败时也回到门内，允许改码重试
+  if (needsPassword)
     return (
       <div className="mx-auto mt-24 w-80 rounded-lg border bg-white p-6 text-center shadow">
-        <p className="mb-3 text-sm">该分享需要提取码</p>
+        <p className="mb-3 text-sm">{entered ? "提取码不正确，请重试" : "该分享需要提取码"}</p>
         <input
           aria-label="提取码"
           className="w-full rounded border px-2 py-1.5 text-sm"
@@ -47,7 +50,10 @@ export default function SharePage() {
         />
         <button
           className="mt-3 w-full rounded bg-blue-600 px-3 py-1.5 text-sm text-white"
-          onClick={() => setEntered(true)}
+          onClick={() => {
+            setUsedPassword(password);
+            setEntered(true);
+          }}
         >
           解锁
         </button>
@@ -86,7 +92,8 @@ export default function SharePage() {
               <button
                 className="hover:underline"
                 onClick={() => {
-                  setCrumbs(crumbs.slice(0, i + 1));
+                  // 该项变为当前目录，从 crumbs 中移除，避免按钮与「（当前）」重复
+                  setCrumbs(crumbs.slice(0, i));
                   setCurrent(c);
                 }}
               >
