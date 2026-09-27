@@ -1473,6 +1473,8 @@ git add server/routes/files.ts server/routes/dirs.ts server/index.ts test/files.
 git commit -m "feat: file list/mkdir/rename/move APIs with owner isolation"
 ```
 
+> **审查记录（2026-09-27）**：spec review PASS；quality review 首轮 REQUEST_CHANGES（2 Major：moveNode 冲突检查未排除自身导致 no-op PATCH 误报 409；POST /api/dirs 不校验 parentId 存在性/归属产生孤儿节点。2 Minor：listChildren 哨兵行过滤下沉 lib 层；validateNodeName 统一名称校验）→ commit `98c0e0c` 修复并补测试（no-op PATCH/纯移动/非法 parentId/非法名）→ 复审 APPROVE。最终 commit：`c6205e5` + `98c0e0c`，39 tests passed、tsc 零错误。**实现期发现并修复 Task 5 遗留 bug**：ensureRootDir 原用 `parent_id=''` 识别根，会误匹配任意顶层目录（根行 (uid,'','') 与顶层 (uid,'','名') 共存），改为 `parent_id='' AND name=''`，两条 SQL（主查询+竞态复用查询）同步修正。规格外改动均经 spec review 验证成立。后续任务注意：listChildren 现已在 lib 层排除哨兵行；新建目录/改名一律走 validateNodeName。
+
 ---
 
 ### Task 9: 小文件流式上传
