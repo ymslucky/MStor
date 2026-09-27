@@ -17,6 +17,7 @@ export default defineWorkersConfig(async () => {
               OIDC_CLIENT_SECRET: "test-oidc-secret",
               R2_ACCESS_KEY_ID: "test-r2-key",
               R2_SECRET_ACCESS_KEY: "test-r2-secret",
+              R2_ENDPOINT: "https://test-account.r2.cloudflarestorage.com/mstor",
               TEST_MIGRATIONS: migrations,
             },
           },

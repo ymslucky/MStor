@@ -6,6 +6,7 @@ import { me } from "./routes/me";
 import { auth } from "./routes/auth";
 import { files } from "./routes/files";
 import { dirs } from "./routes/dirs";
+import { uploads } from "./routes/uploads";
 
 const app = new Hono<AppEnv>();
 
@@ -20,6 +21,7 @@ app.route("/api/me", me);
 app.route("/auth", auth);
 app.route("/api/files", files);
 app.route("/api/dirs", dirs);
+app.route("/api/uploads", uploads);
 
 export default {
   fetch: app.fetch,
