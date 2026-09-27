@@ -25,6 +25,7 @@ beforeAll(() => {
 beforeEach(() => {
   vi.clearAllMocks();
   window.location.href = "";
+  localStorage.clear();
 });
 
 function renderShell() {
@@ -42,15 +43,27 @@ function renderShell() {
 test("shows user name, quota and nav links", async () => {
   renderShell();
   expect(await screen.findByText("Alice")).toBeInTheDocument();
-  // 桌面/移动共用同一 DOM（responsive 切换），以 role="navigation" 语义断言
+  // 桌面侧栏导航以 role="navigation" 语义断言；移动端底部 Tab 为另一导航不干扰
   const nav = screen.getByRole("navigation", { name: "主导航" });
   expect(within(nav).getByRole("link", { name: "文件" })).toBeInTheDocument();
   expect(within(nav).getByRole("link", { name: "回收站" })).toBeInTheDocument();
   expect(within(nav).getByRole("link", { name: "分享" })).toBeInTheDocument();
   expect(within(nav).getByRole("link", { name: "设置" })).toBeInTheDocument();
-  expect(screen.getByText(/40 B/)).toBeInTheDocument(); // usedBytes
+  expect(screen.getByText(/40 B/)).toBeInTheDocument(); // usedBytes（侧栏 StorageMeter）
   // 移动顶栏与桌面档案行各有一个退出按钮，点击均走确认弹窗
   expect(screen.getAllByRole("button", { name: "退出" })).toHaveLength(2);
+});
+
+test("sidebar toggle collapses, expands and persists to localStorage", async () => {
+  const { user } = renderShell();
+  await screen.findByText("Alice");
+  expect(localStorage.getItem("mstor_sidebar")).toBeNull();
+  await user.click(screen.getByRole("button", { name: "折叠侧栏" }));
+  expect(screen.getByRole("button", { name: "展开侧栏" })).toBeInTheDocument();
+  expect(localStorage.getItem("mstor_sidebar")).toBe("collapsed");
+  await user.click(screen.getByRole("button", { name: "展开侧栏" }));
+  expect(screen.getByRole("button", { name: "折叠侧栏" })).toBeInTheDocument();
+  expect(localStorage.getItem("mstor_sidebar")).toBe("expanded");
 });
 
 test("logout opens confirm dialog; cancel keeps session", async () => {
