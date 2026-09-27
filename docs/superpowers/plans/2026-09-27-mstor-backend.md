@@ -1990,6 +1990,8 @@ git add server/lib/r2.ts server/routes/uploads.ts server/index.ts test/uploads.t
 git commit -m "feat: presigned multipart upload channel for large files"
 ```
 
+> **审查记录（2026-09-27）**：spec review PASS（node.id=uploadId 与 r2_key 约定同 Task 10 兼容、先 R2 后 INSERT、pending 不占 usedBytes）；quality review APPROVE_WITH_NITS → commit `7b15040` 加固（partNumbers ≤1000 / parts ≤10000、etag 白名单 `^"[0-9a-f]{32}"$` → 400、presign X-Amz-Expires=3600、AwsClient.fetch 内置重试、SMALL_FILE_LIMIT 显式 500、parts 升序排序防 InvalidPartOrder、补 abort 与非法 etag 用例）。最终 commit：`2dc920a` + `7b15040`，57 tests passed、tsc 零错误。授权偏差：name 用 validateNodeName；complete body 可选 mime（uploads 表无 mime 列，客户端回传，缺省 octet-stream）；complete 的 INSERT nodes UNIQUE 竞态换名重试。**实现期适配**：workarder 把 `?uploads` 归一化为 `?uploads=`，mock 正则放宽为 `\?uploads=?$`（服务端不变）。**遗留给 Task 12**：遗弃 pending 上传无 TTL——cron 按 uploads.created_at 清理（abortMultipart + DELETE，r2.ts 已就绪）。
+
 ---
 
 ### Task 12: 回收站（软删除 / 恢复 / 彻底删除 / 定时清理）
