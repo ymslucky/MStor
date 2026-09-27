@@ -306,7 +306,7 @@ git commit -m "chore: scaffold MStor worker with health check"
 ### Task 2: D1 迁移（4 张表 + FTS5）
 
 **Files:**
-- Create: `migrations/0001_init.sql`, `test/setup.ts`
+- Create: `migrations/0001_init.sql`, `test/setup.ts`, `test/cloudflare-test.d.ts`
 - Modify: `vitest.config.ts`
 
 - [ ] **Step 1: 写迁移 SQL**
@@ -338,7 +338,6 @@ CREATE TABLE nodes (
   deleted_at INTEGER,
   UNIQUE (owner_id, parent_id, name)
 );
-CREATE INDEX idx_nodes_owner_parent ON nodes(owner_id, parent_id);
 CREATE INDEX idx_nodes_owner_deleted ON nodes(owner_id, deleted_at);
 
 CREATE TABLE shares (
@@ -351,6 +350,7 @@ CREATE TABLE shares (
   created_at INTEGER NOT NULL,
   revoked_at INTEGER
 );
+CREATE INDEX idx_shares_node ON shares(node_id);
 
 CREATE TABLE uploads (
   id TEXT PRIMARY KEY,
@@ -364,20 +364,20 @@ CREATE TABLE uploads (
   created_at INTEGER NOT NULL
 );
 
-CREATE VIRTUAL TABLE nodes_fts USING fts5(node_id UNINDEXED, name);
+CREATE VIRTUAL TABLE nodes_fts USING fts5(node_id UNINDEXED, name, tokenize = 'trigram');
 CREATE TRIGGER nodes_ai AFTER INSERT ON nodes BEGIN
   INSERT INTO nodes_fts(node_id, name) VALUES (new.id, new.name);
 END;
 CREATE TRIGGER nodes_ad AFTER DELETE ON nodes BEGIN
-  INSERT INTO nodes_fts(nodes_fts, node_id, name) VALUES ('delete', old.id, old.name);
+  DELETE FROM nodes_fts WHERE node_id = old.id;
 END;
 CREATE TRIGGER nodes_au AFTER UPDATE OF name ON nodes BEGIN
-  INSERT INTO nodes_fts(nodes_fts, node_id, name) VALUES ('delete', old.id, old.name);
+  DELETE FROM nodes_fts WHERE node_id = old.id;
   INSERT INTO nodes_fts(node_id, name) VALUES (new.id, new.name);
 END;
 ```
 
-设计要点：`parent_id` 用空串 `''` 作根哨兵（非 NULL），使 `UNIQUE(owner_id, parent_id, name)` 对根目录同样生效；`nodes.id` 为应用层 `crypto.randomUUID()`。
+设计要点：`parent_id` 用空串 `''` 作根哨兵（非 NULL），使 `UNIQUE(owner_id, parent_id, name)` 对根目录同样生效；`nodes.id` 为应用层 `crypto.randomUUID()`。FTS5 用 trigram 分词（支持 CJK 子串匹配），同步触发器用普通 DELETE（D1 的 SQLite 不支持 FTS5 `'delete'` 特殊命令，实测报错）。
 
 - [ ] **Step 2: 写测试 setup 并接入 vitest**
 
@@ -2227,13 +2227,21 @@ export const search = new Hono<AppEnv>();
 
 search.get("/", async (c) => {
   const q = (c.req.query("q") ?? "").trim();
-  const safe = q.replace(/["'()*]/g, " ").trim();
+  const safe = q.replace(/["'()*%_\\]/g, " ").trim();
   if (!safe) return c.json({ nodes: [] });
+  // trigram 分词要求查询 ≥3 码点且为整段子串；短查询退化为 LIKE
+  if ([...safe].length >= 3) {
+    const { results } = await c.env.DB.prepare(
+      `SELECT n.* FROM nodes_fts f JOIN nodes n ON n.id = f.node_id
+       WHERE nodes_fts MATCH ?1 AND n.owner_id = ?2 AND n.deleted_at IS NULL
+       ORDER BY n.updated_at DESC LIMIT 50`
+    ).bind(`"${safe}"`, c.get("user").id).all();
+    return c.json({ nodes: results });
+  }
   const { results } = await c.env.DB.prepare(
-    `SELECT n.* FROM nodes_fts f JOIN nodes n ON n.id = f.node_id
-     WHERE nodes_fts MATCH ?1 AND n.owner_id = ?2 AND n.deleted_at IS NULL
-     ORDER BY n.updated_at DESC LIMIT 50`
-  ).bind(`${safe}*`, c.get("user").id).all();
+    `SELECT * FROM nodes WHERE owner_id = ?1 AND deleted_at IS NULL AND name LIKE ?2
+     ORDER BY updated_at DESC LIMIT 50`
+  ).bind(c.get("user").id, `%${safe}%`).all();
   return c.json({ nodes: results });
 });
 ```
