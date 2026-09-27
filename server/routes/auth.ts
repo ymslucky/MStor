@@ -57,17 +57,23 @@ auth.get("/callback", async (c) => {
   const cfg = await discover(c.env);
   const res = await fetch(cfg.token_endpoint, {
     method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
+    headers: {
+      // MSAuth 客户端注册为 client_secret_basic：凭据必须走 HTTP Basic 头（RFC 6749 §2.3.1，值需先 form-encode）
+      authorization: `Basic ${btoa(`${encodeURIComponent(c.env.OIDC_CLIENT_ID)}:${encodeURIComponent(c.env.OIDC_CLIENT_SECRET)}`)}`,
+      "content-type": "application/x-www-form-urlencoded",
+    },
     body: new URLSearchParams({
       grant_type: "authorization_code",
       code: c.req.query("code") ?? "",
       redirect_uri: `${c.env.PUBLIC_URL}/auth/callback`,
-      client_id: c.env.OIDC_CLIENT_ID,
-      client_secret: c.env.OIDC_CLIENT_SECRET,
       code_verifier: saved.verifier,
     }),
   });
-  if (!res.ok) throw errors.unauthorized();
+  if (!res.ok) {
+    // 诊断：记录 IdP 的拒绝原因（响应体不含本方密钥），便于区分 invalid_grant/invalid_client/DPoP 等
+    console.error("token exchange failed", res.status, await res.text());
+    throw errors.unauthorized();
+  }
   const { id_token } = (await res.json()) as { id_token: string };
   // token 经服务端直连 IdP 换取（TLS + client_secret），claims 可信，无需再验签
   const payloadB64 = id_token.split(".")[1];
