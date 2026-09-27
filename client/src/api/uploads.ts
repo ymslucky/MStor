@@ -1,17 +1,66 @@
-import { api } from "./client";
+import { ApiError, api } from "./client";
 import type { InitUpload } from "./types";
 
 // 与后端 wrangler.jsonc 的 SMALL_FILE_LIMIT 同步（60MB）
 export const SMALL_FILE_LIMIT = 60 * 1024 * 1024;
 
-export const uploadSmall = (file: File, parentId: string) => {
-  const qs = new URLSearchParams({ name: file.name, parentId });
-  return api<{ id: string; name: string; size: number }>(`/api/files/upload?${qs}`, {
-    method: "PUT",
-    body: file,
-    headers: { "content-type": file.type || "application/octet-stream" },
+export interface UploadSmallOpts {
+  /** 取消上传：中止 XHR */
+  signal?: AbortSignal;
+  /** 上传进度（0-1） */
+  onProgress?: (ratio: number) => void;
+}
+
+// 小文件直传：fetch 无上传进度事件，用 XHR（xhr.upload.onprogress）+ abort 支持；
+// 错误语义与 api() 对齐（401 → ApiError，非 2xx 解析 error envelope，x-act-as 透传）
+export const uploadSmall = (file: File, parentId: string, opts?: UploadSmallOpts) =>
+  new Promise<{ id: string; name: string; size: number }>((resolve, reject) => {
+    const qs = new URLSearchParams({ name: file.name, parentId });
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", `/api/files/upload?${qs}`);
+    xhr.setRequestHeader("content-type", file.type || "application/octet-stream");
+    if (typeof localStorage !== "undefined") {
+      const actAs = localStorage.getItem("mstor_act_as");
+      if (actAs) xhr.setRequestHeader("x-act-as", actAs);
+    }
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) opts?.onProgress?.(e.loaded / e.total);
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          resolve(JSON.parse(xhr.responseText) as { id: string; name: string; size: number });
+        } catch {
+          reject(new ApiError(xhr.status, "INTERNAL", "响应解析失败"));
+        }
+        return;
+      }
+      if (xhr.status === 401) {
+        reject(new ApiError(401, "UNAUTHORIZED", "请先登录"));
+        return;
+      }
+      let code = "INTERNAL";
+      let message = "请求失败";
+      try {
+        const data = JSON.parse(xhr.responseText) as { error?: { code?: string; message?: string } };
+        code = data.error?.code ?? code;
+        message = data.error?.message ?? message;
+      } catch {
+        // 非 JSON 错误体，保留默认文案
+      }
+      reject(new ApiError(xhr.status, code, message));
+    };
+    xhr.onerror = () => reject(new ApiError(0, "NETWORK", "网络错误"));
+    xhr.onabort = () => reject(new DOMException("上传已取消", "AbortError"));
+    if (opts?.signal) {
+      if (opts.signal.aborted) {
+        xhr.abort();
+        return;
+      }
+      opts.signal.addEventListener("abort", () => xhr.abort());
+    }
+    xhr.send(file);
   });
-};
 
 export interface Part {
   partNumber: number;

@@ -3,6 +3,7 @@ import { useCallback, useRef, useState } from "react";
 import { ensureDir } from "../api/nodes";
 import { SMALL_FILE_LIMIT, abortUpload, uploadLarge, uploadSmall } from "../api/uploads";
 import type { PendingUpload } from "../lib/dirscan";
+import { SpeedTracker } from "../lib/speed";
 
 export type QueueStatus = "pending" | "uploading" | "done" | "error";
 
@@ -16,6 +17,8 @@ export interface QueueItem {
   file: File;
   status: QueueStatus;
   progress: number;
+  /** 估计上传速度（bytes/s），uploading 态有效 */
+  speed?: number;
   error?: string;
   /** 大文件 init 后记录，取消时调用 abortUpload 清理服务端分片 */
   uploadId?: string;
@@ -30,11 +33,35 @@ export function useUploadQueue() {
   // 取消：在途分片请求 AbortController + 已取消标记（结果落地时保持「已取消」态）
   const controllers = useRef(new Map<number, AbortController>());
   const cancelled = useRef(new Set<number>());
+  // 速度采样器 + 进度节流时间戳（key → …），完成/失败/重试时清理
+  const speeds = useRef(new Map<number, SpeedTracker>());
+  const lastEmit = useRef(new Map<number, number>());
 
   const update = useCallback((key: number, patch: Partial<QueueItem>) => {
     itemsRef.current = itemsRef.current.map((it) => (it.key === key ? { ...it, ...patch } : it));
     setItems([...itemsRef.current]);
   }, []);
+
+  // 速度采样收尾：完成/失败/取消后丢弃采样器，重试从零起算
+  const resetSampling = useCallback((key: number) => {
+    speeds.current.delete(key);
+    lastEmit.current.delete(key);
+  }, []);
+
+  // 进度回调（大小文件共用）：100ms 节流（收尾必发）+ EMA 速度
+  const onProgress = useCallback(
+    (key: number, ratio: number) => {
+      const item = itemsRef.current.find((it) => it.key === key);
+      if (!item) return;
+      const now = Date.now();
+      if (ratio < 1 && now - (lastEmit.current.get(key) ?? 0) < 100) return;
+      lastEmit.current.set(key, now);
+      const tracker = speeds.current.get(key) ?? new SpeedTracker();
+      speeds.current.set(key, tracker);
+      update(key, { progress: ratio, speed: tracker.push(ratio * item.size, now) });
+    },
+    [update],
+  );
 
   // 已建目录缓存：key = `${parentId}/${段}`，同目录多文件只 ensure 一次（Promise 复用）
   const dirCache = useRef(new Map<string, Promise<string>>());
@@ -79,31 +106,36 @@ export function useUploadQueue() {
         // 嵌套上传：先逐级 ensure 中间目录，得到最终父目录
         const parentId = next.path ? await ensureDirs(next.parentId, next.path) : next.parentId;
         if (next.file.size > SMALL_FILE_LIMIT) {
-          await uploadLarge(next.file, parentId, (p) => update(next.key, { progress: p }), 1000, {
+          await uploadLarge(next.file, parentId, (p) => onProgress(next.key, p), 1000, {
             signal: controller.signal,
             onUploadId: (uploadId) => update(next.key, { uploadId }),
           });
         } else {
-          await uploadSmall(next.file, parentId);
+          await uploadSmall(next.file, parentId, {
+            signal: controller.signal,
+            onProgress: (r) => onProgress(next.key, r),
+          });
         }
         // 上传期间被取消：保持「已取消」，不标完成
         if (!cancelled.current.has(next.key)) {
-          update(next.key, { status: "done", progress: 1 });
+          update(next.key, { status: "done", progress: 1, speed: undefined });
+          resetSampling(next.key);
           void queryClient.invalidateQueries({ queryKey: ["files"] });
           void queryClient.invalidateQueries({ queryKey: ["me"] });
         }
       } catch (e) {
         // 取消触发的失败：保持 cancel 已写入的「已取消」文案
         if (!cancelled.current.has(next.key)) {
-          update(next.key, { status: "error", error: e instanceof Error ? e.message : "上传失败" });
+          update(next.key, { status: "error", error: e instanceof Error ? e.message : "上传失败", speed: undefined });
         }
+        resetSampling(next.key);
       } finally {
         cancelled.current.delete(next.key);
         controllers.current.delete(next.key);
       }
     }
     running.current = false;
-  }, [ensureDirs, queryClient, update]);
+  }, [ensureDirs, onProgress, queryClient, update]);
 
   const add = useCallback(
     (items: (File | PendingUpload)[], parentId: string) => {
@@ -124,10 +156,11 @@ export function useUploadQueue() {
   const retry = useCallback(
     (key: number) => {
       cancelled.current.delete(key);
-      update(key, { status: "pending" });
+      resetSampling(key);
+      update(key, { status: "pending", progress: 0, speed: undefined });
       void drain();
     },
-    [drain, update],
+    [drain, resetSampling, update],
   );
 
   // 取消（「暂停」语义，续传需后端支持，备案）：中止在途请求 + abortUpload 清理服务端分片
@@ -138,15 +171,18 @@ export function useUploadQueue() {
       cancelled.current.add(key);
       controllers.current.get(key)?.abort();
       if (item.uploadId) void abortUpload(item.uploadId).catch(() => {});
-      update(key, { status: "error", error: "已取消" });
+      resetSampling(key);
+      update(key, { status: "error", error: "已取消", speed: undefined });
     },
-    [update],
+    [resetSampling, update],
   );
 
   const clearFinished = useCallback(() => {
+    const removed = itemsRef.current.filter((it) => it.status !== "uploading" && it.status !== "pending");
+    for (const it of removed) resetSampling(it.key);
     itemsRef.current = itemsRef.current.filter((it) => it.status === "uploading" || it.status === "pending");
     setItems([...itemsRef.current]);
-  }, []);
+  }, [resetSampling]);
 
   return { items, add, retry, cancel, clearFinished };
 }

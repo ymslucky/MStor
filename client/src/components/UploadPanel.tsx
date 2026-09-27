@@ -7,13 +7,16 @@ type Queue = ReturnType<typeof useUploadQueue>;
 export default function UploadPanel({ queue }: { queue: Queue }) {
   if (!queue.items.length) return null;
   const active = queue.items.filter((i) => i.status === "pending" || i.status === "uploading").length;
+  // 合计速度：所有 uploading 项 EMA 速度求和
+  const totalSpeed = queue.items.reduce((sum, i) => (i.status === "uploading" && i.speed ? sum + i.speed : sum), 0);
   return (
     // 玻璃悬浮条（glass-light blur12）：移动端抬高避开底部导航，sm+ 贴近右下角
     <div className="glass-light fixed right-4 bottom-20 z-30 w-72 rounded-panel shadow-glass sm:bottom-4">
       <div className="mb-2 flex items-center justify-between px-3 pt-3 text-xs text-ink-2">
         <span className="flex items-center gap-1.5">
           <CloudUpload size={14} aria-hidden className="text-primary-text" />
-          上传{active > 0 ? `（${active} 个进行中）` : ""}
+          上传（{active > 0 ? `${active} 个进行中` : ""}
+          {totalSpeed > 0 ? ` · ${formatBytes(totalSpeed)}/s` : ""}）
         </span>
         <button className="text-primary-text hover:underline" onClick={queue.clearFinished}>清空已完成</button>
       </div>
@@ -24,6 +27,9 @@ export default function UploadPanel({ queue }: { queue: Queue }) {
               {/* 嵌套上传显示相对路径（含目录），title 兜底悬停全文 */}
               <span className="truncate text-ink" title={it.path ?? it.name}>{it.path ?? it.name}</span>
               <span className="flex shrink-0 items-center gap-1">
+                {it.status === "uploading" && it.speed != null && it.speed > 0 && (
+                  <span className="tabular-nums text-primary-text">{formatBytes(it.speed)}/s</span>
+                )}
                 <span className="text-ink-3">{formatBytes(it.size)}</span>
                 {/* 「暂停」= 中止该项（续传需后端，备案）：文案用「取消」 */}
                 {(it.status === "pending" || it.status === "uploading") && (

@@ -1,9 +1,96 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { SMALL_FILE_LIMIT, uploadLarge } from "./uploads";
+import { SMALL_FILE_LIMIT, uploadLarge, uploadSmall } from "./uploads";
 
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+});
+
+// —— uploadSmall XHR 假件 ——
+class FakeXhr {
+  static last: FakeXhr | null = null;
+  status = 200;
+  responseText = "";
+  onload: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  onabort: (() => void) | null = null;
+  upload = { onprogress: null as ((e: { lengthComputable: boolean; loaded: number; total: number }) => void) | null };
+  headers: Record<string, string> = {};
+  method = "";
+  url = "";
+  body: unknown = null;
+  open(method: string, url: string) {
+    this.method = method;
+    this.url = url;
+  }
+  setRequestHeader(k: string, v: string) {
+    this.headers[k] = v;
+  }
+  send(body: unknown) {
+    this.body = body;
+    FakeXhr.last = this;
+  }
+  abort() {
+    this.onabort?.();
+  }
+}
+
+test("uploadSmall 走 XHR：PUT 地址、头、进度回调、结果解析", async () => {
+  vi.stubGlobal("XMLHttpRequest", FakeXhr);
+  const ratios: number[] = [];
+  const p = uploadSmall(new File(["abc"], "a.txt", { type: "text/plain" }), "d1", {
+    onProgress: (r) => ratios.push(r),
+  });
+  const xhr = FakeXhr.last!;
+  expect(xhr.method).toBe("PUT");
+  expect(xhr.url).toContain("/api/files/upload?");
+  expect(xhr.url).toContain("name=a.txt");
+  expect(xhr.url).toContain("parentId=d1");
+  expect(xhr.headers["content-type"]).toBe("text/plain");
+  xhr.upload.onprogress?.({ lengthComputable: true, loaded: 2, total: 3 });
+  xhr.responseText = JSON.stringify({ id: "n1", name: "a.txt", size: 3 });
+  xhr.onload?.();
+  await expect(p).resolves.toEqual({ id: "n1", name: "a.txt", size: 3 });
+  expect(ratios).toEqual([2 / 3]);
+});
+
+test("uploadSmall 401 映射 ApiError 请先登录", async () => {
+  vi.stubGlobal("XMLHttpRequest", FakeXhr);
+  const p = uploadSmall(new File(["x"], "a.txt"), "d1");
+  const xhr = FakeXhr.last!;
+  xhr.status = 401;
+  xhr.responseText = JSON.stringify({ error: { code: "UNAUTHORIZED", message: "请先登录" } });
+  xhr.onload?.();
+  await expect(p).rejects.toThrow("请先登录");
+});
+
+test("uploadSmall 非 2xx 解析错误 envelope", async () => {
+  vi.stubGlobal("XMLHttpRequest", FakeXhr);
+  const p = uploadSmall(new File(["x"], "a.txt"), "d1");
+  const xhr = FakeXhr.last!;
+  xhr.status = 413;
+  xhr.responseText = JSON.stringify({ error: { code: "PAYLOAD_TOO_LARGE", message: "文件过大" } });
+  xhr.onload?.();
+  await expect(p).rejects.toThrow("文件过大");
+});
+
+test("uploadSmall signal 中止抛 AbortError", async () => {
+  vi.stubGlobal("XMLHttpRequest", FakeXhr);
+  const ctrl = new AbortController();
+  const p = uploadSmall(new File(["x"], "a.txt"), "d1", { signal: ctrl.signal });
+  ctrl.abort();
+  await expect(p).rejects.toMatchObject({ name: "AbortError" });
+});
+
+test("uploadSmall 携带 x-act-as 头", async () => {
+  vi.stubGlobal("XMLHttpRequest", FakeXhr);
+  localStorage.setItem("mstor_act_as", "user-2");
+  try {
+    uploadSmall(new File(["x"], "a.txt"), "d1");
+    expect(FakeXhr.last!.headers["x-act-as"]).toBe("user-2");
+  } finally {
+    localStorage.removeItem("mstor_act_as");
+  }
 });
 
 function makeFile(name: string, size: number): File {

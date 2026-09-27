@@ -42,7 +42,7 @@ test("file with path ensures intermediate dirs then uploads into target", async 
   act(() => result.current.add([{ file: makeFile("a.jpg", 5), path: "photos/a.jpg" }], "root"));
   await waitFor(() => expect(result.current.items[0].status).toBe("done"));
   expect(ensureDir).toHaveBeenCalledWith({ parentId: "root", name: "photos" });
-  expect(uploadSmall).toHaveBeenCalledWith(expect.any(File), "d-photos");
+  expect(uploadSmall).toHaveBeenCalledWith(expect.any(File), "d-photos", expect.anything());
 });
 
 test("multi-level path creates dirs level by level", async () => {
@@ -55,7 +55,7 @@ test("multi-level path creates dirs level by level", async () => {
   await waitFor(() => expect(result.current.items[0].status).toBe("done"));
   expect(ensureDir).toHaveBeenNthCalledWith(1, { name: "p" });
   expect(ensureDir).toHaveBeenNthCalledWith(2, { parentId: "d-p", name: "2024" });
-  expect(uploadSmall).toHaveBeenCalledWith(expect.any(File), "d-2024");
+  expect(uploadSmall).toHaveBeenCalledWith(expect.any(File), "d-2024", expect.anything());
 });
 
 test("same dir across files hits cache (ensureDir once)", async () => {
@@ -81,7 +81,7 @@ test("top-level file (path = name only) skips dir creation", async () => {
   act(() => result.current.add([{ file: makeFile("a.txt", 5), path: "a.txt" }], ""));
   await waitFor(() => expect(result.current.items[0].status).toBe("done"));
   expect(ensureDir).not.toHaveBeenCalled();
-  expect(uploadSmall).toHaveBeenCalledWith(expect.any(File), "");
+  expect(uploadSmall).toHaveBeenCalledWith(expect.any(File), "", expect.anything());
 });
 
 test("plain File items (no path) behave as before", async () => {
@@ -90,7 +90,7 @@ test("plain File items (no path) behave as before", async () => {
   act(() => result.current.add([makeFile("a.txt", 5)], ""));
   await waitFor(() => expect(result.current.items[0].status).toBe("done"));
   expect(ensureDir).not.toHaveBeenCalled();
-  expect(uploadSmall).toHaveBeenCalledWith(expect.any(File), "");
+  expect(uploadSmall).toHaveBeenCalledWith(expect.any(File), "", expect.anything());
 });
 
 test("dir creation failure marks item error with message", async () => {
@@ -109,7 +109,20 @@ test("uploads files sequentially and marks done", async () => {
   const { result } = renderHook(() => useUploadQueue(), { wrapper });
   act(() => result.current.add([makeFile("a.txt", 5)], ""));
   await waitFor(() => expect(result.current.items[0].status).toBe("done"));
-  expect(uploadSmall).toHaveBeenCalledWith(expect.any(File), "");
+  expect(uploadSmall).toHaveBeenCalledWith(expect.any(File), "", expect.anything());
+});
+
+test("small upload reports progress through opts callback", async () => {
+  vi.mocked(uploadSmall).mockImplementation(async (_f, _p, opts) => {
+    opts?.onProgress?.(0.5);
+    opts?.onProgress?.(1);
+    return { id: "n1", name: "a.txt", size: 5 };
+  });
+  const { result } = renderHook(() => useUploadQueue(), { wrapper });
+  act(() => result.current.add([makeFile("a.txt", 5)], ""));
+  await waitFor(() => expect(result.current.items[0].status).toBe("done"));
+  // 收尾进度必达 1（中途 0.5 被 100ms 节流丢弃也允许，最终 ratio 恒为 1）
+  expect(result.current.items[0].progress).toBe(1);
 });
 
 test("routes large files to uploadLarge and reports progress", async () => {
