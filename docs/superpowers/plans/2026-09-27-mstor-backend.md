@@ -1096,6 +1096,8 @@ git add server/middleware server/routes/me.ts server/index.ts test/helpers.ts te
 git commit -m "feat: session auth, /api/me, webdav password, admin users"
 ```
 
+> **审查记录（2026-09-27）**：spec review PASS；quality review APPROVE_WITH_NITS → commit `f05f469` 修复（session 缺 sub 守卫 401 化、errorHandler 统一映射非法 JSON body → 400 BAD_REQUEST（后续所有 JSON 路由复用）、webdav 哈希加 pbkdf2Verify 真值断言、补伪造 token 401/短密码 400/member PATCH 403 用例、health 免登录注释）。最终 commit：`01a85bf` + `f05f469`，25 tests passed、tsc 零错误。**计划 bug 修正**：`verify(token, secret)` 在 hono 4.13 必须显式传 `"HS256"`，否则抛错——已修复并写入实现。授权偏差：测试传 `env.DB`；test/errors.test.ts 的 404 用例改为携带合法 session 探测（session 中间件挂 /api/* 后未认证路径返回 401 属正确行为）。未采纳（有意）：admin 自降级防护、`?` 与 `?1` 占位符风格统一、/api/me/admin 路径语义。
+
 ---
 
 ### Task 7: OIDC 登录（PKCE + 首用户 admin + 根目录）
