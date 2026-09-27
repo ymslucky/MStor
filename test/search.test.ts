@@ -38,3 +38,16 @@ test("empty query returns empty list", async () => {
   const res = await SELF.fetch("https://example.com/api/search?q=", { headers: await sessionHeaders(u) });
   expect(((await res.json()) as { nodes: unknown[] }).nodes).toHaveLength(0);
 });
+
+test("search returns breadcrumb paths", async () => {
+  const user = await seedUser();
+  const dirA = await seedNode({ owner_id: user.id, name: "相册", is_dir: 1 });
+  const dirB = await seedNode({ owner_id: user.id, parent_id: dirA.id, name: "2026", is_dir: 1 });
+  const nested = await seedNode({ owner_id: user.id, parent_id: dirB.id, name: "聚会.jpg" });
+  const top = await seedNode({ owner_id: user.id, name: "随笔.txt" });
+  // q='.' 同时命中聚会.jpg 与 随笔.txt（原计划 q=聚 命中不到顶层文件，断言不可达）
+  const res = await SELF.fetch("https://example.com/api/search?q=.", { headers: await sessionHeaders(user) });
+  const data = await res.json<{ paths: Record<string, string> }>();
+  expect(data.paths[nested.id]).toBe("相册/2026/聚会.jpg");
+  expect(data.paths[top.id]).toBe("随笔.txt");
+});
