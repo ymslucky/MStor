@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { searchNodes } from "../api/search";
 import { useDebounce } from "../hooks/useDebounce";
+import { NodeIcon } from "./NodeIcon";
 
 export default function SearchBox() {
   const [q, setQ] = useState("");
@@ -54,7 +55,10 @@ export default function SearchBox() {
               className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50"
               onClick={() => go(n.is_dir ? n.id : n.parent_id || null)}
             >
-              <div className="truncate">{n.is_dir ? "📁" : "📄"} {n.name}</div>
+              <div className="flex items-center gap-1.5 truncate">
+                <NodeIcon node={n} size={14} className="shrink-0" />
+                <span className="truncate">{n.name}</span>
+              </div>
               <div className="truncate text-xs text-ink-faint">{data.paths[n.id] ?? ""}</div>
             </button>
           ))}

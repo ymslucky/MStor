@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { CalendarClock, KeyRound, Link2 } from "lucide-react";
 import { createShare } from "../api/shares";
 import type { Node } from "../api/types";
 import { toast } from "../components/Toaster";
@@ -39,6 +40,7 @@ export default function ShareDialog({ node, onClose }: Props) {
     <Dialog
       open
       onClose={onClose}
+      skin="white"
       title={`分享「${node.name}」`}
       footer={
         url ? undefined : (
@@ -53,13 +55,17 @@ export default function ShareDialog({ node, onClose }: Props) {
         <>
           <Input readOnly value={url} onFocus={(e) => e.target.select()} />
           <Button className="mt-2 w-full" onClick={() => void navigator.clipboard.writeText(url)}>
+            <Link2 size={16} aria-hidden />
             复制链接
           </Button>
         </>
       ) : (
         <>
-          <label className="block text-xs text-ink-dim">
-            有效天数（可选，留空永久）
+          <label className="block text-xs text-ink-2">
+            <span className="flex items-center gap-1">
+              <CalendarClock size={14} aria-hidden className="text-ink-3" />
+              有效天数（可选，留空永久）
+            </span>
             <Input
               aria-label="有效天数（可选）"
               type="number"
@@ -69,8 +75,11 @@ export default function ShareDialog({ node, onClose }: Props) {
               onChange={(e) => setDays(e.target.value)}
             />
           </label>
-          <label className="mt-2 block text-xs text-ink-dim">
-            提取码（可选）
+          <label className="mt-2 block text-xs text-ink-2">
+            <span className="flex items-center gap-1">
+              <KeyRound size={14} aria-hidden className="text-ink-3" />
+              提取码（可选）
+            </span>
             <Input
               aria-label="提取码（可选）"
               className="mt-1"

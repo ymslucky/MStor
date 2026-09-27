@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { RotateCcw, Trash2 } from "lucide-react";
 import { listTrash, purgeNode, restoreNode } from "../api/trash";
 import type { Node } from "../api/types";
 import FileList from "../components/FileList";
@@ -37,10 +38,10 @@ export default function TrashPage() {
                   {formatBytes(n.size)} · 删除于 {n.deleted_at ? formatDate(n.deleted_at) : "-"}
                 </span>
                 <IconButton label="恢复" onClick={() => restore.mutate(n.id)}>
-                  <span aria-hidden>♻️</span>
+                  <RotateCcw size={16} aria-hidden />
                 </IconButton>
                 <IconButton label="彻底删除" onClick={() => setPurging(n)}>
-                  <span aria-hidden>🗑️</span>
+                  <Trash2 size={16} aria-hidden />
                 </IconButton>
               </>
             )}

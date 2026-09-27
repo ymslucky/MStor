@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Download, X } from "lucide-react";
 import { contentUrl } from "../api/nodes";
 import type { Node } from "../api/types";
 import { formatBytes } from "../lib/format";
@@ -19,17 +20,30 @@ async function fetchTextHead(id: string): Promise<string> {
 
 // 下载保持 <a>（下载语义 + href 断言），仅图标化并复用 IconButton 视觉规格
 const iconAction =
-  "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-line bg-white text-ink-dim transition-colors hover:border-accent/40 hover:bg-accent-soft hover:text-accent";
+  "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-line bg-white text-ink-2 transition-colors hover:border-accent/40 hover:bg-accent-soft hover:text-accent";
 
 export default function PreviewModal({ node, onClose }: Props) {
   const kind = previewKind(node.mime);
   const [text, setText] = useState<string | null>(null);
   const [error, setError] = useState("");
+  // 弹性进场：挂载后经两帧 rAF 切类，单次 transition 完成 modal-in（300ms ease-spring）
+  const [entered, setEntered] = useState(false);
 
   useEffect(() => {
     if (kind !== "text") return;
     fetchTextHead(node.id).then(setText).catch((e: Error) => setError(e.message));
   }, [kind, node.id]);
+
+  useEffect(() => {
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setEntered(true));
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -39,8 +53,13 @@ export default function PreviewModal({ node, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-black/70 p-2 sm:p-4" onClick={onClose}>
-      {/* 预览面板：glass-modal 层（当前打开的弹层，占用一个模糊预算） */}
-      <div className="glass-modal flex min-h-0 flex-1 flex-col overflow-hidden rounded-panel" onClick={onClose}>
+      {/* 预览面板：glass-strong 层（当前打开的弹层，占用一个模糊预算） */}
+      <div
+        className={`glass-strong flex min-h-0 flex-1 flex-col overflow-hidden rounded-panel transition-[opacity,transform] duration-300 ease-spring ${
+          entered ? "scale-100 opacity-100" : "scale-[0.94] opacity-0"
+        }`}
+        onClick={onClose}
+      >
         {/* 头部信息条：白面板顶栏，媒体内容不透出 */}
         <div
           className="flex items-center justify-between gap-2 border-b border-line px-3 py-1.5 sm:px-4"
@@ -48,14 +67,14 @@ export default function PreviewModal({ node, onClose }: Props) {
         >
           <div className="min-w-0">
             <div className="truncate font-medium text-ink">{node.name}</div>
-            <div className="text-xs text-ink-dim">{formatBytes(node.size)}</div>
+            <div className="text-xs text-ink-2">{formatBytes(node.size)}</div>
           </div>
           <div className="flex items-center gap-1">
             <a href={contentUrl(node.id, true)} aria-label="下载" title="下载" className={iconAction}>
-              <span aria-hidden>⬇️</span>
+              <Download size={18} aria-hidden />
             </a>
             <IconButton label="关闭" onClick={onClose}>
-              <span aria-hidden>✕</span>
+              <X size={18} aria-hidden />
             </IconButton>
           </div>
         </div>

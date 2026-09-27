@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { HardDrive, Users } from "lucide-react";
 import { listAdminUsers, patchAdminUser, setWebdavPassword } from "../api/me";
 import type { AdminUser, Me } from "../api/types";
 import { formatDate } from "../lib/format";
@@ -17,7 +18,10 @@ function WebdavSection() {
   });
   return (
     <GlassCard className="p-4">
-      <h2 className="mb-1 font-semibold text-ink">WebDAV</h2>
+      <h2 className="mb-1 flex items-center gap-1.5 font-semibold text-ink">
+        <HardDrive size={16} aria-hidden className="text-primary-text" />
+        WebDAV
+      </h2>
       <p className="mb-3 text-xs text-ink-dim">
         地址 <code>/dav/</code>，用户名同登录名；在 Windows 映射驱动器 / iOS 文件 App 中使用。
       </p>
@@ -105,7 +109,10 @@ export default function SettingsPage({ me }: { me: Me }) {
       <WebdavSection />
       {me.role === "admin" && (
         <GlassCard className="p-4">
-          <h2 className="mb-3 font-semibold text-ink">用户管理</h2>
+          <h2 className="mb-3 flex items-center gap-1.5 font-semibold text-ink">
+            <Users size={16} aria-hidden className="text-primary-text" />
+            用户管理
+          </h2>
           <table className="w-full text-sm">
             <thead className="text-left text-xs text-ink-faint">
               <tr className="border-b border-line">

@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { Info, TriangleAlert } from "lucide-react";
 
 export interface ToastItem {
   id: number;
@@ -39,12 +40,17 @@ export function Toaster() {
       {items.map((t) => (
         <div
           key={t.id}
-          className={`rounded-xl border px-4 py-2 text-sm shadow-lg ${
-            t.kind === "error" ? "border-red-600 bg-red-600 text-white" : "border-line bg-white text-ink"
+          className={`glass-light anim-item-in flex items-center gap-2 rounded-xl px-4 py-2 text-sm shadow-glass ${
+            t.kind === "error" ? "text-danger-text" : "text-ink"
           }`}
           role="alert"
         >
-          {t.message}
+          {t.kind === "error" ? (
+            <TriangleAlert size={16} aria-hidden className="shrink-0" />
+          ) : (
+            <Info size={16} aria-hidden className="shrink-0 text-primary-text" />
+          )}
+          <span>{t.message}</span>
         </div>
       ))}
     </div>

@@ -1,4 +1,5 @@
 import { screen } from "@testing-library/react";
+import { FolderOpen, X } from "lucide-react";
 import { expect, test } from "vitest";
 import { renderWithProviders } from "../../test/utils";
 import { Badge, Button, EmptyState, IconButton } from "./index";
@@ -20,15 +21,20 @@ test("Button renders variant classes and respects disabled", () => {
 });
 
 test("IconButton exposes aria-label as accessible name", () => {
-  renderWithProviders(<IconButton label="关闭预览" onClick={() => {}}>✕</IconButton>);
+  renderWithProviders(
+    <IconButton label="关闭预览" onClick={() => {}}>
+      <X size={16} aria-hidden />
+    </IconButton>,
+  );
   expect(screen.getByRole("button", { name: "关闭预览" })).toBeInTheDocument();
 });
 
-test("EmptyState renders icon, title, description and action", () => {
+test("EmptyState renders lucide icon, title, description and action", () => {
   renderWithProviders(
-    <EmptyState icon="📁" title="该目录为空" description="拖拽文件即可上传" action={<Button>上传</Button>} />,
+    <EmptyState icon={FolderOpen} title="该目录为空" description="拖拽文件即可上传" action={<Button>上传</Button>} />,
   );
-  expect(screen.getByText("📁")).toBeInTheDocument();
+  // 图标位：Lucide svg 渲染于 empty-state 容器内
+  expect(screen.getByTestId("empty-state").querySelector("svg")).not.toBeNull();
   expect(screen.getByText("该目录为空")).toBeInTheDocument();
   expect(screen.getByText("拖拽文件即可上传")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "上传" })).toBeInTheDocument();

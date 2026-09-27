@@ -9,6 +9,7 @@ import type {
   RefObject,
 } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { FolderOpen } from "lucide-react";
 import { contentUrl } from "../api/nodes";
 import type { Node } from "../api/types";
 import { hasNodeDrag, readNodeDrag, setNodeDrag } from "../lib/dnd";
@@ -131,7 +132,7 @@ export default function FileList({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 
-  if (!nodes.length) return <EmptyState icon="📁" title={emptyText} action={emptyActions} />;
+  if (!nodes.length) return <EmptyState icon={FolderOpen} title={emptyText} action={emptyActions} />;
 
   const open = (n: Node) => (n.is_dir ? onOpenDir(n.id) : onOpenFile(n));
   const virtual = view === "list" && nodes.length >= VIRTUAL_THRESHOLD;

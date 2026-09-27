@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { downloadShared, fetchShare, fetchShareChildren } from "../api/shares";
 import type { PublicNode } from "../api/types";
+import { NodeIcon } from "../components/NodeIcon";
 import { toast } from "../components/Toaster";
 import { Button, GlassCard, Input } from "../components/ui";
 import { formatBytes } from "../lib/format";
@@ -119,18 +120,20 @@ export default function SharePage() {
                 <td className="py-2">
                   {f.isDir ? (
                     <button
-                      className="text-left text-ink hover:underline"
+                      className="flex items-center gap-1.5 text-left text-ink hover:underline"
                       onClick={() => {
                         // 根目录已有同名按钮，进入子目录时才把父目录压入面包屑，避免重复
                         setCrumbs(current ? [...crumbs, { id: current.id, name: current.name }] : crumbs);
                         setCurrent({ id: f.id, name: f.name });
                       }}
                     >
-                      📁 <span>{f.name}</span>
+                      <NodeIcon node={{ is_dir: 1, mime: null }} size={16} className="shrink-0" />
+                      <span>{f.name}</span>
                     </button>
                   ) : (
-                    <span className="text-ink">
-                      📄 <span>{f.name}</span>
+                    <span className="flex items-center gap-1.5 text-ink">
+                      <NodeIcon node={{ is_dir: 0, mime: f.mime }} size={16} className="shrink-0" />
+                      <span>{f.name}</span>
                     </span>
                   )}
                 </td>

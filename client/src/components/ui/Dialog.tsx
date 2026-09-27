@@ -8,11 +8,13 @@ interface DialogProps {
   children: React.ReactNode;
   /** 额外底部操作区（可选） */
   footer?: React.ReactNode;
+  /** 皮肤：glass=玻璃弹层（默认）/ white=白卡轻玻璃 */
+  skin?: "glass" | "white";
 }
 
 // 统一弹窗外壳：Esc/遮罩关闭，内容区 stopPropagation；
 // 桌面（sm+）居中 sm:max-w-md，移动端贴底 bottom sheet（slide-up + safe-bottom）
-export function Dialog({ open, onClose, title, children, footer }: DialogProps) {
+export function Dialog({ open, onClose, title, children, footer, skin = "glass" }: DialogProps) {
   const [entered, setEntered] = useState(false);
 
   useEffect(() => {
@@ -38,6 +40,11 @@ export function Dialog({ open, onClose, title, children, footer }: DialogProps) 
 
   if (!open) return null;
 
+  const skinCls =
+    skin === "white"
+      ? "border border-line bg-white/90 shadow-glass backdrop-blur-md"
+      : "glass-modal";
+
   return (
     <div
       data-testid="dialog-mask"
@@ -46,7 +53,7 @@ export function Dialog({ open, onClose, title, children, footer }: DialogProps) 
     >
       <div
         data-testid="dialog-panel"
-        className={`glass-modal safe-bottom w-full rounded-t-panel p-4 transition-transform duration-320 ease-out-soft sm:max-w-md sm:rounded-panel sm:p-5 ${entered ? "translate-y-0" : "translate-y-full"}`}
+        className={`safe-bottom w-full rounded-t-panel p-4 transition-transform duration-320 ease-out-soft sm:max-w-md sm:rounded-panel sm:p-5 ${skinCls} ${entered ? "translate-y-0" : "translate-y-full"}`}
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg font-semibold text-ink">{title}</h2>

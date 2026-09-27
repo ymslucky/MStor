@@ -2,7 +2,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
-import { Copy, Download, ExternalLink, FolderInput, Info, Pencil, Share2, Trash2 } from "lucide-react";
+import { Copy, Download, ExternalLink, FolderInput, FolderPlus, HardDrive, Info, LayoutGrid, Link2, List, Pencil, Share2, Trash2, TriangleAlert, Upload } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { listShares } from "../api/shares";
 import { listTrash } from "../api/trash";
 import type { Me, Node } from "../api/types";
@@ -25,7 +26,7 @@ import { useUploadQueue } from "../hooks/useUploadQueue";
 import { formatBytes, formatDate } from "../lib/format";
 
 // 粉彩图标芯片：浅底 + 饱和前景（token 见 index.css chip-*）
-function KpiChip({ tone, icon }: { tone: "amber" | "blue" | "violet" | "rose"; icon: string }) {
+function KpiChip({ tone, icon: Icon }: { tone: "amber" | "blue" | "violet" | "rose"; icon: LucideIcon }) {
   const tones = {
     amber: "bg-chip-amber-bg text-chip-amber-fg",
     blue: "bg-chip-blue-bg text-chip-blue-fg",
@@ -33,8 +34,8 @@ function KpiChip({ tone, icon }: { tone: "amber" | "blue" | "violet" | "rose"; i
     rose: "bg-chip-rose-bg text-chip-rose-fg",
   };
   return (
-    <span aria-hidden className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg ${tones[tone]}`}>
-      {icon}
+    <span aria-hidden className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${tones[tone]}`}>
+      <Icon size={20} />
     </span>
   );
 }
@@ -429,25 +430,25 @@ export default function Browser() {
           </div>
         </GlassCard>
         <GlassCard className="flex items-center gap-3 p-4">
-          <KpiChip tone="amber" icon="📦" />
+          <KpiChip tone="amber" icon={HardDrive} />
           <div className="min-w-0">
-            <div className="text-xs text-ink-faint">空间配额</div>
+            <div className="text-xs text-ink-3">空间配额</div>
             <div className="truncate text-sm font-semibold text-ink">{me ? formatBytes(quota) : "-"}</div>
           </div>
         </GlassCard>
         <GlassCard className="flex items-center gap-3 p-4">
-          <KpiChip tone="blue" icon="🌐" />
+          <KpiChip tone="blue" icon={Share2} />
           <div className="min-w-0">
-            <div className="text-xs text-ink-faint">我的分享</div>
+            <div className="text-xs text-ink-3">我的分享</div>
             <div className="text-sm font-semibold text-ink">
               {sharesQuery.isError ? "-" : (sharesQuery.data?.shares.length ?? "-")}
             </div>
           </div>
         </GlassCard>
         <GlassCard className="flex items-center gap-3 p-4">
-          <KpiChip tone="rose" icon="🗑️" />
+          <KpiChip tone="rose" icon={Trash2} />
           <div className="min-w-0">
-            <div className="text-xs text-ink-faint">回收站文件</div>
+            <div className="text-xs text-ink-3">回收站文件</div>
             <div className="text-sm font-semibold text-ink">
               {trashQuery.isError ? "-" : (trashQuery.data?.nodes.length ?? "-")}
             </div>
@@ -457,19 +458,19 @@ export default function Browser() {
       {/* 快捷操作行 */}
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <button type="button" aria-label="上传" className={quickCls} onClick={() => fileInput.current?.click()}>
-          <KpiChip tone="violet" icon="⬆️" />
+          <KpiChip tone="violet" icon={Upload} />
           上传
         </button>
         <button type="button" aria-label="新建文件夹" className={quickCls} onClick={() => setCreating(true)}>
-          <KpiChip tone="blue" icon="🆕" />
+          <KpiChip tone="blue" icon={FolderPlus} />
           新建文件夹
         </button>
         <Link to="/shares" className={quickCls}>
-          <KpiChip tone="amber" icon="🔗" />
+          <KpiChip tone="amber" icon={Link2} />
           管理分享
         </Link>
         <Link to="/trash" className={quickCls}>
-          <KpiChip tone="rose" icon="🗑️" />
+          <KpiChip tone="rose" icon={Trash2} />
           回收站
         </Link>
       </div>
@@ -505,7 +506,7 @@ export default function Browser() {
       {query.isError && (
         <GlassCard className="p-3 sm:p-4">
           <EmptyState
-            icon="⚠️"
+            icon={TriangleAlert}
             title="加载失败"
             description="请检查网络或刷新页面重试"
             action={
@@ -526,10 +527,10 @@ export default function Browser() {
             </div>
             <div role="group" aria-label="视图切换" className="inline-flex items-center gap-1 rounded-xl border border-line bg-gray-50 p-1">
               <IconButton label="列表视图" active={view === "list"} aria-pressed={view === "list"} onClick={() => switchView("list")}>
-                <span aria-hidden>☰</span>
+                <List size={18} aria-hidden />
               </IconButton>
               <IconButton label="网格视图" active={view === "grid"} aria-pressed={view === "grid"} onClick={() => switchView("grid")}>
-                <span aria-hidden>▦</span>
+                <LayoutGrid size={18} aria-hidden />
               </IconButton>
             </div>
           </div>
@@ -554,16 +555,16 @@ export default function Browser() {
             actions={(n) => (
               <>
                 <IconButton label={`分享 ${n.name}`} onClick={() => setSharing(n)}>
-                  <span aria-hidden>🔗</span>
+                  <Link2 size={16} aria-hidden />
                 </IconButton>
                 <IconButton label={`重命名 ${n.name}`} onClick={() => setRenaming(n)}>
-                  <span aria-hidden>✏️</span>
+                  <Pencil size={16} aria-hidden />
                 </IconButton>
                 <IconButton label={`移动 ${n.name}`} onClick={() => setMoving(n)}>
-                  <span aria-hidden>📂</span>
+                  <FolderInput size={16} aria-hidden />
                 </IconButton>
                 <IconButton label={`删除 ${n.name}`} onClick={() => setDeleting(n)}>
-                  <span aria-hidden>🗑️</span>
+                  <Trash2 size={16} aria-hidden />
                 </IconButton>
               </>
             )}
