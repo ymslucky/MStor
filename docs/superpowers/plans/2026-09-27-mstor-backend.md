@@ -1029,8 +1029,9 @@ me.get("/", async (c) => {
 me.put("/webdav-password", async (c) => {
   const { password } = await c.req.json<{ password: string }>();
   if (typeof password !== "string" || password.length < 8) throw errors.badRequest("密码至少 8 位");
+  // WebDAV 每个请求都要 verify，用较低迭代数控制边缘 CPU 成本（免费版 10ms CPU 限制）
   await c.env.DB.prepare("UPDATE users SET webdav_password_hash = ?1 WHERE id = ?2")
-    .bind(await pbkdf2Hash(password), c.get("user").id).run();
+    .bind(await pbkdf2Hash(password, 50_000), c.get("user").id).run();
   return c.json({ ok: true });
 });
 
@@ -2616,7 +2617,7 @@ export function multistatus(responses: string[]): string {
 ```ts
 import type { Context, Next } from "hono";
 import type { AppEnv } from "../env";
-import { pbkdf2Verify } from "../lib/crypto";
+import { pbkdf2Verify, unb64 } from "../lib/crypto";
 import type { UserRow } from "../types";
 
 export async function davAuth(c: Context<AppEnv>, next: Next) {
@@ -2624,7 +2625,8 @@ export async function davAuth(c: Context<AppEnv>, next: Next) {
   if (!header?.startsWith("Basic ")) return unauthorized();
   let name: string, password: string;
   try {
-    [name, password] = atob(header.slice(6)).split(":");
+    // atob 是 Latin-1 解码，会破坏非 ASCII 密码；统一按 UTF-8 解码 Basic 凭据
+    [name, password] = new TextDecoder().decode(unb64(header.slice(6))).split(":");
   } catch {
     return unauthorized();
   }
