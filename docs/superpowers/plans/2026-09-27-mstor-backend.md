@@ -526,11 +526,11 @@ git commit -m "feat: crypto helpers (pbkdf2/token/sha256)"
 import { SELF } from "cloudflare:test";
 import { expect, test } from "vitest";
 import { Hono } from "hono";
-import { errors, errorMiddleware } from "../server/lib/errors";
+import { errors, errorHandler } from "../server/lib/errors";
 
-test("errorMiddleware formats HttpError", async () => {
+test("errorHandler formats HttpError", async () => {
   const app = new Hono();
-  app.use("*", errorMiddleware());
+  app.onError(errorHandler);
   app.get("/boom", () => { throw errors.conflict("名称已存在"); });
   const res = await app.request("/boom");
   expect(res.status).toBe(409);
@@ -539,18 +539,26 @@ test("errorMiddleware formats HttpError", async () => {
 
 test("unknown errors become 500 envelope", async () => {
   const app = new Hono();
-  app.use("*", errorMiddleware());
+  app.onError(errorHandler);
   app.get("/boom", () => { throw new Error("x"); });
   const res = await app.request("/boom");
   expect(res.status).toBe(500);
-  expect((await res.json()).error.code).toBe("INTERNAL");
+  expect(((await res.json()) as { error: { code: string } }).error.code).toBe("INTERNAL");
 });
 
-test("health still ok via SELF (middleware wired)", async () => {
+test("health still ok via SELF (error handler wired)", async () => {
   const res = await SELF.fetch("https://example.com/api/health");
   expect(res.status).toBe(200);
 });
+
+test("unmatched route returns 404 envelope via SELF", async () => {
+  const res = await SELF.fetch("https://example.com/api/nope");
+  expect(res.status).toBe(404);
+  expect(await res.json()).toEqual({ error: { code: "NOT_FOUND", message: "资源不存在" } });
+});
 ```
+
+> **实现注意（Task 4 双审结论）**：hono 4.13 的 `compose` 对每层 handler 单独 try/catch 并直接路由到 app 级 `onError`，因此「try/catch 包 `await next()`」式 errorMiddleware **收不到路由 handler 抛出的错误**——必须用 `app.onError(errorHandler)`。另外 workers-types 将 `Response.json()` 类型化为 `Promise<unknown>`，对其取属性前需类型断言。
 
 - [ ] **Step 2: 运行确认失败**
 
@@ -562,11 +570,13 @@ Expected: FAIL（模块不存在）。
 `server/lib/errors.ts`：
 
 ```ts
-import type { Context, Next } from "hono";
+import type { Context } from "hono";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 
 export class HttpError extends Error {
-  constructor(public status: number, public code: string, message: string) {
+  constructor(public status: ContentfulStatusCode, public code: string, message: string) {
     super(message);
+    this.name = "HttpError";
   }
 }
 
@@ -579,24 +589,27 @@ export const errors = {
   badRequest: (m = "请求参数错误") => new HttpError(400, "BAD_REQUEST", m),
 };
 
-export async function errorMiddleware(c: Context, next: Next) {
-  try {
-    await next();
-  } catch (e) {
-    if (e instanceof HttpError) {
-      return c.json({ error: { code: e.code, message: e.message } }, e.status);
-    }
-    console.error(e);
-    return c.json({ error: { code: "INTERNAL", message: "服务器内部错误" } }, 500);
+export async function errorHandler(e: Error, c: Context) {
+  if (e instanceof HttpError) {
+    return c.json({ error: { code: e.code, message: e.message } }, e.status);
   }
+  console.error(e);
+  return c.json({ error: { code: "INTERNAL", message: "服务器内部错误" } }, 500);
 }
 ```
 
-`server/index.ts` 修改：`app.use("/api/*", errorMiddleware)` 与 `app.use("/auth/*", errorMiddleware)` 加在 health 路由之前（`import { errorMiddleware } from "./lib/errors"`）。
+`server/index.ts` 修改（health 路由之前）：
+
+```ts
+app.onError(errorHandler);
+app.notFound((c) => c.json({ error: { code: "NOT_FOUND", message: "资源不存在" } }, 404));
+```
+
+（`app.onError` 全局生效，覆盖 `/api/*`、`/auth/*` 及未来所有路由；`app.notFound` 补上未匹配路由的统一 envelope——`onError` 覆盖不到 Hono 内置 404 路径。）
 
 - [ ] **Step 4: 运行确认通过**
 
-Run: `npm test`
+Run: `npm test`（另跑 `npx tsc --noEmit` 确认类型干净）
 Expected: 全部 passed。
 
 - [ ] **Step 5: Commit**
@@ -1060,7 +1073,8 @@ me.patch("/admin/users/:id", requireAdmin, async (c) => {
 `server/index.ts` 路由区修改为：
 
 ```ts
-app.use("*", errorMiddleware);
+app.onError(errorHandler);
+app.notFound((c) => c.json({ error: { code: "NOT_FOUND", message: "资源不存在" } }, 404));
 app.get("/api/health", (c) => c.json({ ok: true }));
 app.use("/api/*", sessionMiddleware);
 app.route("/api/me", me);
@@ -3027,7 +3041,7 @@ git commit -m "feat: webdav part B (mkcol/move/copy/delete/lock)"
 ```ts
 import { Hono } from "hono";
 import type { AppEnv, Env } from "./env";
-import { errorMiddleware } from "./lib/errors";
+import { errorHandler } from "./lib/errors";
 import { sessionMiddleware } from "./middleware/session";
 import { auth } from "./routes/auth";
 import { publicShares, shares } from "./routes/shares";
@@ -3041,7 +3055,8 @@ import { dav } from "./routes/dav";
 
 const app = new Hono<AppEnv>();
 
-app.use("*", errorMiddleware);
+app.onError(errorHandler);
+app.notFound((c) => c.json({ error: { code: "NOT_FOUND", message: "资源不存在" } }, 404));
 app.get("/api/health", (c) => c.json({ ok: true }));
 app.route("/auth", auth);
 app.route("/api/s", publicShares);        // 公开分享：无需登录
