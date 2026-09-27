@@ -73,3 +73,49 @@ test("raw outside subtree is 404", async () => {
   })).json()) as { token: string };
   expect((await SELF.fetch(`https://example.com/api/s/${token}/raw/${outsider.id}`)).status).toBe(404);
 });
+
+test("soft-deleted descendant is not downloadable; R2 miss does not bump counter", async () => {
+  const u = await seedUser();
+  const dir = (await (await SELF.fetch("https://example.com/api/dirs", {
+    method: "POST",
+    headers: { ...(await sessionHeaders(u)), ...json },
+    body: JSON.stringify({ parentId: "", name: "d" }),
+  })).json()) as { id: string };
+  const fid = await upload(u, "gone.txt", "x");
+  await SELF.fetch(`https://example.com/api/files/${fid}`, {
+    method: "PATCH",
+    headers: { ...(await sessionHeaders(u)), ...json },
+    body: JSON.stringify({ parentId: dir.id }),
+  });
+  const { token } = (await (await SELF.fetch("https://example.com/api/shares", {
+    method: "POST",
+    headers: { ...(await sessionHeaders(u)), ...json },
+    body: JSON.stringify({ nodeId: dir.id }),
+  })).json()) as { token: string };
+  await SELF.fetch(`https://example.com/api/files/${fid}`, { method: "DELETE", headers: await sessionHeaders(u) });
+  expect((await SELF.fetch(`https://example.com/api/s/${token}/raw/${fid}`)).status).toBe(404);
+
+  // R2 对象缺失的文件：下载 404 且计数不增加
+  const ghost = await seedNode({ owner_id: u.id, name: "ghost.txt", size: 1, r2_key: `${u.id}/${randomId()}` });
+  const t2 = (await (await SELF.fetch("https://example.com/api/shares", {
+    method: "POST",
+    headers: { ...(await sessionHeaders(u)), ...json },
+    body: JSON.stringify({ nodeId: ghost.id }),
+  })).json()) as { token: string };
+  expect((await SELF.fetch(`https://example.com/api/s/${t2.token}/raw/${ghost.id}`)).status).toBe(404);
+  const row = await env.DB.prepare("SELECT downloads FROM shares WHERE token = ?1").bind(t2.token).first<{ downloads: number }>();
+  expect(row!.downloads).toBe(0);
+});
+
+test("invalid expiresInDays is rejected", async () => {
+  const u = await seedUser();
+  const fid = await upload(u, "v.txt", "x");
+  for (const days of [-1, 0, "3"]) {
+    const res = await SELF.fetch("https://example.com/api/shares", {
+      method: "POST",
+      headers: { ...(await sessionHeaders(u)), ...json },
+      body: JSON.stringify({ nodeId: fid, expiresInDays: days }),
+    });
+    expect(res.status).toBe(400);
+  }
+});

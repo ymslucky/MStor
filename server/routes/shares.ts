@@ -17,6 +17,9 @@ shares.post("/", async (c) => {
   // getNode 不过滤 deleted_at；分享目标必须是未删除节点
   const node = await getNode(c.env.DB, user.id, nodeId);
   if (!node || node.deleted_at) throw errors.notFound();
+  if (expiresInDays !== undefined && (!Number.isFinite(expiresInDays) || expiresInDays <= 0)) {
+    throw errors.badRequest("有效期须为正数天数");
+  }
   const token = randomToken(16);
   const passwordHash = password ? await pbkdf2Hash(password) : null;
   const expiresAt = expiresInDays ? Date.now() + expiresInDays * 86400000 : null;
@@ -84,9 +87,12 @@ publicShares.get("/:token/raw/:fileId", async (c) => {
   const { share, node } = await loadShare(c, c.req.param("token"));
   const fileId = c.req.param("fileId");
   const target = await getNode(c.env.DB, node.owner_id, fileId);
-  if (!target || target.is_dir || !(await isDescendant(c.env.DB, node.owner_id, node.id, fileId))) {
+  // 回收站内的后代文件不可通过公开链接下载（getNode 不过滤 deleted_at，需显式排除）
+  if (!target || target.is_dir || target.deleted_at || !(await isDescendant(c.env.DB, node.owner_id, node.id, fileId))) {
     throw errors.notFound();
   }
+  // 计数在确认对象可下载之后：R2 缺对象 404 时不虚增
+  const res = await serveObject(c, target);
   await c.env.DB.prepare("UPDATE shares SET downloads = downloads + 1 WHERE id = ?1").bind(share.id).run();
-  return serveObject(c, target);
+  return res;
 });
