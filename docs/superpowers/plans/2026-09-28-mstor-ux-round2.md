@@ -30,3 +30,16 @@
 
 | 任务 | Commit | 测试 | 状态 |
 | --- | --- | --- | --- |
+| 计划 | 5908bd0 | - | 完成 |
+| A 删除弹窗彻底删除 | 261834c | client nodes 2/2 | 完成 |
+| B 分享批量撤销（B1 端点 + B2 UI） | b02025e | shares 10/10（新增 3） | 完成 |
+| C 分享默认 7 天 | b02025e | ShareDialog 2/2（更新默认断言） | 完成 |
+| D 用户改名+角色分配 | 57ccee5 | me 17/17（新增 4） | 完成 |
+| E 上传进度+网速 | 4a4bbdc | client 134/134（speed 5 + uploads XHR 5 + queue 1 新增） | 完成 |
+
+## 回归结果（2026-09-28）
+
+- server vitest：117/117（+7 新用例）
+- client vitest：134/134（+13 新用例）
+- tsc server + client：0 错误
+- vite build + PWA：正常（precache 7 entries, 450.71 KiB）
