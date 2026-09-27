@@ -5,7 +5,9 @@ import type { NodeRow } from "../types";
 const now = () => Date.now();
 
 export async function ensureRootDir(db: D1Database, ownerId: string): Promise<NodeRow> {
-  const found = await db.prepare("SELECT * FROM nodes WHERE owner_id = ?1 AND parent_id = '' LIMIT 1").bind(ownerId).first<NodeRow>();
+  // 根目录特征是 name=''（UNIQUE(owner_id,parent_id,name) 保证至多一行），
+  // 不能只按 parent_id='' 判断——那会把任何顶层节点误认为根
+  const found = await db.prepare("SELECT * FROM nodes WHERE owner_id = ?1 AND parent_id = '' AND name = '' LIMIT 1").bind(ownerId).first<NodeRow>();
   if (found) return found;
   const id = randomId();
   try {
@@ -15,7 +17,7 @@ export async function ensureRootDir(db: D1Database, ownerId: string): Promise<No
   } catch (e) {
     if (e instanceof Error && e.message.includes("UNIQUE constraint failed")) {
       // 并发首次访问：另一个请求已建根目录，幂等复用
-      const existing = await db.prepare("SELECT * FROM nodes WHERE owner_id = ?1 AND parent_id = '' LIMIT 1").bind(ownerId).first<NodeRow>();
+      const existing = await db.prepare("SELECT * FROM nodes WHERE owner_id = ?1 AND parent_id = '' AND name = '' LIMIT 1").bind(ownerId).first<NodeRow>();
       if (existing) return existing;
     }
     throw e;
