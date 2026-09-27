@@ -7,6 +7,10 @@ export const listFiles = (parentId: string) =>
 export const createDir = (body: { parentId?: string; name: string }) =>
   api<Node>("/api/dirs", { method: "POST", json: body });
 
+// 幂等建目录（嵌套上传逐级建目录用）：同名活跃目录复用，否则新建
+export const ensureDir = (body: { parentId?: string; name: string }) =>
+  api<Node>("/api/dirs/ensure", { method: "POST", json: body });
+
 export const renameNode = (id: string, name: string) =>
   api<{ ok: true }>(`/api/files/${id}`, { method: "PATCH", json: { name } });
 
