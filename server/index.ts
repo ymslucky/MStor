@@ -10,6 +10,7 @@ import { uploads } from "./routes/uploads";
 import { purgeExpiredTrash, trash } from "./routes/trash";
 import { search } from "./routes/search";
 import { publicShares, shares } from "./routes/shares";
+import { dav } from "./routes/dav";
 
 const app = new Hono<AppEnv>();
 
@@ -29,6 +30,8 @@ app.route("/api/uploads", uploads);
 app.route("/api/trash", trash);
 app.route("/api/search", search);
 app.route("/api/shares", shares);
+// WebDAV 网关：Basic Auth 自校验（davAuth），不走 session
+app.route("/dav", dav);
 
 export default {
   fetch: app.fetch,

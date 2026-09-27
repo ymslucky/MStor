@@ -1,6 +1,6 @@
 import { env } from "cloudflare:test";
 import { sign } from "hono/jwt";
-import { randomId } from "../server/lib/crypto";
+import { pbkdf2Hash, randomId } from "../server/lib/crypto";
 import { SESSION_COOKIE } from "../server/middleware/session";
 import type { NodeRow, UserRow } from "../server/types";
 
@@ -19,6 +19,12 @@ export async function seedUser(overrides: Partial<UserRow> = {}): Promise<UserRo
     "INSERT INTO users (id, oidc_sub, name, role, webdav_password_hash, quota_bytes, created_at) VALUES (?1,?2,?3,?4,?5,?6,?7)"
   ).bind(user.id, user.oidc_sub, user.name, user.role, user.webdav_password_hash, user.quota_bytes, user.created_at).run();
   return user;
+}
+
+export async function davHeaders(user: UserRow, password = "davpass123"): Promise<Record<string, string>> {
+  await env.DB.prepare("UPDATE users SET webdav_password_hash = ?1 WHERE id = ?2")
+    .bind(await pbkdf2Hash(password), user.id).run();
+  return { authorization: `Basic ${btoa(`${user.name}:${password}`)}` };
 }
 
 export async function sessionHeaders(user: UserRow): Promise<{ cookie: string }> {
