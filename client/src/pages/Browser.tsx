@@ -5,6 +5,7 @@ import Breadcrumb from "../components/Breadcrumb";
 import FileList from "../components/FileList";
 import MoveDialog from "../components/MoveDialog";
 import NameDialog from "../components/NameDialog";
+import PreviewModal from "../components/PreviewModal";
 import UploadPanel from "../components/UploadPanel";
 import { useFiles } from "../hooks/useFiles";
 import { useUploadQueue } from "../hooks/useUploadQueue";
@@ -18,6 +19,7 @@ export default function Browser() {
   const [creating, setCreating] = useState(false);
   const [renaming, setRenaming] = useState<Node | null>(null);
   const [moving, setMoving] = useState<Node | null>(null);
+  const [preview, setPreview] = useState<Node | null>(null);
 
   const openDir = (id: string) => setParams(id ? { dir: id } : {});
 
@@ -57,7 +59,7 @@ export default function Browser() {
         <FileList
           nodes={query.data.nodes}
           onOpenDir={openDir}
-          onOpenFile={() => {}}
+          onOpenFile={setPreview}
           actions={(n) => (
             <>
               <button className="text-slate-600 hover:underline" aria-label={`重命名 ${n.name}`} onClick={() => setRenaming(n)}>
@@ -74,6 +76,7 @@ export default function Browser() {
         />
       )}
       <UploadPanel queue={queue} />
+      {preview && <PreviewModal node={preview} onClose={() => setPreview(null)} />}
       {creating && (
         <NameDialog
           title="新建文件夹"
