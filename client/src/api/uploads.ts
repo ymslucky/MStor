@@ -88,16 +88,27 @@ export async function uploadLarge(
   opts?.onUploadId?.(uploadId);
   const totalParts = Math.ceil(file.size / partSize);
   const parts: Part[] = [];
-  let done = 0;
+  // 字节级进度聚合：每分片记录已传字节（重试时归零重计），求和后按总字节回传
+  const loadedByPart = new Map<number, number>();
+  const emit = () => {
+    let sum = 0;
+    for (const v of loadedByPart.values()) sum += v;
+    onProgress?.(Math.min(1, sum / file.size));
+  };
   let next = 1;
   const worker = async () => {
     while (next <= totalParts) {
       const partNumber = next++;
+      const partBytes = Math.min(partNumber * partSize, file.size) - (partNumber - 1) * partSize;
       parts.push({
         partNumber,
-        etag: await putPartWithRetry(file, uploadId, partNumber, partSize, baseDelayMs, opts?.signal),
+        etag: await putPartWithRetry(file, uploadId, partNumber, partSize, baseDelayMs, opts?.signal, (loaded) => {
+          loadedByPart.set(partNumber, loaded);
+          emit();
+        }),
       });
-      onProgress?.(++done / totalParts);
+      loadedByPart.set(partNumber, partBytes);
+      emit();
     }
   };
   await Promise.all(Array.from({ length: Math.min(3, totalParts) }, worker));
@@ -107,7 +118,8 @@ export async function uploadLarge(
   });
 }
 
-// spec §7.1：分片失败自动重试 3 次（指数退避），超限抛错由队列标记失败；取消（signal）不重试直接抛出
+// spec §7.1：分片失败自动重试 3 次（指数退避），超限抛错由队列标记失败；取消（signal）不重试直接抛出。
+// 分片 PUT 用 XHR（fetch 无上传进度事件）：upload.onprogress 字节级回传，供速度/进度条实时显示。
 async function putPartWithRetry(
   file: File,
   uploadId: string,
@@ -115,9 +127,11 @@ async function putPartWithRetry(
   partSize: number,
   baseDelayMs = 1000,
   signal?: AbortSignal,
+  onLoaded?: (loaded: number) => void,
 ): Promise<string> {
   for (let attempt = 0; ; attempt++) {
     if (signal?.aborted) throw new DOMException("上传已取消", "AbortError");
+    onLoaded?.(0); // 重试重新计数字节
     try {
       const { urls } = await api<{ urls: string[] }>(`/api/uploads/${uploadId}/part-urls`, {
         method: "POST",
@@ -125,14 +139,46 @@ async function putPartWithRetry(
       });
       const start = (partNumber - 1) * partSize;
       const blob = file.slice(start, Math.min(start + partSize, file.size));
-      const res = await fetch(urls[0], { method: "PUT", body: blob, signal });
-      if (!res.ok) throw new Error(`分片 ${partNumber} 直传失败：${res.status}`);
-      return res.headers.get("etag") ?? (await res.text());
+      return await putPart(blob, partNumber, urls[0], signal, onLoaded);
     } catch (e) {
       if (signal?.aborted || attempt >= 2) throw e;
       await new Promise((r) => setTimeout(r, baseDelayMs * 2 ** attempt));
     }
   }
+}
+
+// 单分片直传（R2 预签名 URL，跨域）：CORS exposeHeaders 已含 etag，XHR 可读
+function putPart(
+  blob: Blob,
+  partNumber: number,
+  url: string,
+  signal: AbortSignal | undefined,
+  onLoaded?: (loaded: number) => void,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onLoaded?.(e.loaded);
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(xhr.getResponseHeader("etag") ?? xhr.responseText);
+        return;
+      }
+      reject(new Error(`分片 ${partNumber} 直传失败：${xhr.status}`));
+    };
+    xhr.onerror = () => reject(new Error(`分片 ${partNumber} 直传网络错误`));
+    xhr.onabort = () => reject(new DOMException("上传已取消", "AbortError"));
+    if (signal) {
+      if (signal.aborted) {
+        xhr.abort();
+        return;
+      }
+      signal.addEventListener("abort", () => xhr.abort());
+    }
+    xhr.send(blob);
+  });
 }
 
 export const abortUpload = (uploadId: string) => api<{ ok: true }>(`/api/uploads/${uploadId}`, { method: "DELETE" });
