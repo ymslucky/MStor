@@ -2517,6 +2517,13 @@ git add server/routes/shares.ts server/index.ts test/shares.test.ts
 git commit -m "feat: share links with expiry/password/revoke and download counter"
 ```
 
+> **审查记录（2026-09-27）**
+>
+> - 实现 `b2f56c5` + 审查修复 `f46531a`；`npm test` 13 文件 71/71 绿、`npx tsc --noEmit` 零错误。spec review：SATISFIED；quality review：APPROVE。
+> - 实现期修正计划 2 处 bug：①POST /api/shares 补 `node.deleted_at → 404`（计划只判 `!node`，而 getNode 不过滤回收站）②测试 `res.json()` 解构补 `as` 断言（strict 下 unknown）。
+> - 审查修复 3 处（均系计划原样行为）：①raw 端点补 `target.deleted_at → 404`——回收站内后代文件不可再经公开链接下载 ②下载计数移到 serveObject 成功之后（R2 缺对象 404 不虚增；Range 分段重复计数仍属计划取舍）③`expiresInDays` 校验（undefined 之外的值须为正有限数，负数/0/非数字 → 400），补 3 条测试。
+> - 遗留取舍（计划原样，未改）：`SELECT s.*` 向 owner 回传 `password_hash`（低风险）；状态判定先于提取码校验（token 不可枚举，无实际信息泄露面）；提取码无速率限制（pbkdf2 成本 + Workers CPU 限额天然节流）；分享根存活但后代被单独软删的场景已在修复 ① 中覆盖。
+
 ---
 
 ### Task 15: WebDAV A（Basic Auth + PROPFIND + GET/PUT + OPTIONS）
