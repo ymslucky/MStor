@@ -15,6 +15,7 @@ uploads.post("/", async (c) => {
   const safeName = validateNodeName(name);
   if (!Number.isFinite(size) || size <= 0) throw errors.badRequest("参数不合法");
   const limit = Number(c.env.SMALL_FILE_LIMIT);
+  if (!Number.isFinite(limit)) throw new Error("SMALL_FILE_LIMIT 未配置或非法");
   if (size <= limit) throw errors.badRequest("小文件请使用直传接口");
   const parent = parentId === "" ? await ensureRootDir(c.env.DB, user.id) : await getNode(c.env.DB, user.id, parentId);
   if (!parent || !parent.is_dir) throw errors.notFound();
@@ -31,7 +32,7 @@ uploads.post("/", async (c) => {
 uploads.post("/:id/part-urls", async (c) => {
   const user = c.get("user");
   const { partNumbers } = await c.req.json<{ partNumbers: number[] }>();
-  if (!Array.isArray(partNumbers) || !partNumbers.length || partNumbers.some((n) => !Number.isInteger(n) || n < 1 || n > 10000))
+  if (!Array.isArray(partNumbers) || !partNumbers.length || partNumbers.length > 1000 || partNumbers.some((n) => !Number.isInteger(n) || n < 1 || n > 10000))
     throw errors.badRequest("partNumbers 不合法");
   const row = await c.env.DB.prepare("SELECT * FROM uploads WHERE id = ?1 AND owner_id = ?2 AND status = 'pending'")
     .bind(c.req.param("id"), user.id).first<{ r2_key: string; r2_upload_id: string }>();
@@ -43,10 +44,13 @@ uploads.post("/:id/part-urls", async (c) => {
 uploads.post("/:id/complete", async (c) => {
   const user = c.get("user");
   const { parts, mime } = await c.req.json<{ parts: { partNumber: number; etag: string }[]; mime?: string }>();
-  if (!Array.isArray(parts) || !parts.length) throw errors.badRequest("parts 不合法");
+  if (!Array.isArray(parts) || !parts.length || parts.length > 10000) throw errors.badRequest("parts 不合法");
+  // S3/R2 ETag 是带双引号的 32 位 hex；白名单校验同时挡住 XML 注入
+  if (parts.some((p) => !/^"[0-9a-f]{32}"$/i.test(p.etag))) throw errors.badRequest("etag 不合法");
   const row = await c.env.DB.prepare("SELECT * FROM uploads WHERE id = ?1 AND owner_id = ?2 AND status = 'pending'")
     .bind(c.req.param("id"), user.id).first<{ id: string; parent_id: string; name: string; size: number; r2_key: string; r2_upload_id: string }>();
   if (!row) throw errors.notFound();
+  parts.sort((a, b) => a.partNumber - b.partNumber); // R2 要求 PartNumber 升序，避免 InvalidPartOrder
   await completeMultipart(c.env, row.r2_key, row.r2_upload_id, parts);
   let finalName = await uniqueName(c.env.DB, user.id, row.parent_id, row.name);
   const now = Date.now();

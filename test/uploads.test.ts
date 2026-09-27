@@ -20,7 +20,7 @@ function mockCompleteMultipart() {
   fetchMock.get(R2_ORIGIN).intercept({
     method: "POST",
     path: /^\/mstor\/[^/]+\/[^/]+\?uploadId=MPU-1$/,
-  }).reply(200, '<CompleteMultipartUploadResult><Location>x</Location><Bucket>mstor</Bucket><Key>k</Key><ETag>"e1"</ETag></CompleteMultipartUploadResult>', {
+  }).reply(200, `<CompleteMultipartUploadResult><Location>x</Location><Bucket>mstor</Bucket><Key>k</Key><ETag>"${"a".repeat(32)}"</ETag></CompleteMultipartUploadResult>`, {
     headers: { "content-type": "application/xml" },
   });
 }
@@ -53,11 +53,11 @@ test("multipart init → part urls → complete creates node", async () => {
   expect(urls).toHaveLength(2);
   expect(String(urls[0])).toContain("partNumber=1");
   expect(String(urls[0])).toContain("X-Amz-Signature=");
-  // PUT part 请求由浏览器直传 R2，不经 Worker，无需 mock
+  // PUT part 请求由浏览器直传 R2，不经 Worker，无需 mock；etag 为 S3/R2 带双引号的 32 位 hex
   const done = await SELF.fetch(`https://example.com/api/uploads/${uploadId}/complete`, {
     method: "POST",
     headers: { ...(await sessionHeaders(u)), ...json },
-    body: JSON.stringify({ parts: [{ partNumber: 1, etag: '"e1"' }, { partNumber: 2, etag: '"e2"' }], mime: "video/mp4" }),
+    body: JSON.stringify({ parts: [{ partNumber: 1, etag: `"${"a".repeat(32)}"` }, { partNumber: 2, etag: `"${"b".repeat(32)}"` }], mime: "video/mp4" }),
   });
   expect(done.status).toBe(201);
   const { nodeId, name } = (await done.json()) as { nodeId: string; name: string };
@@ -85,4 +85,49 @@ test("foreign uploadId is 404", async () => {
     body: JSON.stringify({ partNumbers: [1] }),
   });
   expect(res.status).toBe(404);
+});
+
+test("abort deletes pending upload and aborts R2 multipart", async () => {
+  const u = await seedUser();
+  mockCreateMultipart();
+  fetchMock.get(R2_ORIGIN).intercept({
+    method: "DELETE",
+    path: /^\/mstor\/[^/]+\/[^/]+\?uploadId=MPU-1$/,
+  }).reply(204);
+  const init = await SELF.fetch("https://example.com/api/uploads", {
+    method: "POST",
+    headers: { ...(await sessionHeaders(u)), ...json },
+    body: JSON.stringify({ parentId: "", name: "movie.mp4", size: 200 * 1048576, mime: "video/mp4" }),
+  });
+  expect(init.status).toBe(201);
+  const { uploadId } = (await init.json()) as { uploadId: string };
+  const del = await SELF.fetch(`https://example.com/api/uploads/${uploadId}`, { method: "DELETE", headers: await sessionHeaders(u) });
+  expect(del.status).toBe(200);
+  expect(((await del.json()) as { ok: boolean }).ok).toBe(true);
+  // 行已删，后续 part-urls 404
+  const again = await SELF.fetch(`https://example.com/api/uploads/${uploadId}/part-urls`, {
+    method: "POST",
+    headers: { ...(await sessionHeaders(u)), ...json },
+    body: JSON.stringify({ partNumbers: [1] }),
+  });
+  expect(again.status).toBe(404);
+});
+
+test("invalid etag is rejected with 400", async () => {
+  const u = await seedUser();
+  mockCreateMultipart();
+  const init = await SELF.fetch("https://example.com/api/uploads", {
+    method: "POST",
+    headers: { ...(await sessionHeaders(u)), ...json },
+    body: JSON.stringify({ parentId: "", name: "movie.mp4", size: 200 * 1048576, mime: "video/mp4" }),
+  });
+  expect(init.status).toBe(201);
+  const { uploadId } = (await init.json()) as { uploadId: string };
+  const res = await SELF.fetch(`https://example.com/api/uploads/${uploadId}/complete`, {
+    method: "POST",
+    headers: { ...(await sessionHeaders(u)), ...json },
+    body: JSON.stringify({ parts: [{ partNumber: 1, etag: "not-valid" }] }),
+  });
+  expect(res.status).toBe(400);
+  expect(((await res.json()) as { error: { code: string } }).error.code).toBe("BAD_REQUEST");
 });
