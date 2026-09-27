@@ -483,6 +483,12 @@ $env:WRANGLER_LOG_PATH="c:\Users\YMS\Documents\Code\cf-storage\.wrangler\logs"; 
 git add server/routes/search.ts test/search.test.ts; git commit -m "feat: search returns breadcrumb paths"
 ```
 
+> **审查记录（2026-09-27）**
+>
+> - 实现：655459f，98/98 测试绿 + tsc 零错误。
+> - **计划 bug 修正 2 处（审查独立确认为正确）**：①递归 CTE 方向——计划 `ON n.parent_id = u.id` 是向下找子节点，嵌套路径恒 undefined，改为 `ON u.parent_id = n.id` 向上回溯；②计划测试数据下 `q=聚` 命中不到顶层文件致 `paths[top.id]` 不可达，改用 `q=.`（不在转义清洗表、LIKE 中为字面量，同时覆盖深/浅路径）。
+> - 规格审查 PASS；质量审查 APPROVE：SQL 全参数化无注入面，chunk(90) 分片、空查询、FTS/LIKE 双分支无回归。建议级：孤儿节点静默无 path，前端消费时容忍缺键（Task 12 已用 `?? ""`）。
+
 ---
 
 ### Task 4: 后端补遗——公开分享子树浏览
