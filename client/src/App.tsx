@@ -5,6 +5,7 @@ import type { Me } from "./api/types";
 import AppShell, { makeQueryClient } from "./shell/AppShell";
 import Browser from "./pages/Browser";
 import SettingsPage from "./pages/SettingsPage";
+import SharePage from "./pages/SharePage";
 import SharesPage from "./pages/SharesPage";
 import TrashPage from "./pages/TrashPage";
 
@@ -27,7 +28,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Routes>
-        <Route path="/s/:token" element={<div />} />
+        <Route path="/s/:token" element={<SharePage />} />
         <Route element={<RequireAuth />}>
           <Route path="/" element={<Browser />} />
           <Route path="/shares" element={<SharesPage />} />
