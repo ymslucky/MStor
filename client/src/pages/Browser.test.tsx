@@ -11,9 +11,12 @@ vi.mock("../api/nodes", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../api/nodes")>()),
   listFiles: vi.fn(),
   createDir: vi.fn(),
+  renameNode: vi.fn(),
+  moveNode: vi.fn(),
+  deleteNode: vi.fn(),
 }));
 
-import { createDir, listFiles } from "../api/nodes";
+import { createDir, deleteNode, listFiles, moveNode, renameNode } from "../api/nodes";
 
 function fileNode(over: Partial<Node> = {}): Node {
   return {
@@ -64,4 +67,42 @@ test("create folder calls createDir and refreshes", async () => {
   await user.click(screen.getByRole("button", { name: "确定" }));
   await waitFor(() => expect(createDir).toHaveBeenCalledWith({ parentId: "", name: "新建" }));
   await waitFor(() => expect(screen.getByText("📁 新建")).toBeInTheDocument());
+});
+
+test("rename via dialog calls renameNode", async () => {
+  vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
+  vi.mocked(renameNode).mockResolvedValue({ ok: true });
+  const { user } = renderWith(<Browser />);
+  await screen.findByText("📄 hello.txt");
+  await user.click(screen.getByRole("button", { name: /重命名 hello.txt/ }));
+  const input = screen.getByLabelText("名称");
+  await user.clear(input);
+  await user.type(input, "world.txt");
+  await user.click(screen.getByRole("button", { name: "确定" }));
+  await waitFor(() => expect(renameNode).toHaveBeenCalledWith("f1", "world.txt"));
+});
+
+test("delete asks confirm then calls deleteNode", async () => {
+  vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
+  vi.mocked(deleteNode).mockResolvedValue({ ok: true });
+  const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+  const { user } = renderWith(<Browser />);
+  await screen.findByText("📄 hello.txt");
+  await user.click(screen.getByRole("button", { name: /删除 hello.txt/ }));
+  await waitFor(() => expect(deleteNode).toHaveBeenCalledWith("f1"));
+  expect(confirmSpy).toHaveBeenCalled();
+  vi.restoreAllMocks();
+});
+
+test("move via dialog calls moveNode with target dir", async () => {
+  vi.mocked(listFiles).mockImplementation(async (parentId: string) =>
+    parentId === "" ? ROOT_LIST : { nodes: [], breadcrumb: [], rootId: "root-1" },
+  );
+  vi.mocked(moveNode).mockResolvedValue({ ok: true });
+  const { user } = renderWith(<Browser />);
+  await screen.findByText("📄 hello.txt");
+  await user.click(screen.getByRole("button", { name: /移动 hello.txt/ }));
+  await user.click(screen.getByRole("button", { name: "根目录" }));
+  await user.click(screen.getByRole("button", { name: "确定" }));
+  await waitFor(() => expect(moveNode).toHaveBeenCalledWith("f1", ""));
 });
