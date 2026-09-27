@@ -3,6 +3,7 @@ import type { AppEnv } from "../env";
 import { randomId } from "../lib/crypto";
 import { errors } from "../lib/errors";
 import { assertQuota, breadcrumb, ensureRootDir, getNode, listChildren, moveNode, uniqueName, validateNodeName } from "../lib/nodes";
+import { serveObject } from "../lib/serve";
 
 export const files = new Hono<AppEnv>();
 
@@ -28,6 +29,12 @@ files.patch("/:id", async (c) => {
   const nextName = name !== undefined ? validateNodeName(name) : node.name;
   await moveNode(c.env.DB, user.id, node.id, parentId ?? node.parent_id, nextName);
   return c.json({ ok: true });
+});
+
+files.get("/:id/content", async (c) => {
+  const node = await getNode(c.env.DB, c.get("user").id, c.req.param("id"));
+  if (!node || node.is_dir) throw errors.notFound();
+  return serveObject(c, node);
 });
 
 files.put("/upload", async (c) => {
