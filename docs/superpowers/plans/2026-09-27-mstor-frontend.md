@@ -3866,6 +3866,12 @@ npm run test:client; npm run test:server; npm run check; npm run build
 git add client vite.config.ts package.json package-lock.json; git commit -m "feat: pwa manifest, service worker and build polish"
 ```
 
+> **审查记录（2026-09-27）**
+>
+> - 实现：eb0607c，client 42 绿 / server 102 绿 / check 双零 / build 成功（generateSW，precache 7 entries，dist 含 sw.js/manifest/icon.svg）。
+> - 偏离判定（成立且实证）：vitest.client.config.ts 补挂 VitePWA()——jsdom 转译期必须解析 virtual:pwa-register，移除即 main.test 失败；测试态无 SW/manifest 副作用。
+> - 规格审查 PASS；质量审查 APPROVE：SW 与 Workers Assets 共存判定正确（run_worker_first 是服务端概念，denylist 是浏览器侧唯一隔离手段且与后端路由精确对应）。建议级：manifest lang 默认 en 可显式设 zh-CN（后续部署时顺手）。——前端 17/17 闭环。
+
 ---
 
 ## 计划自审记录
