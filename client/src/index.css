@@ -42,7 +42,13 @@ body {
 }
 
 /* —— 玻璃层级（全站唯三的 backdrop-filter 出口，见计划头部规范）—— */
-.glass-subtle, .glass-panel, .glass-modal {
+/* G1 以 @utility 注册：支持 hover:glass-subtle 等变体（如分享行 hover） */
+@utility glass-subtle {
+  background-color: rgb(255 255 255 / 0.05);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.glass-panel, .glass-modal {
   background-color: rgb(255 255 255 / 0.05);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);

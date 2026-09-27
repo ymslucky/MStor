@@ -4,6 +4,7 @@ import { listAdminUsers, patchAdminUser, setWebdavPassword } from "../api/me";
 import type { AdminUser, Me } from "../api/types";
 import { formatDate } from "../lib/format";
 import { toast } from "../components/Toaster";
+import { Button, GlassCard, Input } from "../components/ui";
 
 function WebdavSection() {
   const [password, setPassword] = useState("");
@@ -15,30 +16,29 @@ function WebdavSection() {
     },
   });
   return (
-    <section className="rounded-lg border bg-white p-4">
-      <h2 className="mb-1 font-semibold">WebDAV</h2>
-      <p className="mb-3 text-xs text-slate-500">
+    <GlassCard className="p-4">
+      <h2 className="mb-1 font-semibold text-ink">WebDAV</h2>
+      <p className="mb-3 text-xs text-ink-dim">
         地址 <code>/dav/</code>，用户名同登录名；在 Windows 映射驱动器 / iOS 文件 App 中使用。
       </p>
       <div className="flex flex-wrap items-center gap-2">
-        <input
+        <Input
           aria-label="WebDAV 应用密码"
           type="password"
           placeholder="至少 8 位"
-          className="w-56 rounded border px-2 py-1.5 text-sm"
+          className="sm:w-56"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        <button
-          className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-50"
+        <Button
           disabled={password.length < 8 || save.isPending}
           onClick={() => save.mutate(password)}
         >
           保存密码
-        </button>
-        {password.length > 0 && password.length < 8 && <span className="text-xs text-red-500">密码至少 8 位</span>}
+        </Button>
+        {password.length > 0 && password.length < 8 && <span className="text-xs text-danger">密码至少 8 位</span>}
       </div>
-    </section>
+    </GlassCard>
   );
 }
 
@@ -51,42 +51,44 @@ function AdminRow({ u, selfId }: { u: AdminUser; selfId: string }) {
     onSuccess: invalidate,
   });
   return (
-    <tr className="border-b">
-      <td className="py-2">
+    <tr className="border-b border-white/10 last:border-b-0">
+      <td className="py-2 text-ink">
         {u.name}
-        {u.id === selfId && <span className="ml-1 text-xs text-slate-400">（我）</span>}
-        {u.disabled_at && <span className="ml-1 text-xs text-red-500">已停用</span>}
+        {u.id === selfId && <span className="ml-1 text-xs text-ink-faint">（我）</span>}
+        {u.disabled_at && <span className="ml-1 text-xs text-danger">已停用</span>}
       </td>
-      <td className="py-2 text-xs">{u.role}</td>
+      <td className="hidden py-2 text-xs sm:table-cell">{u.role}</td>
       <td className="py-2">
-        <input
+        <Input
           aria-label={`配额 GB（${u.name}）`}
           type="number"
           min="0"
-          className="w-24 rounded border px-2 py-1 text-sm"
+          className="w-24!"
           value={gb}
           onChange={(e) => setGb(e.target.value)}
         />
         <button
-          className="ml-2 text-xs text-blue-600 hover:underline"
+          className="ml-2 text-xs text-accent hover:underline"
           onClick={() => patch.mutate({ quota_bytes: Math.max(0, Number(gb)) * 1024 ** 3 })}
         >
           保存配额（{u.name}）
         </button>
       </td>
-      <td className="py-2 text-xs text-slate-400">{formatDate(u.created_at)}</td>
+      <td className="hidden py-2 text-xs text-ink-faint md:table-cell">{formatDate(u.created_at)}</td>
       <td className="py-2 text-right">
-        <button
-          className="mr-3 text-slate-600 hover:underline"
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mr-2"
           onClick={() => {
             localStorage.setItem("mstor_act_as", u.id);
             window.location.assign("/");
           }}
         >
           进入空间
-        </button>
+        </Button>
         <button
-          className={u.disabled_at ? "text-blue-600 hover:underline" : "text-red-600 hover:underline"}
+          className={u.disabled_at ? "text-accent hover:underline" : "text-danger hover:underline"}
           onClick={() => patch.mutate({ disabled: !u.disabled_at })}
         >
           {u.disabled_at ? "启用" : "停用"}
@@ -102,15 +104,16 @@ export default function SettingsPage({ me }: { me: Me }) {
     <div className="space-y-4">
       <WebdavSection />
       {me.role === "admin" && (
-        <section className="rounded-lg border bg-white p-4">
-          <h2 className="mb-3 font-semibold">用户管理</h2>
+        <GlassCard className="p-4">
+          <h2 className="mb-3 font-semibold text-ink">用户管理</h2>
           <table className="w-full text-sm">
-            <thead className="text-left text-xs text-slate-500">
-              <tr className="border-b">
-                <th className="py-2">用户</th>
-                <th className="py-2">角色</th>
-                <th className="py-2">配额</th>
-                <th className="py-2">注册</th>
+            <thead className="text-left text-xs text-ink-faint">
+              <tr className="border-b border-white/10">
+                <th className="py-2 font-medium">用户</th>
+                {/* 次要列（角色/注册）移动端隐藏 */}
+                <th className="hidden py-2 font-medium sm:table-cell">角色</th>
+                <th className="py-2 font-medium">配额</th>
+                <th className="hidden py-2 font-medium md:table-cell">注册</th>
                 <th className="py-2" />
               </tr>
             </thead>
@@ -118,7 +121,7 @@ export default function SettingsPage({ me }: { me: Me }) {
               {users.data?.users.map((u) => <AdminRow key={u.id} u={u} selfId={me.id} />)}
             </tbody>
           </table>
-        </section>
+        </GlassCard>
       )}
     </div>
   );
