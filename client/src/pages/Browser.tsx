@@ -8,6 +8,7 @@ import NameDialog from "../components/NameDialog";
 import PreviewModal from "../components/PreviewModal";
 import ShareDialog from "../components/ShareDialog";
 import UploadPanel from "../components/UploadPanel";
+import { Button, EmptyState, GlassCard, IconButton, Skeleton } from "../components/ui";
 import { useFiles } from "../hooks/useFiles";
 import { useUploadQueue } from "../hooks/useUploadQueue";
 
@@ -31,14 +32,8 @@ export default function Browser() {
 
   return (
     <div>
-      <div className="mb-3 flex items-center justify-between gap-2">
+      <GlassCard className="mb-3 flex flex-wrap items-center justify-between gap-2 p-3">
         <div className="min-w-0 flex-1">{query.data && <Breadcrumb crumbs={query.data.breadcrumb} />}</div>
-        <button
-          className="shrink-0 rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
-          onClick={() => setCreating(true)}
-        >
-          新建文件夹
-        </button>
         <input
           ref={fileInput}
           type="file"
@@ -49,19 +44,38 @@ export default function Browser() {
             e.target.value = "";
           }}
         />
-        <button
-          className="shrink-0 rounded bg-green-600 px-3 py-1.5 text-sm text-white hover:bg-green-700"
-          onClick={() => fileInput.current?.click()}
-        >
-          上传
-        </button>
-      </div>
-      {query.isPending && <div className="py-16 text-center text-sm text-slate-400">加载中…</div>}
-      {query.isError && (
-        <div className="py-16 text-center text-sm text-slate-400">
-          <div className="font-medium text-slate-600">加载失败</div>
-          <div className="mt-1">请检查网络或刷新页面重试</div>
+        <Button variant="ghost" aria-label="上传" onClick={() => fileInput.current?.click()}>
+          <span aria-hidden>⬆️</span>
+          <span className="hidden sm:inline">上传</span>
+        </Button>
+        <Button aria-label="新建文件夹" onClick={() => setCreating(true)}>
+          <span aria-hidden>🆕</span>
+          <span className="hidden sm:inline">新建文件夹</span>
+        </Button>
+      </GlassCard>
+      {query.isPending && (
+        <div className="space-y-2" aria-busy="true">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div key={i} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+              <Skeleton className="h-9 w-9 shrink-0" />
+              <Skeleton className="h-4 flex-1" />
+              <Skeleton className="hidden h-4 w-16 sm:block" />
+              <Skeleton className="h-4 w-20 shrink-0" />
+            </div>
+          ))}
         </div>
+      )}
+      {query.isError && (
+        <EmptyState
+          icon="⚠️"
+          title="加载失败"
+          description="请检查网络或刷新页面重试"
+          action={
+            <Button variant="ghost" onClick={() => void query.refetch()}>
+              重试
+            </Button>
+          }
+        />
       )}
       {query.data && (
         <FileList
@@ -70,16 +84,18 @@ export default function Browser() {
           onOpenFile={setPreview}
           actions={(n) => (
             <>
-              <button className="text-slate-600 hover:underline" aria-label={`分享 ${n.name}`} onClick={() => setSharing(n)}>分享</button>
-              <button className="text-slate-600 hover:underline" aria-label={`重命名 ${n.name}`} onClick={() => setRenaming(n)}>
-                重命名
-              </button>
-              <button className="text-slate-600 hover:underline" aria-label={`移动 ${n.name}`} onClick={() => setMoving(n)}>
-                移动
-              </button>
-              <button className="text-red-600 hover:underline" aria-label={`删除 ${n.name}`} onClick={() => confirmDelete(n)}>
-                删除
-              </button>
+              <IconButton label={`分享 ${n.name}`} onClick={() => setSharing(n)}>
+                <span aria-hidden>🔗</span>
+              </IconButton>
+              <IconButton label={`重命名 ${n.name}`} onClick={() => setRenaming(n)}>
+                <span aria-hidden>✏️</span>
+              </IconButton>
+              <IconButton label={`移动 ${n.name}`} onClick={() => setMoving(n)}>
+                <span aria-hidden>📂</span>
+              </IconButton>
+              <IconButton label={`删除 ${n.name}`} onClick={() => confirmDelete(n)}>
+                <span aria-hidden>🗑️</span>
+              </IconButton>
             </>
           )}
         />

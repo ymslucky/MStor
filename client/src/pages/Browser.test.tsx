@@ -94,6 +94,25 @@ test("delete asks confirm then calls deleteNode", async () => {
   vi.restoreAllMocks();
 });
 
+test("shows skeleton rows while loading", () => {
+  vi.mocked(listFiles).mockImplementation(() => new Promise(() => {}));
+  const { container } = renderWith(<Browser />);
+  const pending = container.querySelector('[aria-busy="true"]');
+  expect(pending).not.toBeNull();
+  expect(pending!.children).toHaveLength(5);
+  expect(pending!.querySelector(".animate-pulse")).not.toBeNull();
+});
+
+test("shows error state with retry that refetches", async () => {
+  vi.mocked(listFiles).mockClear(); // 清掉前面用例遗留的调用计数
+  vi.mocked(listFiles).mockRejectedValue(new Error("boom"));
+  const { user } = renderWith(<Browser />);
+  expect(await screen.findByText("加载失败")).toBeInTheDocument();
+  expect(screen.getByText("请检查网络或刷新页面重试")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "重试" }));
+  await waitFor(() => expect(listFiles).toHaveBeenCalledTimes(2));
+});
+
 test("move via dialog calls moveNode with target dir", async () => {
   vi.mocked(listFiles).mockImplementation(async (parentId: string) =>
     parentId === "" ? ROOT_LIST : { nodes: [], breadcrumb: [], rootId: "root-1" },
