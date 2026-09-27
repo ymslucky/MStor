@@ -57,6 +57,12 @@ export default function Browser() {
         </button>
       </div>
       {query.isPending && <div className="py-16 text-center text-sm text-slate-400">加载中…</div>}
+      {query.isError && (
+        <div className="py-16 text-center text-sm text-slate-400">
+          <div className="font-medium text-slate-600">加载失败</div>
+          <div className="mt-1">请检查网络或刷新页面重试</div>
+        </div>
+      )}
       {query.data && (
         <FileList
           nodes={query.data.nodes}
@@ -79,7 +85,7 @@ export default function Browser() {
         />
       )}
       <UploadPanel queue={queue} />
-      {preview && <PreviewModal node={preview} onClose={() => setPreview(null)} />}
+      {preview && <PreviewModal key={preview.id} node={preview} onClose={() => setPreview(null)} />}
       {sharing && <ShareDialog node={sharing} onClose={() => setSharing(null)} />}
       {creating && (
         <NameDialog
