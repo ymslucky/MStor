@@ -1,8 +1,17 @@
 import { render, screen } from "@testing-library/react";
-import { expect, test } from "vitest";
+import { MemoryRouter } from "react-router-dom";
+import { expect, test, vi } from "vitest";
 import App from "./App";
 
-test("renders app title", () => {
-  render(<App />);
-  expect(screen.getByText("MStor")).toBeInTheDocument();
+vi.mock("./api/me", () => ({
+  getMe: async () => ({ id: "u1", name: "Alice", role: "admin", quotaBytes: 100, usedBytes: 40 }),
+}));
+
+test("renders app title", async () => {
+  render(
+    <MemoryRouter initialEntries={["/"]}>
+      <App />
+    </MemoryRouter>,
+  );
+  expect(await screen.findByText("MStor")).toBeInTheDocument();
 });
