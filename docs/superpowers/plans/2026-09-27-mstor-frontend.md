@@ -1907,6 +1907,12 @@ npm run test:client; npm run test:server; npm run check
 git add client; git commit -m "feat: rename, move and soft delete from browser"
 ```
 
+> **审查记录（2026-09-27）**
+>
+> - 实现：496f010，client 11 绿 / server 99 绿 / check 双零。
+> - 偏离判定（均成立，系计划笔误/遗漏）：移动断言对齐真实签名 `moveNode(id, to)`；移动用例补「确定」提交步骤；emoji 文本断言。
+> - 规格审查 PASS；质量审查 APPROVE：移动到自身子树=前端从简+后端 isDescendant 400 兜底（可接受）；失败时对话框留在原地可重试、错误走全局 toast；confirm 取消不发请求。建议级（不强加）：listDirOptions 未按前缀排除子孙目录（后端兜底）；MoveDialog useEffect 竞态影响极小。
+
 ---
 
 ### Task 9: 上传队列 + 小文件直传
