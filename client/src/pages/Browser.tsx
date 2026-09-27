@@ -1,11 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
-import { Link, useOutletContext, useSearchParams } from "react-router-dom";
-import { Copy, Download, ExternalLink, FolderInput, FolderPlus, FolderUp, HardDrive, Info, LayoutGrid, Link2, List, Pencil, Share2, Trash2, TriangleAlert, Upload } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { useOutletContext, useSearchParams } from "react-router-dom";
+import { Copy, Download, ExternalLink, FolderInput, FolderPlus, FolderUp, Info, LayoutGrid, Link2, List, Pencil, Share2, Trash2, TriangleAlert, Upload } from "lucide-react";
 import { listShares } from "../api/shares";
-import { listTrash } from "../api/trash";
 import type { Me, Node } from "../api/types";
 import { contentUrl, deleteNode, deleteNodePermanently, moveNode } from "../api/nodes";
 import Breadcrumb from "../components/Breadcrumb";
@@ -25,21 +23,6 @@ import { useKeyboardNav } from "../hooks/useKeyboardNav";
 import { useUploadQueue } from "../hooks/useUploadQueue";
 import { collectUploads } from "../lib/dirscan";
 import { formatBytes, formatDate } from "../lib/format";
-
-// 粉彩图标芯片：浅底 + 饱和前景（token 见 index.css chip-*）
-function KpiChip({ tone, icon: Icon }: { tone: "amber" | "blue" | "violet" | "rose"; icon: LucideIcon }) {
-  const tones = {
-    amber: "bg-chip-amber-bg text-chip-amber-fg",
-    blue: "bg-chip-blue-bg text-chip-blue-fg",
-    violet: "bg-chip-violet-bg text-chip-violet-fg",
-    rose: "bg-chip-rose-bg text-chip-rose-fg",
-  };
-  return (
-    <span aria-hidden className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${tones[tone]}`}>
-      <Icon size={20} />
-    </span>
-  );
-}
 
 // 存储圆环：底环 gray-100，进度环 accent，中心百分比
 function StorageRing({ pct }: { pct: number }) {
@@ -65,9 +48,6 @@ function StorageRing({ pct }: { pct: number }) {
     </div>
   );
 }
-
-const quickCls =
-  "flex min-h-[44px] items-center gap-3 rounded-card border border-line bg-white p-3 text-sm font-medium text-ink shadow-card transition-shadow hover:shadow-lift";
 
 // —— 前端过滤 chips（类型/时间）：纯前端过滤当前目录列表，不新增后端调用 ——
 type TypeFilter = "all" | "image" | "video" | "doc";
@@ -150,7 +130,6 @@ export default function Browser() {
   const me = useOutletContext<Me | null>();
   const { query, mkDir, rename, move, remove } = useFiles(dir);
   const sharesQuery = useQuery({ queryKey: ["shares"], queryFn: listShares });
-  const trashQuery = useQuery({ queryKey: ["trash"], queryFn: listTrash });
   const fileInput = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -441,62 +420,16 @@ export default function Browser() {
           .catch(() => toast("读取拖入内容失败"));
       }}
     >
-      {/* KPI 卡行 */}
-      <div className="mb-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <GlassCard className="flex items-center gap-3 p-4">
-          <StorageRing pct={pct} />
-          <div className="min-w-0">
-            <div className="text-xs text-ink-faint">存储用量</div>
-            <div className="truncate text-sm font-semibold text-ink" title={`${formatBytes(used)} / ${formatBytes(quota)}`}>
-              {me ? `${formatBytes(used)} / ${formatBytes(quota)}` : "-"}
-            </div>
+      {/* 存储用量卡：合并配额信息（used / quota）；分享/回收站入口走侧栏与底部 Tab */}
+      <GlassCard className="mb-4 flex w-full max-w-sm items-center gap-3 p-4">
+        <StorageRing pct={pct} />
+        <div className="min-w-0">
+          <div className="text-xs text-ink-faint">存储用量</div>
+          <div className="truncate text-sm font-semibold text-ink" title={`${formatBytes(used)} / ${formatBytes(quota)}`}>
+            {me ? `${formatBytes(used)} / ${formatBytes(quota)}` : "-"}
           </div>
-        </GlassCard>
-        <GlassCard className="flex items-center gap-3 p-4">
-          <KpiChip tone="amber" icon={HardDrive} />
-          <div className="min-w-0">
-            <div className="text-xs text-ink-3">空间配额</div>
-            <div className="truncate text-sm font-semibold text-ink">{me ? formatBytes(quota) : "-"}</div>
-          </div>
-        </GlassCard>
-        <GlassCard className="flex items-center gap-3 p-4">
-          <KpiChip tone="blue" icon={Share2} />
-          <div className="min-w-0">
-            <div className="text-xs text-ink-3">我的分享</div>
-            <div className="text-sm font-semibold text-ink">
-              {sharesQuery.isError ? "-" : (sharesQuery.data?.shares.length ?? "-")}
-            </div>
-          </div>
-        </GlassCard>
-        <GlassCard className="flex items-center gap-3 p-4">
-          <KpiChip tone="rose" icon={Trash2} />
-          <div className="min-w-0">
-            <div className="text-xs text-ink-3">回收站文件</div>
-            <div className="text-sm font-semibold text-ink">
-              {trashQuery.isError ? "-" : (trashQuery.data?.nodes.length ?? "-")}
-            </div>
-          </div>
-        </GlassCard>
-      </div>
-      {/* 快捷操作行 */}
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <button type="button" aria-label="上传" className={quickCls} onClick={() => fileInput.current?.click()}>
-          <KpiChip tone="violet" icon={Upload} />
-          上传
-        </button>
-        <button type="button" aria-label="新建文件夹" className={quickCls} onClick={() => setCreating(true)}>
-          <KpiChip tone="blue" icon={FolderPlus} />
-          新建文件夹
-        </button>
-        <Link to="/shares" className={quickCls}>
-          <KpiChip tone="amber" icon={Link2} />
-          管理分享
-        </Link>
-        <Link to="/trash" className={quickCls}>
-          <KpiChip tone="rose" icon={Trash2} />
-          回收站
-        </Link>
-      </div>
+        </div>
+      </GlassCard>
       <input
         ref={fileInput}
         type="file"
@@ -564,6 +497,12 @@ export default function Browser() {
               <FilterChips label="时间过滤" options={TIME_CHIPS} value={timeFilter} onChange={setTimeFilter} />
             </div>
             <div className="flex items-center gap-2">
+              <IconButton label="新建文件夹" onClick={() => setCreating(true)}>
+                <FolderPlus size={18} aria-hidden />
+              </IconButton>
+              <IconButton label="上传文件" onClick={() => fileInput.current?.click()}>
+                <Upload size={18} aria-hidden />
+              </IconButton>
               <IconButton label="上传文件夹" onClick={() => folderInput.current?.click()}>
                 <FolderUp size={18} aria-hidden />
               </IconButton>

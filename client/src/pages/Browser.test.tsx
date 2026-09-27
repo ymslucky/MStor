@@ -573,7 +573,8 @@ test("empty dir offers upload and create-folder CTAs", async () => {
   vi.mocked(listFiles).mockResolvedValue({ nodes: [], breadcrumb: [], rootId: "root-1" });
   const { user } = renderWith(<Browser />);
   await screen.findByText("该目录为空");
-  expect(screen.getByRole("button", { name: "上传文件" })).toBeInTheDocument();
+  // 空状态 CTA 与工具栏 IconButton 均提供「上传文件」入口
+  expect(screen.getAllByRole("button", { name: "上传文件" }).length).toBeGreaterThanOrEqual(1);
   // 空状态「新建文件夹」CTA 打开既有新建对话框（工具栏还有一个同名按钮）
   const ctas = screen.getAllByRole("button", { name: "新建文件夹" });
   expect(ctas.length).toBeGreaterThanOrEqual(2);
