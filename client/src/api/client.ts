@@ -9,12 +9,50 @@ export class ApiError extends Error {
   }
 }
 
+// —— 会话重登策略（防 IAM authorize 端点限流）——
+// 未登录的首次访问渲染登录落地页（不自动跳转）；「曾登录过」的会话中途过期才自动重登，
+// 且每轮页面生命周期只跳一次（redirecting 守卫），避免并发 401 造成 authorize 请求风暴。
+const AUTHED_FLAG = "mstor_authed";
+let redirecting = false;
+
+export function markSessionActive(): void {
+  try {
+    sessionStorage.setItem(AUTHED_FLAG, "1");
+  } catch {
+    // 存储不可用时忽略：仅影响自动重登，落地页仍可用
+  }
+}
+
+export function clearSessionFlag(): void {
+  try {
+    sessionStorage.removeItem(AUTHED_FLAG);
+  } catch {
+    // 同上
+  }
+}
+
+/** 会话过期时调用：曾登录过 → 跳登录页（一次性）并返回 true；否则返回 false（由调用方渲染落地页） */
+export function handleSessionExpired(): boolean {
+  if (redirecting) return true;
+  let authed = false;
+  try {
+    authed = sessionStorage.getItem(AUTHED_FLAG) === "1";
+  } catch {
+    authed = false;
+  }
+  if (authed) {
+    redirecting = true;
+    window.location.href = "/auth/login";
+  }
+  return authed;
+}
+
 interface ApiInit extends Omit<RequestInit, "body"> {
   json?: unknown;
   body?: BodyInit | null;
 }
 
-// 统一封装：错误 envelope → ApiError；受保护接口 401 → 跳登录（公开分享 /api/s/ 除外）
+// 统一封装：错误 envelope → ApiError。401 只抛错不跳转，重定向策略见 handleSessionExpired
 export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   if (init.json !== undefined) headers.set("content-type", "application/json");
@@ -28,7 +66,6 @@ export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
     body: init.json !== undefined ? JSON.stringify(init.json) : (init.body as BodyInit | null | undefined),
   });
   if (res.status === 401 && !path.startsWith("/api/s/")) {
-    window.location.href = "/auth/login";
     throw new ApiError(401, "UNAUTHORIZED", "请先登录");
   }
   if (!res.ok) {

@@ -1,9 +1,10 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { ApiError, api } from "./client";
+import { ApiError, api, clearSessionFlag, handleSessionExpired, markSessionActive } from "./client";
 
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  clearSessionFlag();
 });
 
 test("unwraps error envelope into ApiError", async () => {
@@ -20,15 +21,15 @@ test("unwraps error envelope into ApiError", async () => {
   expect(err.message).toBe("名称已存在");
 });
 
-test("401 on protected api redirects to login", async () => {
+test("401 throws ApiError without navigating (landing page decides)", async () => {
   const loc = { href: "" };
   Object.defineProperty(window, "location", { value: loc, configurable: true });
   vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 401 })));
-  await expect(api("/api/files")).rejects.toBeInstanceOf(ApiError);
-  expect(loc.href).toBe("/auth/login");
+  await expect(api("/api/files")).rejects.toMatchObject({ status: 401, code: "UNAUTHORIZED" });
+  expect(loc.href).toBe("");
 });
 
-test("401 on public share endpoint does NOT redirect", async () => {
+test("401 on public share endpoint throws SHARE_PASSWORD", async () => {
   const loc = { href: "" };
   Object.defineProperty(window, "location", { value: loc, configurable: true });
   vi.stubGlobal("fetch", vi.fn(async () =>
@@ -37,6 +38,27 @@ test("401 on public share endpoint does NOT redirect", async () => {
   const err: ApiError = await api("/api/s/tok").then(() => { throw new Error("should reject"); }, (e: ApiError) => e);
   expect(err.code).toBe("SHARE_PASSWORD");
   expect(loc.href).toBe("");
+});
+
+test("handleSessionExpired: no flag → stays (false)", () => {
+  const loc = { href: "" };
+  Object.defineProperty(window, "location", { value: loc, configurable: true });
+  expect(handleSessionExpired()).toBe(false);
+  expect(loc.href).toBe("");
+});
+
+test("handleSessionExpired: marked session → one-shot redirect", () => {
+  const loc = { href: "" };
+  Object.defineProperty(window, "location", { value: loc, configurable: true });
+  markSessionActive();
+  expect(handleSessionExpired()).toBe(true);
+  expect(loc.href).toBe("/auth/login");
+  // 一次性守卫：同轮生命周期内重复调用不再触发
+  const loc2 = { href: "" };
+  Object.defineProperty(window, "location", { value: loc2, configurable: true });
+  expect(handleSessionExpired()).toBe(true);
+  expect(loc2.href).toBe("");
+  clearSessionFlag();
 });
 
 test("sends x-act-as header when set", async () => {

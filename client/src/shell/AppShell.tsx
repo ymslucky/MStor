@@ -1,6 +1,6 @@
 import { MutationCache, QueryCache, QueryClient, useQuery } from "@tanstack/react-query";
 import { NavLink, Outlet } from "react-router-dom";
-import { ApiError } from "../api/client";
+import { ApiError, clearSessionFlag, handleSessionExpired } from "../api/client";
 import { getMe } from "../api/me";
 import type { Me } from "../api/types";
 import { formatBytes } from "../lib/format";
@@ -10,7 +10,11 @@ import { Toaster, toast } from "../components/Toaster";
 
 export function makeQueryClient(): QueryClient {
   const onError = (e: unknown) => {
-    if (e instanceof ApiError && e.status === 401) return; // 已由 api() 跳登录
+    // 会话中途过期：曾登录过则一次性自动重登（handleSessionExpired 自带防抖守卫）
+    if (e instanceof ApiError && e.status === 401) {
+      handleSessionExpired();
+      return;
+    }
     toast(e instanceof Error ? e.message : "请求失败");
   };
   return new QueryClient({
@@ -91,6 +95,7 @@ export default function AppShell() {
                 href="/auth/logout"
                 aria-label="退出"
                 title="退出"
+                onClick={() => clearSessionFlag()}
                 className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-ink transition-colors hover:bg-white/10"
               >
                 <span aria-hidden>🚪</span>
