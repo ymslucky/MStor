@@ -781,6 +781,12 @@ npm run test:client; npm run test:server; npm run check; npm run build
 git add package.json package-lock.json vite.config.ts vitest.client.config.ts client; git commit -m "feat: client scaffolding (vite, react, tailwind, dual test pipeline)"
 ```
 
+> **审查记录（2026-09-27）**
+>
+> - 实现：45b2efc，四项验证全过（client 1 绿 / server 99 绿 / check 双零 / build 产出 dist）。
+> - 偏离判定（均合理并实证）：①锁 vite@^7 + plugin-react@^5 + tailwindcss/vite@^4（plugin-react@6 强制 vite@8，与 vitest 3.2 冲突 ERESOLVE）；②服务端 vitest.config.ts 补 exclude `client/**`、`dist/**`——必要修复，否则根 vitest 捡到 client 测试致 jsdom 报错。
+> - 规格审查 PASS；质量审查 APPROVE：双 tsconfig/vitest 隔离成立；代理路径与 run_worker_first 对应、8787 端口一致；实测 wrangler dev 对真产物 200。建议级：dist/index.html 引用带哈希 assets 不入库，fresh clone 需先 build 再 wrangler dev（部署清单前提，Task 17 收尾时与部署说明一并对齐）。
+
 ---
 
 ### Task 6: API 客户端 + 类型 + 应用骨架（/api/me、导航、401 跳转、Toast）
