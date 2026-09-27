@@ -2815,6 +2815,15 @@ git add server/lib/davxml.ts server/middleware/davauth.ts server/routes/dav.ts s
 git commit -m "feat: webdav gateway part A (auth/propfind/get/put)"
 ```
 
+> **审查记录（2026-09-27）**
+>
+> - 实现 `1550cb2` + 审查修复 `1be3b43`；`npm test` 14 文件 81/81 绿、`npx tsc --noEmit` 零错误。spec review：SATISFIED；quality review：APPROVE。
+> - **关键修正（计划 bug）**：计划以根哨兵行 id 作顶级节点的 parent_id，与全库约定 `parent_id=''`（types.ts/files.ts/nodes.ts 一致）冲突，会导致顶级文件查不到、PUT 误插哨兵 id 下——实现重写为全程跟踪 `parentId`（根 `''`）。
+> - 其余实现期修正：Basic Auth 首个冒号切分（密码可含 `:`）+ UTF-8 解码 + trim；测试 `as` 断言。
+> - 计划外补充（均经 spec 审查确认不与计划正文冲突）：`liveChild` 过滤回收站（WebDAV 只见未删节点）；PUT 撞回收站同名 → 409（计划代码会覆盖回收站对象 r2_key）；`walked===segments.length` 全路径校验（中间路径为文件时 404/409）；PUT 配额预检（Content-Length，覆盖算增量；有意不加 SMALL_FILE_LIMIT）；覆盖 PUT 同步 mime；href 先 encodeURI 再 XML 转义。
+> - 审查修复 4 处：①PUT 补 `validateNodeName`（防 DAV 侧创建 UI 拒绝的节点名）②href 补 `%23`/`%3F` 转义（encodeURI 不处理 `#`/`?`，会被客户端截断）③畸形百分号序列（`%zz`）URIError → 400 ④补嵌套 PUT/子目录 PROPFIND href 前缀测试 + 非法输入 400 测试。
+> - 遗留给 Task 16 跟进：chunked PUT（无 Content-Length）绕过配额预检，建议 Task 16 加事后结算（按 obj.size）；Depth: infinity 按 Depth 0 处理（RFC 4918 建议 403，家庭场景可接受）；错误体为 JSON（DAV 客户端只看状态码）。
+
 ---
 
 ### Task 16: WebDAV B（MKCOL / MOVE / COPY / DELETE / LOCK）
