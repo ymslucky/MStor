@@ -25,3 +25,9 @@ test("health still ok via SELF (error handler wired)", async () => {
   const res = await SELF.fetch("https://example.com/api/health");
   expect(res.status).toBe(200);
 });
+
+test("unmatched route returns 404 envelope via SELF", async () => {
+  const res = await SELF.fetch("https://example.com/api/nope");
+  expect(res.status).toBe(404);
+  expect(await res.json()).toEqual({ error: { code: "NOT_FOUND", message: "资源不存在" } });
+});
