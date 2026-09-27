@@ -13,7 +13,8 @@ export async function sessionMiddleware(c: Context<AppEnv>, next: Next) {
   let sub: string;
   try {
     const payload = await verify(token, c.env.SESSION_SECRET, "HS256");
-    sub = payload.sub as string;
+    if (typeof payload.sub !== "string") throw errors.unauthorized();
+    sub = payload.sub;
   } catch {
     throw errors.unauthorized();
   }

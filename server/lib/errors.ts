@@ -21,6 +21,10 @@ export async function errorHandler(e: Error, c: Context) {
   if (e instanceof HttpError) {
     return c.json({ error: { code: e.code, message: e.message } }, e.status);
   }
+  // JSON body 解析失败（c.req.json() 抛 SyntaxError），后续所有 JSON 路由统一走此映射
+  if (e instanceof SyntaxError) {
+    return c.json({ error: { code: "BAD_REQUEST", message: "请求体不是合法 JSON" } }, 400);
+  }
   console.error(e);
   return c.json({ error: { code: "INTERNAL", message: "服务器内部错误" } }, 500);
 }

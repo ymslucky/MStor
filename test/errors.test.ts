@@ -34,3 +34,14 @@ test("unmatched route returns 404 envelope via SELF", async () => {
   expect(res.status).toBe(404);
   expect(await res.json()).toEqual({ error: { code: "NOT_FOUND", message: "资源不存在" } });
 });
+
+test("invalid JSON body maps to 400 BAD_REQUEST", async () => {
+  const u = await seedUser();
+  const res = await SELF.fetch("https://example.com/api/me/webdav-password", {
+    method: "PUT",
+    headers: { ...(await sessionHeaders(u)), "content-type": "application/json" },
+    body: "not-json",
+  });
+  expect(res.status).toBe(400);
+  expect(((await res.json()) as { error: { code: string } }).error.code).toBe("BAD_REQUEST");
+});

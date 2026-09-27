@@ -9,6 +9,7 @@ const app = new Hono<AppEnv>();
 app.onError(errorHandler);
 app.notFound((c) => c.json({ error: { code: "NOT_FOUND", message: "资源不存在" } }, 404));
 
+// health 在 session 中间件之前注册，保持免登录
 app.get("/api/health", (c) => c.json({ ok: true }));
 
 app.use("/api/*", sessionMiddleware);
