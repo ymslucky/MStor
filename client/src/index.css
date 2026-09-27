@@ -1,1 +1,102 @@
 @import "tailwindcss";
+
+@theme {
+  /* —— 语义色板（暗色单主题，预留浅色扩展）—— */
+  --color-ink: #e8edf7;          /* 主文字 */
+  --color-ink-dim: #9aa7bd;      /* 次级文字 */
+  --color-ink-faint: #5c6a85;    /* 弱化文字/边框 */
+  --color-surface: #0d1322;      /* 最底层页面底色 */
+  --color-surface-raised: #131b30;
+  --color-accent: #38bdf8;       /* sky-400 */
+  --color-accent-strong: #0ea5e9;
+  --color-accent-deep: #0369a1;
+  --color-danger: #f87171;
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+
+  /* —— 圆角 / 阴影 —— */
+  --radius-card: 1rem;
+  --radius-panel: 1.25rem;
+  --shadow-glass: 0 8px 32px rgb(0 0 0 / 0.35);
+  --shadow-lift: 0 4px 16px rgb(2 6 23 / 0.4);
+
+  /* —— 动效 token —— */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 150ms;
+  --duration-slow: 320ms;
+
+  /* —— Tailwind 原生覆盖 —— */
+  --color-slate-50: #f1f5f9;
+}
+
+/* 页面背景：深色极光渐变（固定 attachment，移动端省电不随滚动重绘） */
+body {
+  background:
+    radial-gradient(1200px 600px at 85% -10%, rgb(56 189 248 / 0.14), transparent 60%),
+    radial-gradient(900px 500px at -10% 30%, rgb(99 102 241 / 0.16), transparent 55%),
+    radial-gradient(700px 700px at 60% 110%, rgb(14 165 233 / 0.10), transparent 60%),
+    var(--color-surface);
+  color: var(--color-ink);
+  background-attachment: fixed;
+  min-height: 100dvh;
+}
+
+/* —— 玻璃层级（全站唯三的 backdrop-filter 出口，见计划头部规范）—— */
+.glass-subtle, .glass-panel, .glass-modal {
+  background-color: rgb(255 255 255 / 0.05);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.glass-panel {
+  background-color: rgb(15 23 42 / 0.72);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border-bottom: 1px solid rgb(255 255 255 / 0.08);
+}
+.glass-modal {
+  background-color: rgb(15 23 42 / 0.82);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  border: 1px solid rgb(255 255 255 / 0.10);
+  border-top-color: rgb(255 255 255 / 0.16);
+  box-shadow: var(--shadow-glass);
+}
+
+/* 回退：不支持 backdrop-filter 时用不透明底，保证文字可读 */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-subtle { background-color: #17203a; }
+  .glass-panel  { background-color: #101a30; border-bottom-color: rgb(255 255 255 / 0.08); }
+  .glass-modal  { background-color: #121c33; }
+}
+
+/* 降级：用户偏好低透明度 → 全部玻璃变实底 */
+@media (prefers-reduced-transparency: reduce) {
+  .glass-subtle { background-color: #17203a; backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .glass-panel  { background-color: #101a30; backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .glass-modal  { background-color: #121c33; backdrop-filter: none; -webkit-backdrop-filter: none; }
+}
+
+/* 降级：减少动效 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* 移动端安全区 */
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.pb-nav { padding-bottom: calc(env(safe-area-inset-bottom) + 5rem); } /* 底部导航存在时页面留白 */
+
+/* 焦点环（可访问性，全站统一） */
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* 触控目标下限 */
+@media (pointer: coarse) {
+  .tap { min-height: 44px; min-width: 44px; }
+}
