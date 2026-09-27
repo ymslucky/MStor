@@ -349,6 +349,11 @@ interface DialogProps {
 
 ## 计划自审记录
 
+> **执行记录（2026-09-28）**：9 个任务全部完成并已部署上线（版本 4f525967）。
+> 提交序列：f72b7ee（token）→ 49768f6（原子组件）→ 9227c43（Dialog 外壳）→ 432e336（AppShell+底部导航）→ a40b4ca（Browser 双形态列表）→ 5c4a863（预览/上传面板）→ 51be39e（四页统一）→ 1854525（PWA 离线/缓存/manifest）。
+> 回归：client 56/56、server 102/102、check 双零、build gzip ≈119.9KB；backdrop-filter 全仓审查仅 index.css 三处定义；无障碍核查无违规。
+> 实现中的合理偏离（均备案）：①Input 透传 ref（React 19 ref-as-prop）；②Dialog 加 data-testid；③.glass-subtle 改 @utility 注册使 hover: 变体生效；④行 hover 用底色不叠 blur（模糊预算）；⑤backdrop-filter 创建包含块会影响 fixed 定位，故 .glass-panel 置于 header 内层背板。
+
 - **Spec 覆盖**：用户三点要求 → 玻璃拟态（Task 1/2/4-7）、设计系统（Task 1/2/3 token+原子组件+Dialog 外壳，页面只允许组合）、PWA 移动端（Task 4 底部导航/safe-area、Task 5 双形态列表、Task 8 离线/manifest）；「UX/性能/安全平衡」固化为硬性护栏（模糊预算、对比度、降级媒体查询、触控目标）。
 - **风险**：既有测试选择器依赖 emoji 文本节点与 aria-label——Task 4/5 明确要求保留 aria-label 命名与文案；FileList 双形态用同一 DOM 的 responsive 类，避免两套 DOM 导致测试分叉。
 - **执行顺序**：1→2→3 为地基必须先行；4-7 依赖 2/3；8/9 收尾。
