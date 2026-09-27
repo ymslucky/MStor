@@ -102,6 +102,21 @@ test("admin can disable and re-enable a user via PATCH", async () => {
   expect(reenabled!.disabled_at).toBeNull();
 });
 
+test("disabled flag persists in admin list", async () => {
+  const admin = await seedUser({ role: "admin" });
+  const member = await seedUser();
+  const patched = await SELF.fetch(`https://example.com/api/me/admin/users/${member.id}`, {
+    method: "PATCH",
+    headers: { ...(await sessionHeaders(admin)), "content-type": "application/json" },
+    body: JSON.stringify({ disabled: true }),
+  });
+  expect(patched.status).toBe(200);
+  const res = await SELF.fetch("https://example.com/api/me/admin/users", { headers: await sessionHeaders(admin) });
+  expect(res.status).toBe(200);
+  const { users } = await res.json<{ users: { id: string; disabled_at: number | null }[] }>();
+  expect(users.find((u) => u.id === member.id)!.disabled_at).not.toBeNull();
+});
+
 test("disabled user session is rejected", async () => {
   const u = await seedUser();
   await env.DB.prepare("UPDATE users SET disabled_at = ?1 WHERE id = ?2").bind(Date.now(), u.id).run();

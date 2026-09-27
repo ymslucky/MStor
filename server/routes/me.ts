@@ -38,6 +38,7 @@ me.patch("/admin/users/:id", requireAdmin, async (c) => {
   const { quota_bytes, role, disabled } = await c.req.json<{ quota_bytes?: number; role?: "admin" | "member"; disabled?: boolean }>();
   if (role && !["admin", "member"].includes(role)) throw errors.badRequest("角色不合法");
   if (quota_bytes !== undefined && (!Number.isFinite(quota_bytes) || quota_bytes < 0)) throw errors.badRequest("配额不合法");
+  if (disabled !== undefined && typeof disabled !== "boolean") throw errors.badRequest("disabled 不合法");
   const sets: string[] = [];
   const vals: unknown[] = [];
   if (quota_bytes !== undefined) { sets.push("quota_bytes = ?"); vals.push(quota_bytes); }
