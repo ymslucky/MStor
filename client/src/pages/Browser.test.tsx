@@ -281,13 +281,14 @@ test("drag-drop onto drop zone shows overlay and queues files into current dir",
   fireEvent.dragEnter(zone);
   expect(screen.getByTestId("drop-overlay")).toBeInTheDocument();
   expect(screen.getByText("松开，上传到当前目录")).toBeInTheDocument();
-  // drop → queue.add(files, dir)
+  // drop → queue.add(items, dir)（无目录条目回退 dt.files，path 省略）
   fireEvent.drop(zone, {
     dataTransfer: { files: [new File(["a"], "a.txt", { type: "text/plain" }), new File(["b"], "b.png", { type: "image/png" })] },
   });
-  expect(queueAdd).toHaveBeenCalledTimes(1);
-  const [files, parentId] = queueAdd.mock.calls[0];
-  expect(files.map((f: File) => f.name)).toEqual(["a.txt", "b.png"]);
+  await waitFor(() => expect(queueAdd).toHaveBeenCalledTimes(1));
+  const [items, parentId] = queueAdd.mock.calls[0];
+  expect(items.map((u: { file: File; path?: string }) => u.file.name)).toEqual(["a.txt", "b.png"]);
+  expect(items.every((u: { path?: string }) => u.path === undefined)).toBe(true);
   expect(parentId).toBe("");
   // drop 后覆盖层关闭
   expect(screen.queryByTestId("drop-overlay")).not.toBeInTheDocument();
@@ -308,7 +309,35 @@ test("drag overlay survives partial dragleave (counter) until leaving window", a
   expect(screen.queryByTestId("drop-overlay")).not.toBeInTheDocument();
 });
 
-test("dropping a directory entry is ignored with toast", async () => {
+test("dropping a directory entry collects its files recursively into the queue", async () => {
+  queueAdd.mockClear();
+  vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
+  renderWithProviders(<Browser />);
+  await screen.findByText("hello.txt");
+  // 假目录 entry：内含一个文件（同步回调需先自增再触发，见 dirscan.test.ts 说明）
+  let called = false;
+  const dirEntry = {
+    isFile: false,
+    isDirectory: true,
+    name: "photos",
+    createReader: () => ({
+      readEntries: (cb: (b: unknown[]) => void) => {
+        const batch = called ? [] : [{ isFile: true, isDirectory: false, file: (done: (f: File) => void) => done(new File(["x"], "a.jpg")) }];
+        called = true;
+        cb(batch);
+      },
+    }),
+  };
+  fireEvent.drop(screen.getByTestId("drop-zone"), {
+    dataTransfer: { items: [{ webkitGetAsEntry: () => dirEntry }], files: [] },
+  });
+  await waitFor(() => expect(queueAdd).toHaveBeenCalledTimes(1));
+  const [items, parentId] = queueAdd.mock.calls[0];
+  expect(items).toEqual([{ file: expect.any(File), path: "photos/a.jpg" }]);
+  expect(parentId).toBe("");
+});
+
+test("dropping an empty folder toasts no uploadable files", async () => {
   queueAdd.mockClear();
   vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
   renderWithProviders(
@@ -318,11 +347,24 @@ test("dropping a directory entry is ignored with toast", async () => {
     </>,
   );
   await screen.findByText("hello.txt");
+  let called = false;
+  const dirEntry = {
+    isFile: false,
+    isDirectory: true,
+    name: "empty",
+    createReader: () => ({
+      readEntries: (cb: (b: unknown[]) => void) => {
+        const batch = called ? [] : [];
+        called = true;
+        cb(batch);
+      },
+    }),
+  };
   fireEvent.drop(screen.getByTestId("drop-zone"), {
-    dataTransfer: { files: [], items: [{ webkitGetAsEntry: () => ({ isDirectory: true }) }] },
+    dataTransfer: { items: [{ webkitGetAsEntry: () => dirEntry }], files: [] },
   });
+  expect(await screen.findByText("未发现可上传的文件（空文件夹不会产生上传项）")).toBeInTheDocument();
   expect(queueAdd).not.toHaveBeenCalled();
-  expect(await screen.findByText("文件夹暂不支持，请压缩后上传")).toBeInTheDocument();
 });
 
 test("drag file row onto folder row highlights it and calls moveNode", async () => {

@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
-import { Copy, Download, ExternalLink, FolderInput, FolderPlus, HardDrive, Info, LayoutGrid, Link2, List, Pencil, Share2, Trash2, TriangleAlert, Upload } from "lucide-react";
+import { Copy, Download, ExternalLink, FolderInput, FolderPlus, FolderUp, HardDrive, Info, LayoutGrid, Link2, List, Pencil, Share2, Trash2, TriangleAlert, Upload } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { listShares } from "../api/shares";
 import { listTrash } from "../api/trash";
@@ -23,6 +23,7 @@ import { useFiles } from "../hooks/useFiles";
 import { useFileSelection } from "../hooks/useFileSelection";
 import { useKeyboardNav } from "../hooks/useKeyboardNav";
 import { useUploadQueue } from "../hooks/useUploadQueue";
+import { collectUploads } from "../lib/dirscan";
 import { formatBytes, formatDate } from "../lib/format";
 
 // 粉彩图标芯片：浅底 + 饱和前景（token 见 index.css chip-*）
@@ -38,16 +39,6 @@ function KpiChip({ tone, icon: Icon }: { tone: "amber" | "blue" | "violet" | "ro
       <Icon size={20} />
     </span>
   );
-}
-
-// drop 的 dataTransfer 含目录条目（拖入文件夹）时忽略，提示压缩后上传
-function dropHasDirectory(dt: DataTransfer | null): boolean {
-  const items = dt?.items;
-  if (!items) return false;
-  for (let i = 0; i < items.length; i++) {
-    if (items[i].webkitGetAsEntry()?.isDirectory) return true;
-  }
-  return false;
 }
 
 // 存储圆环：底环 gray-100，进度环 accent，中心百分比
@@ -161,6 +152,7 @@ export default function Browser() {
   const sharesQuery = useQuery({ queryKey: ["shares"], queryFn: listShares });
   const trashQuery = useQuery({ queryKey: ["trash"], queryFn: listTrash });
   const fileInput = useRef<HTMLInputElement>(null);
+  const folderInput = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const queue = useUploadQueue();
   const [creating, setCreating] = useState(false);
@@ -388,6 +380,9 @@ export default function Browser() {
       <Button size="sm" onClick={() => fileInput.current?.click()}>
         上传文件
       </Button>
+      <Button size="sm" variant="ghost" onClick={() => folderInput.current?.click()}>
+        上传文件夹
+      </Button>
       <Button size="sm" variant="ghost" onClick={() => setCreating(true)}>
         新建文件夹
       </Button>
@@ -410,12 +405,15 @@ export default function Browser() {
       onDrop={(e) => {
         e.preventDefault();
         setDragDepth(0);
-        if (dropHasDirectory(e.dataTransfer)) {
-          toast("文件夹暂不支持，请压缩后上传");
-          return;
-        }
-        const files = e.dataTransfer ? Array.from(e.dataTransfer.files) : [];
-        if (files.length) queue.add(files, dir);
+        const dt = e.dataTransfer;
+        const hasItems = !!dt && ((dt.items?.length ?? 0) > 0 || (dt.files?.length ?? 0) > 0);
+        // 目录树递归采集（含文件与文件夹混合拖入），入队后由队列逐级建目录
+        void collectUploads(dt)
+          .then((items) => {
+            if (items.length) queue.add(items, dir);
+            else if (hasItems) toast("未发现可上传的文件（空文件夹不会产生上传项）");
+          })
+          .catch(() => toast("读取拖入内容失败"));
       }}
     >
       {/* KPI 卡行 */}
@@ -484,6 +482,21 @@ export default function Browser() {
           e.target.value = "";
         }}
       />
+      {/* 文件夹选择（webkitdirectory）：webkitRelativePath 作相对路径入队 */}
+      <input
+        ref={folderInput}
+        type="file"
+        multiple
+        className="hidden"
+        {...({ webkitdirectory: "", directory: "" } as Record<string, string>)}
+        onChange={(e) => {
+          const files = Array.from(e.target.files ?? []);
+          if (files.length) {
+            queue.add(files.map((file) => ({ file, path: file.webkitRelativePath || file.name })), dir);
+          }
+          e.target.value = "";
+        }}
+      />
       {query.data && (
         <div className="mb-3">
           <Breadcrumb crumbs={query.data.breadcrumb} onDropNode={dropMove} />
@@ -525,13 +538,18 @@ export default function Browser() {
               <FilterChips label="类型过滤" options={TYPE_CHIPS} value={typeFilter} onChange={setTypeFilter} />
               <FilterChips label="时间过滤" options={TIME_CHIPS} value={timeFilter} onChange={setTimeFilter} />
             </div>
-            <div role="group" aria-label="视图切换" className="inline-flex items-center gap-1 rounded-xl border border-line bg-gray-50 p-1">
-              <IconButton label="列表视图" active={view === "list"} aria-pressed={view === "list"} onClick={() => switchView("list")}>
-                <List size={18} aria-hidden />
+            <div className="flex items-center gap-2">
+              <IconButton label="上传文件夹" onClick={() => folderInput.current?.click()}>
+                <FolderUp size={18} aria-hidden />
               </IconButton>
-              <IconButton label="网格视图" active={view === "grid"} aria-pressed={view === "grid"} onClick={() => switchView("grid")}>
-                <LayoutGrid size={18} aria-hidden />
-              </IconButton>
+              <div role="group" aria-label="视图切换" className="inline-flex items-center gap-1 rounded-xl border border-line bg-gray-50 p-1">
+                <IconButton label="列表视图" active={view === "list"} aria-pressed={view === "list"} onClick={() => switchView("list")}>
+                  <List size={18} aria-hidden />
+                </IconButton>
+                <IconButton label="网格视图" active={view === "grid"} aria-pressed={view === "grid"} onClick={() => switchView("grid")}>
+                  <LayoutGrid size={18} aria-hidden />
+                </IconButton>
+              </div>
             </div>
           </div>
           <FileList
