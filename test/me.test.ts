@@ -4,7 +4,7 @@ import { expect, test } from "vitest";
 import { pbkdf2Verify } from "../server/lib/crypto";
 import { ensureRootDir } from "../server/lib/nodes";
 import { SESSION_COOKIE } from "../server/middleware/session";
-import { seedUser, sessionHeaders } from "./helpers";
+import { seedNode, seedUser, sessionHeaders } from "./helpers";
 
 test("GET /api/me returns profile with usage", async () => {
   const u = await seedUser();
@@ -123,4 +123,29 @@ test("disabled user session is rejected", async () => {
   const res = await SELF.fetch("https://example.com/api/me", { headers: await sessionHeaders(u) });
   expect(res.status).toBe(403);
   expect(((await res.json()) as { error: { code: string } }).error.code).toBe("FORBIDDEN");
+});
+
+test("admin can act as another user; member cannot", async () => {
+  const admin = await seedUser({ role: "admin" });
+  const member = await seedUser();
+  // member 名下放一个文件，admin 名下不放
+  await seedNode({ owner_id: member.id, name: "members-file.txt" });
+  const asMember = await SELF.fetch("https://example.com/api/files", {
+    headers: { ...(await sessionHeaders(admin)), "x-act-as": member.id },
+  });
+  expect(asMember.status).toBe(200);
+  const listed = await asMember.json<{ nodes: { name: string }[] }>();
+  expect(listed.nodes.map((n) => n.name)).toContain("members-file.txt");
+  // member 携带 x-act-as 指向 admin：头被忽略，看到的仍是自己空间（空列表 + admin 文件不在）
+  await seedNode({ owner_id: admin.id, name: "admins-file.txt" });
+  const memberView = await SELF.fetch("https://example.com/api/files", {
+    headers: { ...(await sessionHeaders(member)), "x-act-as": admin.id },
+  });
+  const memberListed = await memberView.json<{ nodes: { name: string }[] }>();
+  expect(memberListed.nodes.map((n) => n.name)).not.toContain("admins-file.txt");
+  // 目标不存在 → 404
+  const missing = await SELF.fetch("https://example.com/api/files", {
+    headers: { ...(await sessionHeaders(admin)), "x-act-as": "no-such-user" },
+  });
+  expect(missing.status).toBe(404);
 });

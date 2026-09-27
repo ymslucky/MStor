@@ -18,9 +18,17 @@ export async function sessionMiddleware(c: Context<AppEnv>, next: Next) {
   } catch {
     throw errors.unauthorized();
   }
-  const user = await c.env.DB.prepare("SELECT * FROM users WHERE id = ?1").bind(sub).first<UserRow>();
+  let user = await c.env.DB.prepare("SELECT * FROM users WHERE id = ?1").bind(sub).first<UserRow>();
   if (!user) throw errors.unauthorized();
   if (user.disabled_at) throw errors.forbidden("账号已被停用");
+  // admin 切换空间：x-act-as 指向目标用户；非 admin 忽略该头（物理隔离不被绕过）
+  const actAs = c.req.header("x-act-as");
+  if (actAs && user.role === "admin") {
+    const target = await c.env.DB.prepare("SELECT * FROM users WHERE id = ?1").bind(actAs).first<UserRow>();
+    if (!target) throw errors.notFound();
+    if (target.disabled_at) throw errors.forbidden("目标用户已停用");
+    user = target;
+  }
   c.set("user", user);
   await next();
 }
