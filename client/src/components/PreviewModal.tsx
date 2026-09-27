@@ -3,6 +3,7 @@ import { contentUrl } from "../api/nodes";
 import type { Node } from "../api/types";
 import { formatBytes } from "../lib/format";
 import { previewKind } from "../lib/preview";
+import { IconButton } from "./ui";
 
 interface Props {
   node: Node;
@@ -15,6 +16,10 @@ async function fetchTextHead(id: string): Promise<string> {
   if (!res.ok && res.status !== 206) throw new Error("加载失败");
   return res.text();
 }
+
+// 下载保持 <a>（下载语义 + href 断言），仅图标化并复用 IconButton 视觉规格
+const iconAction =
+  "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-ink transition-colors hover:bg-white/10";
 
 export default function PreviewModal({ node, onClose }: Props) {
   const kind = previewKind(node.mime);
@@ -33,31 +38,43 @@ export default function PreviewModal({ node, onClose }: Props) {
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col bg-black/70" onClick={onClose}>
-      <div className="flex items-center justify-between bg-white px-4 py-2" onClick={(e) => e.stopPropagation()}>
-        <div className="min-w-0">
-          <div className="truncate font-medium">{node.name}</div>
-          <div className="text-xs text-slate-500">{formatBytes(node.size)}</div>
+    <div className="fixed inset-0 z-40 flex flex-col bg-black/70 p-2 sm:p-4" onClick={onClose}>
+      {/* 预览面板：glass-modal 层（当前打开的弹层，占用一个模糊预算） */}
+      <div className="glass-modal flex min-h-0 flex-1 flex-col overflow-hidden rounded-panel" onClick={onClose}>
+        {/* 头部信息条 scrim：白字在任意媒体内容上保持对比度 */}
+        <div
+          className="flex items-center justify-between gap-2 bg-black/50 px-3 py-1.5 sm:px-4"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="min-w-0">
+            <div className="truncate font-medium text-ink">{node.name}</div>
+            <div className="text-xs text-ink-dim">{formatBytes(node.size)}</div>
+          </div>
+          <div className="flex items-center gap-1">
+            <a href={contentUrl(node.id, true)} aria-label="下载" title="下载" className={iconAction}>
+              <span aria-hidden>⬇️</span>
+            </a>
+            <IconButton label="关闭" onClick={onClose}>
+              <span aria-hidden>✕</span>
+            </IconButton>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <a href={contentUrl(node.id, true)} className="text-sm text-blue-600 hover:underline">下载</a>
-          <button aria-label="关闭" className="text-sm text-slate-500 hover:text-slate-800" onClick={onClose}>✕</button>
-        </div>
-      </div>
-      <div className="flex flex-1 items-center justify-center overflow-auto p-4" onClick={onClose}>
-        <div className="max-h-full max-w-full" onClick={(e) => e.stopPropagation()}>
-          {kind === "image" && <img src={contentUrl(node.id)} alt={node.name} className="max-h-[80vh] max-w-full object-contain" />}
-          {kind === "video" && <video src={contentUrl(node.id)} controls className="max-h-[80vh] max-w-full" />}
-          {kind === "audio" && <audio src={contentUrl(node.id)} controls className="w-80" />}
-          {kind === "pdf" && <iframe src={contentUrl(node.id)} title={node.name} className="h-[80vh] w-[80vw] rounded bg-white" />}
-          {kind === "text" && (
-            <pre className="max-h-[80vh] w-[80vw] overflow-auto rounded bg-white p-4 text-sm">{error ? `加载失败：${error}` : (text ?? "加载中…")}</pre>
-          )}
-          {kind === "none" && (
-            <div className="rounded bg-white px-8 py-12 text-center text-sm text-slate-500">
-              该文件类型不支持在线预览，请使用左上角「下载」
-            </div>
-          )}
+        {/* 媒体区：移动端 padding 减半 */}
+        <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-2 sm:p-4">
+          <div className="max-h-full max-w-full" onClick={(e) => e.stopPropagation()}>
+            {kind === "image" && <img src={contentUrl(node.id)} alt={node.name} className="max-h-[80vh] max-w-full object-contain" />}
+            {kind === "video" && <video src={contentUrl(node.id)} controls className="max-h-[80vh] w-full" />}
+            {kind === "audio" && <audio src={contentUrl(node.id)} controls className="w-80" />}
+            {kind === "pdf" && <iframe src={contentUrl(node.id)} title={node.name} className="h-[80vh] w-[80vw] rounded bg-white" />}
+            {kind === "text" && (
+              <pre className="max-h-[80vh] w-[80vw] overflow-auto rounded-xl border border-white/10 bg-white/[0.04] p-4 text-sm text-ink">{error ? `加载失败：${error}` : (text ?? "加载中…")}</pre>
+            )}
+            {kind === "none" && (
+              <div className="rounded-xl border border-white/10 bg-white/[0.04] px-8 py-12 text-center text-sm text-ink-dim">
+                该文件类型不支持在线预览，请使用右上角「下载」
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
