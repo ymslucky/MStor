@@ -22,7 +22,6 @@ CREATE TABLE nodes (
   deleted_at INTEGER,
   UNIQUE (owner_id, parent_id, name)
 );
-CREATE INDEX idx_nodes_owner_parent ON nodes(owner_id, parent_id);
 CREATE INDEX idx_nodes_owner_deleted ON nodes(owner_id, deleted_at);
 
 CREATE TABLE shares (
@@ -35,6 +34,7 @@ CREATE TABLE shares (
   created_at INTEGER NOT NULL,
   revoked_at INTEGER
 );
+CREATE INDEX idx_shares_node ON shares(node_id);
 
 CREATE TABLE uploads (
   id TEXT PRIMARY KEY,
@@ -48,14 +48,14 @@ CREATE TABLE uploads (
   created_at INTEGER NOT NULL
 );
 
-CREATE VIRTUAL TABLE nodes_fts USING fts5(node_id UNINDEXED, name);
+CREATE VIRTUAL TABLE nodes_fts USING fts5(node_id UNINDEXED, name, tokenize = 'trigram');
 CREATE TRIGGER nodes_ai AFTER INSERT ON nodes BEGIN
   INSERT INTO nodes_fts(node_id, name) VALUES (new.id, new.name);
 END;
 CREATE TRIGGER nodes_ad AFTER DELETE ON nodes BEGIN
-  INSERT INTO nodes_fts(nodes_fts, node_id, name) VALUES ('delete', old.id, old.name);
+  DELETE FROM nodes_fts WHERE node_id = old.id;
 END;
 CREATE TRIGGER nodes_au AFTER UPDATE OF name ON nodes BEGIN
-  INSERT INTO nodes_fts(nodes_fts, node_id, name) VALUES ('delete', old.id, old.name);
+  DELETE FROM nodes_fts WHERE node_id = old.id;
   INSERT INTO nodes_fts(node_id, name) VALUES (new.id, new.name);
 END;
