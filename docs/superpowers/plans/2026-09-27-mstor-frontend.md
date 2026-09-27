@@ -3057,6 +3057,12 @@ npm run test:client; npm run test:server; npm run check
 git add client; git commit -m "feat: share dialog and share management page"
 ```
 
+> **审查记录（2026-09-27）**
+>
+> - 实现：cfd7af8 + 7605a8c（质量修复），最终 client 30 绿 / server 99 绿 / check 双零。
+> - 偏离判定（5 条均成立并核算）：URL 用 findByDisplayValue（input value 非文本节点）；emoji 正则；/已下载 3 次/ 收窄；过期时间戳 1893456000000 实为 2030-01-01（/2029/ 不可达）→ 1876176000000（2029-06-15，全时区成立）；mutationFn 包箭头函数（react-query v5 会传 context 污染断言）。
+> - 规格审查 PASS；质量审查发现严重项已修——ShareDialog 直调 API 失败静默（计划同病）→ catch→toast + 天数非正数前置校验 + reject 回归测试。吹毛求疵：加载中即显「暂无分享」、撤销无 pending 防抖（不强加）。
+
 ---
 
 ### Task 14: 回收站页（恢复 / 彻底删除）
