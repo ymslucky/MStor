@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { AppEnv, Env } from "../env";
-import { errors } from "../lib/errors";
+import { errors, HttpError } from "../lib/errors";
 import { getNode, subtreeIds, uniqueName } from "../lib/nodes";
 
 // D1 单语句绑定参数上限 100，IN 子句按分片循环执行
@@ -17,11 +17,12 @@ export async function softDeleteNode(db: D1Database, ownerId: string, id: string
   if (node.parent_id === "" && node.name === "") throw errors.badRequest("不能删除根目录");
   const ids = await subtreeIds(db, ownerId, id);
   const now = Date.now();
-  for (const part of chunk(ids, 90)) {
+  // 各分片收进一次 batch：软删除原子生效，中途失败不留部分标记
+  await db.batch(chunk(ids, 90).map((part) => {
     const ph = part.map((_, i) => `?${i + 3}`).join(",");
-    await db.prepare(`UPDATE nodes SET deleted_at = ?1 WHERE owner_id = ?2 AND deleted_at IS NULL AND id IN (${ph})`)
-      .bind(now, ownerId, ...part).run();
-  }
+    return db.prepare(`UPDATE nodes SET deleted_at = ?1 WHERE owner_id = ?2 AND deleted_at IS NULL AND id IN (${ph})`)
+      .bind(now, ownerId, ...part);
+  }));
 }
 
 export async function permanentDeleteNode(env: Env, ownerId: string, id: string): Promise<void> {
@@ -45,8 +46,13 @@ export async function purgeExpiredTrash(env: Env): Promise<void> {
     "SELECT id, owner_id FROM nodes WHERE deleted_at IS NOT NULL AND deleted_at < ?1"
   ).bind(cutoff).all<{ id: string; owner_id: string }>();
   for (const r of results) {
-    // 子树随父目录一起删除后，子行再被轮到时 404，忽略即可
-    await permanentDeleteNode(env, r.owner_id, r.id).catch(() => {});
+    try {
+      await permanentDeleteNode(env, r.owner_id, r.id);
+    } catch (e) {
+      // 子树随父目录删除后，子行再被轮到时 404 属预期；其余失败告警但不阻断整轮清理
+      if (e instanceof HttpError && e.status === 404) continue;
+      console.warn("purgeExpiredTrash: 清理节点失败", r.id, e);
+    }
   }
 }
 
@@ -77,7 +83,13 @@ trash.post("/:id/restore", async (c) => {
     c.env.DB.prepare("UPDATE nodes SET parent_id = ?1, name = ?2 WHERE id = ?3")
       .bind(targetParent, name, node.id),
   ];
-  await c.env.DB.batch(statements);
+  try {
+    await c.env.DB.batch(statements);
+  } catch (e) {
+    // uniqueName 与 batch 之间并发同名恢复撞 UNIQUE：映射 409（与 createDir 惯例一致）
+    if (!(e instanceof Error && e.message.includes("UNIQUE constraint failed"))) throw e;
+    throw errors.conflict();
+  }
   return c.json({ ok: true });
 });
 

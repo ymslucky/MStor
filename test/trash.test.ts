@@ -70,6 +70,32 @@ test("root cannot be trashed", async () => {
   expect(res.status).toBe(400);
 });
 
+test("restore renames when the target parent holds a sibling with the same name", async () => {
+  const u = await seedUser();
+  const dir = (await (await SELF.fetch("https://example.com/api/dirs", {
+    method: "POST",
+    headers: { ...(await sessionHeaders(u)), "content-type": "application/json" },
+    body: JSON.stringify({ parentId: "", name: "d" }),
+  })).json()) as { id: string };
+  const a = await upload(u, "f.txt", "a");
+  await SELF.fetch(`https://example.com/api/files/${a}`, {
+    method: "PATCH",
+    headers: { ...(await sessionHeaders(u)), "content-type": "application/json" },
+    body: JSON.stringify({ parentId: dir.id }),
+  });
+  // 删除目录 → a 随子树进入回收站，原名在根目录重新可用
+  await SELF.fetch(`https://example.com/api/files/${dir.id}`, { method: "DELETE", headers: await sessionHeaders(u) });
+  const b = await upload(u, "f.txt", "b");
+  // 恢复时原父目录仍在回收站 → a 落根目录，与活跃的 b 同名 → 改名
+  const res = await SELF.fetch(`https://example.com/api/trash/${a}/restore`, {
+    method: "POST", headers: await sessionHeaders(u),
+  });
+  expect(res.status).toBe(200);
+  const list = (await (await SELF.fetch("https://example.com/api/files", { headers: await sessionHeaders(u) })).json()) as { nodes: { id: string; name: string }[] };
+  expect(list.nodes.find((n) => n.id === a)!.name).toBe("f (2).txt");
+  expect(list.nodes.find((n) => n.id === b)!.name).toBe("f.txt");
+});
+
 test("purgeExpiredTrash removes entries older than retention", async () => {
   const u = await seedUser();
   const fid = await upload(u, "old.txt", "old");
