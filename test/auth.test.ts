@@ -75,6 +75,19 @@ test("second user defaults to member", async () => {
   expect(user!.role).toBe("member");
 });
 
+test("callback returns 401 when token endpoint fails", async () => {
+  mockDiscovery();
+  fetchMock.get(ISSUER).intercept({
+    method: "POST",
+    path: "/token",
+  }).reply(500, "boom");
+  const res = await SELF.fetch("https://example.com/auth/callback?code=c&state=x", {
+    redirect: "manual",
+    headers: { cookie: `mstor_oidc=${encodeURIComponent(JSON.stringify({ state: "x", verifier: "v" }))}` },
+  });
+  expect(res.status).toBe(401);
+});
+
 test("callback with wrong state is rejected", async () => {
   mockDiscovery();
   const res = await SELF.fetch("https://example.com/auth/callback?code=c&state=bad", {

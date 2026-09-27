@@ -33,7 +33,7 @@ auth.get("/login", async (c) => {
   url.searchParams.set("code_challenge", await sha256B64Url(verifier));
   url.searchParams.set("code_challenge_method", "S256");
   setCookie(c, "mstor_oidc", JSON.stringify({ state, verifier }), {
-    httpOnly: true, path: "/", maxAge: 600, sameSite: "Lax",
+    httpOnly: true, secure: true, path: "/", maxAge: 600, sameSite: "Lax",
   });
   return c.redirect(url.toString());
 });
@@ -41,7 +41,13 @@ auth.get("/login", async (c) => {
 auth.get("/callback", async (c) => {
   const raw = getCookie(c, "mstor_oidc");
   if (!raw) throw errors.unauthorized();
-  const saved = JSON.parse(raw) as { state: string; verifier: string };
+  let saved: { state: string; verifier: string };
+  try {
+    saved = JSON.parse(raw) as { state: string; verifier: string };
+  } catch {
+    // cookie 损坏时不走 errorHandler 的 SyntaxError→400 文案，直接 401
+    throw errors.unauthorized();
+  }
   if (c.req.query("state") !== saved.state) throw errors.unauthorized();
   const cfg = await discover(c.env);
   const res = await fetch(cfg.token_endpoint, {
@@ -68,10 +74,20 @@ auth.get("/callback", async (c) => {
     const count = await db.prepare("SELECT COUNT(*) AS n FROM users").first<{ n: number }>();
     const role = count!.n === 0 || claims.role === "admin" ? "admin" : "member";
     const id = randomToken(12);
-    await db.prepare(
-      "INSERT INTO users (id, oidc_sub, name, role, webdav_password_hash, quota_bytes, created_at) VALUES (?1,?2,?3,?4,NULL,?5,?6)"
-    ).bind(id, claims.sub, name, role, Number(c.env.DEFAULT_QUOTA_BYTES), Date.now()).run();
-    user = { id, role };
+    try {
+      await db.prepare(
+        "INSERT INTO users (id, oidc_sub, name, role, webdav_password_hash, quota_bytes, created_at) VALUES (?1,?2,?3,?4,NULL,?5,?6)"
+      ).bind(id, claims.sub, name, role, Number(c.env.DEFAULT_QUOTA_BYTES), Date.now()).run();
+      user = { id, role };
+    } catch (e) {
+      if (e instanceof Error && e.message.includes("UNIQUE constraint failed")) {
+        // 并发首登：另一个请求已建号，幂等复用
+        user = await db.prepare("SELECT * FROM users WHERE oidc_sub = ?1").bind(claims.sub).first<{ id: string; role: string }>();
+        if (!user) throw e;
+      } else {
+        throw e;
+      }
+    }
   }
   await ensureRootDir(db, user.id);
   const token = await sign({ sub: user.id, role: user.role, exp: Math.floor(Date.now() / 1000) + 7 * 86400 }, c.env.SESSION_SECRET);
