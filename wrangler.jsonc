@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mstor",
+  "main": "server/index.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./client/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/auth/*", "/dav/*", "/s/*"]
+  },
+  "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "mstor" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "mstor", "database_id": "由 wrangler d1 create 返回后填入" }],
+  "triggers": { "crons": ["0 3 * * *"] },
+  "vars": {
+    "OIDC_ISSUER": "https://auth.msxor.com",
+    "OIDC_CLIENT_ID": "mstor",
+    "PUBLIC_URL": "https://stor.msxor.com",
+    "R2_ENDPOINT": "https://<ACCOUNT_ID>.r2.cloudflarestorage.com/mstor",
+    "DEFAULT_QUOTA_BYTES": "10737418240",
+    "SMALL_FILE_LIMIT": "62914560",
+    "TRASH_RETENTION_DAYS": "30"
+  }
+}
