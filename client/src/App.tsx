@@ -3,6 +3,7 @@ import { Route, Routes } from "react-router-dom";
 import { getMe } from "./api/me";
 import AppShell, { makeQueryClient } from "./shell/AppShell";
 import Browser from "./pages/Browser";
+import SharesPage from "./pages/SharesPage";
 
 const queryClient = makeQueryClient();
 
@@ -20,6 +21,7 @@ export default function App() {
         <Route path="/s/:token" element={<div />} />
         <Route element={<RequireAuth />}>
           <Route path="/" element={<Browser />} />
+          <Route path="/shares" element={<SharesPage />} />
         </Route>
       </Routes>
     </QueryClientProvider>
