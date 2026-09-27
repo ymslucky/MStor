@@ -1315,6 +1315,8 @@ git add server/routes/auth.ts server/index.ts test/auth.test.ts
 git commit -m "feat: OIDC login with PKCE, first-user admin, root dir bootstrap"
 ```
 
+> **审查记录（2026-09-27）**：spec review PASS；quality review APPROVE_WITH_NITS → commit `1015221` 修复（mstor_oidc cookie 补 secure、callback cookie JSON.parse→401、首用户 INSERT 捕获 UNIQUE 竞态幂等复用、unb64 base64url 解码补直接单测（rem 0/2/3 + 含 -/_）、token 端点 500→401 用例）。最终 commit：`3a4d693` + `1015221`，32 tests passed、tsc 零错误。**计划 bug 修正 3 处**：①id_token payload 是 base64url，`atob` 不接受 -/_，改用 `unb64`（并顺带给 unb64 增加 base64url 归一化，对 pbkdf2 等既有调用零影响）；②`res.json<T>()` 泛型在 workers-types 不可用，用 `as` 断言；③vitest 3.2 无 `test.beforeEach`（需顶层导入）且 cloudflare:test 的 fetchMock 是 undici MockAgent（无 `.post`，用 `.intercept({method,path}).reply()`）。授权偏差：seedUser import 置顶、discover(env: Env)。未采纳（有意）：id_token.split TypeError 路径、discovery 缓存、mock body 断言。
+
 ---
 
 ### Task 8: 文件路由（列表 / 新建目录 / 重命名移动）
