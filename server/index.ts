@@ -1,7 +1,10 @@
 import { Hono } from "hono";
 import type { AppEnv, Env } from "./env";
+import { errorHandler } from "./lib/errors";
 
 const app = new Hono<AppEnv>();
+
+app.onError(errorHandler);
 
 app.get("/api/health", (c) => c.json({ ok: true }));
 
