@@ -1,9 +1,10 @@
 import type { JSX } from "react";
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
 import type { ListFilesResult, Node } from "../api/types";
 import { renderWithProviders } from "../test/utils";
+import { Toaster } from "../components/Toaster";
 import Browser from "./Browser";
 
 // FileList 引用真实的 contentUrl 生成下载链接，mock 时保留其余导出
@@ -14,6 +15,12 @@ vi.mock("../api/nodes", async (importOriginal) => ({
   renameNode: vi.fn(),
   moveNode: vi.fn(),
   deleteNode: vi.fn(),
+}));
+
+// 上传队列 mock：拖拽/文件选择断言 queue.add 调用（不入真实上传流程）
+const { queueAdd } = vi.hoisted(() => ({ queueAdd: vi.fn() }));
+vi.mock("../hooks/useUploadQueue", () => ({
+  useUploadQueue: () => ({ items: [], add: queueAdd, retry: vi.fn(), clearFinished: vi.fn() }),
 }));
 
 import { createDir, deleteNode, listFiles, moveNode, renameNode } from "../api/nodes";
@@ -31,8 +38,8 @@ const ROOT_LIST: ListFilesResult = {
   rootId: "root-1",
 };
 
-function renderWith(ui: JSX.Element) {
-  const utils = renderWithProviders(ui);
+function renderWith(ui: JSX.Element, opts?: { route?: string }) {
+  const utils = renderWithProviders(ui, opts);
   return { ...utils, user: userEvent.setup() };
 }
 
@@ -62,7 +69,8 @@ test("create folder calls createDir and refreshes", async () => {
   vi.mocked(createDir).mockResolvedValue(fileNode({ id: "d2", name: "新建", is_dir: 1 }));
   const { user } = renderWith(<Browser />);
   await screen.findByText("📄 hello.txt");
-  await user.click(screen.getByRole("button", { name: "新建文件夹" }));
+  // 工具栏与空状态各有一个同名按钮，取工具栏那个
+  await user.click(screen.getAllByRole("button", { name: "新建文件夹" })[0]);
   await user.type(screen.getByLabelText("名称"), "新建");
   await user.click(screen.getByRole("button", { name: "确定" }));
   await waitFor(() => expect(createDir).toHaveBeenCalledWith({ parentId: "", name: "新建" }));
@@ -171,4 +179,155 @@ test("move via dialog calls moveNode with target dir", async () => {
   await user.click(screen.getByRole("button", { name: "根目录" }));
   await user.click(screen.getByRole("button", { name: "确定" }));
   await waitFor(() => expect(moveNode).toHaveBeenCalledWith("f1", ""));
+});
+
+test("drag-drop onto drop zone shows overlay and queues files into current dir", async () => {
+  queueAdd.mockClear();
+  vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
+  renderWithProviders(<Browser />);
+  await screen.findByText("📄 hello.txt");
+  const zone = screen.getByTestId("drop-zone");
+  // dragenter 显示全屏覆盖层
+  fireEvent.dragEnter(zone);
+  expect(screen.getByTestId("drop-overlay")).toBeInTheDocument();
+  expect(screen.getByText("松开，上传到当前目录")).toBeInTheDocument();
+  // drop → queue.add(files, dir)
+  fireEvent.drop(zone, {
+    dataTransfer: { files: [new File(["a"], "a.txt", { type: "text/plain" }), new File(["b"], "b.png", { type: "image/png" })] },
+  });
+  expect(queueAdd).toHaveBeenCalledTimes(1);
+  const [files, parentId] = queueAdd.mock.calls[0];
+  expect(files.map((f: File) => f.name)).toEqual(["a.txt", "b.png"]);
+  expect(parentId).toBe("");
+  // drop 后覆盖层关闭
+  expect(screen.queryByTestId("drop-overlay")).not.toBeInTheDocument();
+});
+
+test("drag overlay survives partial dragleave (counter) until leaving window", async () => {
+  queueAdd.mockClear();
+  vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
+  renderWithProviders(<Browser />);
+  await screen.findByText("📄 hello.txt");
+  const zone = screen.getByTestId("drop-zone");
+  fireEvent.dragEnter(zone);
+  fireEvent.dragEnter(zone);
+  fireEvent.dragLeave(zone);
+  // 计数法：还有一次 enter 未配对，覆盖层保持
+  expect(screen.getByTestId("drop-overlay")).toBeInTheDocument();
+  fireEvent.dragLeave(zone);
+  expect(screen.queryByTestId("drop-overlay")).not.toBeInTheDocument();
+});
+
+test("dropping a directory entry is ignored with toast", async () => {
+  queueAdd.mockClear();
+  vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
+  renderWithProviders(
+    <>
+      <Browser />
+      <Toaster />
+    </>,
+  );
+  await screen.findByText("📄 hello.txt");
+  fireEvent.drop(screen.getByTestId("drop-zone"), {
+    dataTransfer: { files: [], items: [{ webkitGetAsEntry: () => ({ isDirectory: true }) }] },
+  });
+  expect(queueAdd).not.toHaveBeenCalled();
+  expect(await screen.findByText("文件夹暂不支持，请压缩后上传")).toBeInTheDocument();
+});
+
+test("context menu: opens at pointer on row, dispatches rename action", async () => {
+  vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
+  vi.mocked(renameNode).mockResolvedValue({ ok: true });
+  const { user } = renderWith(<Browser />);
+  await screen.findByText("📄 hello.txt");
+  await user.pointer({ keys: "[MouseRight]", target: screen.getByText("📄 hello.txt") });
+  expect(screen.getByRole("menu")).toBeInTheDocument();
+  // 文件菜单含下载项
+  expect(screen.getByRole("menuitem", { name: "下载" })).toBeInTheDocument();
+  // 动作分发：重命名复用既有对话框
+  await user.click(screen.getByRole("menuitem", { name: "重命名" }));
+  expect(await screen.findByLabelText("名称")).toBeInTheDocument();
+  expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+});
+
+test("context menu: folder has no download item", async () => {
+  vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
+  const { user } = renderWith(<Browser />);
+  await screen.findByText("📁 相册");
+  await user.pointer({ keys: "[MouseRight]", target: screen.getByText("📁 相册") });
+  expect(screen.getByRole("menu")).toBeInTheDocument();
+  expect(screen.queryByRole("menuitem", { name: "下载" })).not.toBeInTheDocument();
+  expect(screen.getByRole("menuitem", { name: "打开" })).toBeInTheDocument();
+});
+
+test("context menu: closes on Escape and outside click", async () => {
+  vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
+  const { user } = renderWith(<Browser />);
+  await screen.findByText("📄 hello.txt");
+  await user.pointer({ keys: "[MouseRight]", target: screen.getByText("📄 hello.txt") });
+  expect(screen.getByRole("menu")).toBeInTheDocument();
+  await user.keyboard("{Escape}");
+  expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  // 点击他处关闭
+  await user.pointer({ keys: "[MouseRight]", target: screen.getByText("📄 hello.txt") });
+  expect(screen.getByRole("menu")).toBeInTheDocument();
+  await user.click(document.body);
+  expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+});
+
+test("breadcrumb uses chevron separator with root label and highlights current level", async () => {
+  vi.mocked(listFiles).mockImplementation(async (parentId: string) =>
+    parentId === ""
+      ? ROOT_LIST
+      : {
+          nodes: [],
+          breadcrumb: [{ id: "c1", parent_id: "", name: "层级1", is_dir: 1, size: null, mime: null, created_at: 1, updated_at: 1 }],
+          rootId: "root-1",
+        },
+  );
+  const { user } = renderWith(<Browser />);
+  await screen.findByText("📄 hello.txt");
+  await user.click(screen.getByText("📁 相册"));
+  await screen.findByText("层级1");
+  const nav = screen.getByRole("navigation", { name: "面包屑" });
+  expect(nav).toHaveTextContent("全部文件");
+  expect(nav).toHaveTextContent("›");
+  const current = screen.getByRole("link", { name: "层级1" });
+  expect(current).toHaveClass("font-medium", "text-ink");
+  expect(current).toHaveAttribute("aria-current", "page");
+});
+
+test("breadcrumb collapses middle levels into popover when deeper than 4 levels", async () => {
+  const crumb = (i: number): Node => ({
+    id: `c${i}`, parent_id: i === 1 ? "" : `c${i - 1}`, name: `层级${i}`,
+    is_dir: 1, size: null, mime: null, created_at: 1, updated_at: 1,
+  });
+  vi.mocked(listFiles).mockImplementation(async (parentId: string) =>
+    parentId === "" ? ROOT_LIST : { nodes: [], breadcrumb: [1, 2, 3, 4].map(crumb), rootId: "root-1" },
+  );
+  const { user } = renderWith(<Browser />, { route: "/?dir=c4" });
+  await screen.findByText("层级4");
+  // 根 + 4 级：中间折叠为「…」按钮，父级与当前级平铺
+  expect(screen.getByRole("link", { name: "层级3" })).toBeInTheDocument();
+  const more = screen.getByRole("button", { name: "更多层级" });
+  await user.click(more);
+  // 弹出被折叠层级列表，保持 Link 语义
+  expect(screen.getByRole("link", { name: "层级1" })).toHaveAttribute("href", "/?dir=c1");
+  expect(screen.getByRole("link", { name: "层级2" })).toHaveAttribute("href", "/?dir=c2");
+  // Esc 关闭
+  await user.keyboard("{Escape}");
+  expect(screen.queryByRole("link", { name: "层级1" })).not.toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "层级4" })).toBeInTheDocument();
+});
+
+test("empty dir offers upload and create-folder CTAs", async () => {
+  vi.mocked(listFiles).mockResolvedValue({ nodes: [], breadcrumb: [], rootId: "root-1" });
+  const { user } = renderWith(<Browser />);
+  await screen.findByText("该目录为空");
+  expect(screen.getByRole("button", { name: "上传文件" })).toBeInTheDocument();
+  // 空状态「新建文件夹」CTA 打开既有新建对话框（工具栏还有一个同名按钮）
+  const ctas = screen.getAllByRole("button", { name: "新建文件夹" });
+  expect(ctas.length).toBeGreaterThanOrEqual(2);
+  await user.click(ctas[1]);
+  expect(await screen.findByLabelText("名称")).toBeInTheDocument();
 });

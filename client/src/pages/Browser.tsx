@@ -1,17 +1,21 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import { listShares } from "../api/shares";
 import { listTrash } from "../api/trash";
 import type { Me, Node } from "../api/types";
 import { contentUrl, deleteNode, moveNode } from "../api/nodes";
 import Breadcrumb from "../components/Breadcrumb";
+import ContextMenu from "../components/ContextMenu";
+import type { ContextMenuItem } from "../components/ContextMenu";
 import FileList from "../components/FileList";
 import MoveDialog from "../components/MoveDialog";
 import NameDialog from "../components/NameDialog";
 import PreviewModal from "../components/PreviewModal";
 import ShareDialog from "../components/ShareDialog";
 import UploadPanel from "../components/UploadPanel";
+import { toast } from "../components/Toaster";
 import { Button, ConfirmDialog, EmptyState, GlassCard, IconButton, Skeleton } from "../components/ui";
 import { useFiles } from "../hooks/useFiles";
 import { useUploadQueue } from "../hooks/useUploadQueue";
@@ -30,6 +34,16 @@ function KpiChip({ tone, icon }: { tone: "amber" | "blue" | "violet" | "rose"; i
       {icon}
     </span>
   );
+}
+
+// drop 的 dataTransfer 含目录条目（拖入文件夹）时忽略，提示压缩后上传
+function dropHasDirectory(dt: DataTransfer | null): boolean {
+  const items = dt?.items;
+  if (!items) return false;
+  for (let i = 0; i < items.length; i++) {
+    if (items[i].webkitGetAsEntry()?.isDirectory) return true;
+  }
+  return false;
 }
 
 // 存储圆环：底环 gray-100，进度环 accent，中心百分比
@@ -82,6 +96,10 @@ export default function Browser() {
   const [batchBusy, setBatchBusy] = useState(false);
   // 视图偏好持久化，缺省 list
   const [view, setView] = useState<"list" | "grid">(() => (localStorage.getItem("mstor_view") === "grid" ? "grid" : "list"));
+  // 拖拽上传：dragenter/leave 计数法防子元素闪烁，>0 时显示全屏覆盖层
+  const [dragDepth, setDragDepth] = useState(0);
+  // 右键菜单：当前节点 + 指针位置
+  const [menu, setMenu] = useState<{ node: Node; x: number; y: number } | null>(null);
   const queryClient = useQueryClient();
 
   useEffect(() => setSelected(new Set()), [dir]);
@@ -145,12 +163,115 @@ export default function Browser() {
   const selectedNodes = (query.data?.nodes ?? []).filter((n) => selected.has(n.id));
   const hasFileSelected = selectedNodes.some((n) => !n.is_dir);
 
+  // 单文件下载：临时 <a> 触发 content?dl=1
+  const downloadNode = (n: Node) => {
+    const a = document.createElement("a");
+    a.href = contentUrl(n.id, true);
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
+  // 右键菜单项：复用既有打开/分享/重命名/移动/删除处理，目录无下载
+  const menuItemsFor = (n: Node): ContextMenuItem[] => [
+    {
+      label: "打开",
+      icon: "↗️",
+      onClick: () => {
+        setMenu(null);
+        if (n.is_dir) openDir(n.id);
+        else setPreview(n);
+      },
+    },
+    ...(n.is_dir
+      ? []
+      : [
+          {
+            label: "下载",
+            icon: "⬇️",
+            onClick: () => {
+              setMenu(null);
+              downloadNode(n);
+            },
+          },
+        ]),
+    {
+      label: "分享",
+      icon: "🔗",
+      onClick: () => {
+        setMenu(null);
+        setSharing(n);
+      },
+    },
+    {
+      label: "重命名",
+      icon: "✏️",
+      onClick: () => {
+        setMenu(null);
+        setRenaming(n);
+      },
+    },
+    {
+      label: "移动",
+      icon: "📂",
+      onClick: () => {
+        setMenu(null);
+        setMoving(n);
+      },
+    },
+    {
+      label: "删除",
+      icon: "🗑️",
+      danger: true,
+      onClick: () => {
+        setMenu(null);
+        setDeleting(n);
+      },
+    },
+  ];
+
+  // 行/卡片右键：打开于指针处（组件内越界翻转）
+  const onNodeContextMenu = (e: ReactMouseEvent<HTMLElement>, node: Node) => {
+    e.preventDefault();
+    setMenu({ node, x: e.clientX, y: e.clientY });
+  };
+
+  // 空目录 CTA：复用上传入口与新建文件夹
+  const emptyDirActions = (
+    <div className="flex flex-wrap justify-center gap-2">
+      <Button size="sm" onClick={() => fileInput.current?.click()}>
+        上传文件
+      </Button>
+      <Button size="sm" variant="ghost" onClick={() => setCreating(true)}>
+        新建文件夹
+      </Button>
+    </div>
+  );
+
   const used = me?.usedBytes ?? 0;
   const quota = me?.quotaBytes ?? 0;
   const pct = quota > 0 ? Math.min(100, Math.round((used / quota) * 100)) : 0;
 
   return (
-    <div>
+    <div
+      data-testid="drop-zone"
+      onDragEnter={(e) => {
+        e.preventDefault();
+        setDragDepth((d) => d + 1);
+      }}
+      onDragOver={(e) => e.preventDefault()}
+      onDragLeave={() => setDragDepth((d) => Math.max(0, d - 1))}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragDepth(0);
+        if (dropHasDirectory(e.dataTransfer)) {
+          toast("文件夹暂不支持，请压缩后上传");
+          return;
+        }
+        const files = e.dataTransfer ? Array.from(e.dataTransfer.files) : [];
+        if (files.length) queue.add(files, dir);
+      }}
+    >
       {/* KPI 卡行 */}
       <div className="mb-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <GlassCard className="flex items-center gap-3 p-4">
@@ -271,6 +392,8 @@ export default function Browser() {
             onToggle={toggleSelect}
             onOpenDir={openDir}
             onOpenFile={setPreview}
+            onNodeContextMenu={onNodeContextMenu}
+            emptyActions={emptyDirActions}
             actions={(n) => (
               <>
                 <IconButton label={`分享 ${n.name}`} onClick={() => setSharing(n)}>
@@ -375,6 +498,16 @@ export default function Browser() {
           onCancel={() => setBatchMoving(false)}
         />
       )}
+      {/* 拖拽全屏覆盖层：白底 80% + 内嵌虚线框；drop/离开窗口后关闭（计数法归零） */}
+      {dragDepth > 0 && (
+        <div data-testid="drop-overlay" className="fixed inset-0 z-40 bg-white/80">
+          <div className="absolute inset-3 flex items-center justify-center rounded-card border-2 border-dashed border-accent bg-white/60 sm:inset-6">
+            <p className="text-sm font-medium text-ink">松开，上传到当前目录</p>
+          </div>
+        </div>
+      )}
+      {/* 右键菜单（移动端无右键，沿用行内按钮） */}
+      {menu && <ContextMenu open x={menu.x} y={menu.y} items={menuItemsFor(menu.node)} onClose={() => setMenu(null)} />}
     </div>
   );
 }

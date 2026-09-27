@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import { contentUrl } from "../api/nodes";
 import type { Node } from "../api/types";
 import { formatBytes, formatDate } from "../lib/format";
@@ -10,12 +10,16 @@ interface Props {
   onOpenFile: (node: Node) => void;
   actions?: (node: Node) => ReactNode;
   emptyText?: string;
+  /** 空目录 CTA（上传/新建），与「加载失败/搜索无结果」区分 */
+  emptyActions?: ReactNode;
   /** 批量选择：显示行首 checkbox（点击不触发行打开） */
   selectable?: boolean;
   selected?: Set<string>;
   onToggle?: (id: string) => void;
   /** 视图形态：list 表格（默认）/ grid 网格卡片 */
   view?: "list" | "grid";
+  /** 行/卡片右键菜单（桌面端） */
+  onNodeContextMenu?: (e: ReactMouseEvent<HTMLElement>, node: Node) => void;
 }
 
 export default function FileList({
@@ -24,12 +28,14 @@ export default function FileList({
   onOpenFile,
   actions,
   emptyText = "该目录为空",
+  emptyActions,
   selectable = false,
   selected = new Set<string>(),
   onToggle,
   view = "list",
+  onNodeContextMenu,
 }: Props) {
-  if (!nodes.length) return <EmptyState icon="📁" title={emptyText} />;
+  if (!nodes.length) return <EmptyState icon="📁" title={emptyText} action={emptyActions} />;
 
   const open = (n: Node) => (n.is_dir ? onOpenDir(n.id) : onOpenFile(n));
 
@@ -61,7 +67,11 @@ export default function FileList({
         {nodes.map((n) => {
           const isImage = !n.is_dir && !!n.mime?.startsWith("image/");
           return (
-            <div key={n.id} className="relative overflow-hidden rounded-card border border-line bg-white shadow-card">
+            <div
+              key={n.id}
+              className="relative overflow-hidden rounded-card border border-line bg-white shadow-card"
+              onContextMenu={(e) => onNodeContextMenu?.(e, n)}
+            >
               {selectable && checkbox(n, "absolute top-2 left-2 z-10")}
               <button type="button" className="block w-full text-left" onClick={() => open(n)}>
                 <div className="flex h-28 items-center justify-center overflow-hidden bg-gray-50/70">
@@ -114,6 +124,7 @@ export default function FileList({
           <tr
             key={n.id}
             className="mb-2 flex items-center justify-between gap-2 rounded-xl border border-line bg-gray-50/50 p-3 sm:table-row sm:rounded-none sm:border-x-0 sm:border-t-0 sm:border-b sm:border-line sm:bg-transparent sm:p-0 sm:hover:bg-gray-50"
+            onContextMenu={(e) => onNodeContextMenu?.(e, n)}
           >
             {selectable && <td className="py-2 pr-1 sm:w-8 sm:pr-2">{checkbox(n)}</td>}
             <td className="min-w-0 max-w-[12rem] py-2 sm:max-w-xs">
