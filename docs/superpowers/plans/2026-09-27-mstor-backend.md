@@ -880,6 +880,8 @@ git add server/lib/nodes.ts test/nodes.test.ts test/helpers.ts
 git commit -m "feat: node tree operations (root/children/breadcrumb/move/quota/subtree)"
 ```
 
+> **审查记录（2026-09-27）**：spec review PASS（12 个函数逐项核对，无规格外改动）；quality review 首轮 REQUEST_CHANGES（2 Major）→ commit `78f56be` 修复（createDir/ensureRootDir 捕获 UNIQUE 竞态：映射 409 / 幂等重查；补跨用户隔离测试；childByName 注释说明有意不过滤 deleted_at）→ 复审 APPROVE。最终 commit：`bdc3c37` + `78f56be`，18 tests passed、tsc 零错误。授权偏差：测试传 `env.DB`（计划原文误写 `env`）；`assertQuota` 的 `defaultQuota` 设默认值 10 GiB。
+
 ---
 
 ### Task 6: session 中间件 + /api/me + 管理端点
