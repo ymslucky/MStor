@@ -3478,6 +3478,12 @@ npm run test:client; npm run test:server; npm run check
 git add client; git commit -m "feat: settings page with webdav password and admin panel"
 ```
 
+> **审查记录（2026-09-27）**
+>
+> - 实现：aa69b4b + eb831de（后端兜底），最终 server 102 绿 / client 36 绿 / check 双零。
+> - 偏离判定（成立，系计划 TDZ 缺陷）：测试 helper `user()` 与解构变量同名 → 改名 mkUser；惯例适配若干。
+> - 规格审查 PASS；质量审查 APPROVE。采纳建议（eb831de）：admin 停用/降级自己会永久自锁 → 后端 PATCH 加 selfId 兜底（session 中间件记录会话原始用户，act-as 切换后仍以原始用户判定，堵住借切换绕过的口子），补 3 个回归测试。吹毛求疵（不强加）：用例 1 的 query data undefined 噪音；配额输入清空保存会置 0。
+
 ---
 
 ### Task 16: 公开分享页 /s/:token（提取码门、子树浏览、下载）
