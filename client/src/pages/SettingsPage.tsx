@@ -51,7 +51,7 @@ function AdminRow({ u, selfId }: { u: AdminUser; selfId: string }) {
     onSuccess: invalidate,
   });
   return (
-    <tr className="border-b border-white/10 last:border-b-0">
+    <tr className="border-b border-line last:border-b-0">
       <td className="py-2 text-ink">
         {u.name}
         {u.id === selfId && <span className="ml-1 text-xs text-ink-faint">（我）</span>}
@@ -108,7 +108,7 @@ export default function SettingsPage({ me }: { me: Me }) {
           <h2 className="mb-3 font-semibold text-ink">用户管理</h2>
           <table className="w-full text-sm">
             <thead className="text-left text-xs text-ink-faint">
-              <tr className="border-b border-white/10">
+              <tr className="border-b border-line">
                 <th className="py-2 font-medium">用户</th>
                 {/* 次要列（角色/注册）移动端隐藏 */}
                 <th className="hidden py-2 font-medium sm:table-cell">角色</th>

@@ -115,7 +115,7 @@ export default function SharePage() {
         <table className="w-full text-sm">
           <tbody>
             {files.map((f) => (
-              <tr key={f.id} className="border-b border-white/10 last:border-b-0">
+              <tr key={f.id} className="border-b border-line last:border-b-0">
                 <td className="py-2">
                   {f.isDir ? (
                     <button

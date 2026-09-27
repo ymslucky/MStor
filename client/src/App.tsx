@@ -24,7 +24,7 @@ function LoginLanding() {
   return (
     <div className="flex min-h-dvh items-center justify-center p-6">
       <GlassCard className="w-full max-w-sm p-8 text-center">
-        <h1 className="bg-gradient-to-r from-sky-300 to-cyan-200 bg-clip-text text-3xl font-bold text-transparent">
+        <h1 className="text-3xl font-bold text-accent">
           MStor
         </h1>
         <p className="mt-2 text-sm text-ink-dim">私有家庭云盘 · 登录后开始使用</p>

@@ -18,7 +18,7 @@ export default function SharesPage() {
           <table className="w-full text-sm">
             <tbody>
               {shares.map((s) => (
-                <tr key={s.id} className="border-b border-white/10 transition-colors last:border-b-0 hover:glass-subtle">
+                <tr key={s.id} className="border-b border-line transition-colors last:border-b-0 hover:bg-gray-50">
                   <td className="py-2">
                     <div className="font-medium text-ink">{s.node_is_dir ? "📁" : "📄"} {s.node_name}</div>
                     <div className="text-xs text-ink-faint">/s/{s.token}</div>
