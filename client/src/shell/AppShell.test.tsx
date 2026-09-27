@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { expect, test, vi } from "vitest";
 import AppShell from "./AppShell";
@@ -22,10 +22,12 @@ function renderShell() {
 test("shows user name, quota and nav links", async () => {
   renderShell();
   expect(await screen.findByText("Alice")).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "文件" })).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "回收站" })).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "分享" })).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "设置" })).toBeInTheDocument();
+  // 桌面/移动共用同一 DOM（responsive 切换），以 role="navigation" 语义断言
+  const nav = screen.getByRole("navigation", { name: "主导航" });
+  expect(within(nav).getByRole("link", { name: "文件" })).toBeInTheDocument();
+  expect(within(nav).getByRole("link", { name: "回收站" })).toBeInTheDocument();
+  expect(within(nav).getByRole("link", { name: "分享" })).toBeInTheDocument();
+  expect(within(nav).getByRole("link", { name: "设置" })).toBeInTheDocument();
   expect(screen.getByText(/40 B/)).toBeInTheDocument(); // usedBytes
   expect(screen.getByRole("link", { name: "退出" })).toHaveAttribute("href", "/auth/logout");
 });
