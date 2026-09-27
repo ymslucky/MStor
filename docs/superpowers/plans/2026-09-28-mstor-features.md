@@ -80,9 +80,11 @@
 
 | 任务 | commit | 测试 | 备注 |
 |---|---|---|---|
-| A1 ensure 端点 | — | — | — |
-| A2 dirscan | — | — | — |
-| A3 队列 path | — | — | — |
-| A4 Browser 集成 | — | — | — |
-| B1 批量端点 | — | — | — |
-| B2 TrashPage | — | — | — |
+| A1 ensure 端点 | 155ef70 | 4/4 | 含回收站残留同名让位 `d (2)` 用例 |
+| A2 dirscan | fd09114 | 6/6 | 假 reader 需先自增再回调（同步递归陷阱） |
+| A3 队列 path | 2c73d93 | 10/10 | 目录 id Promise 缓存 + 失败剔除 |
+| A4 Browser 集成 | 608dcf2 | 31/31 | webkitdirectory 入口 + 空文件夹 toast |
+| B1 批量端点 | 7580c14 | 9/9 | restoreTrashNode 提取复用；404 幂等 |
+| B2 TrashPage | a15bfff | 8/8 | 批量条 aria-label 区分行内同名按钮 |
+
+回归：server 110/110，client 121/121，tsc 双管线 0 错，build + PWA 正常。
