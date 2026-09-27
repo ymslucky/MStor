@@ -589,6 +589,12 @@ $env:WRANGLER_LOG_PATH="c:\Users\YMS\Documents\Code\cf-storage\.wrangler\logs"; 
 git add server/routes/shares.ts test/shares.test.ts; git commit -m "feat: public share subtree browsing"
 ```
 
+> **审查记录（2026-09-27）**
+>
+> - 实现：cb73f23，99/99 测试绿 + tsc 零错误。
+> - 偏离判定（均合理）：红测 401 系未匹配 /api/s/* 穿透 session 中间件的既有框架行为，非缺陷；测试写法沿用文件惯例（计划本要求如此）。
+> - 规格审查 PASS；质量审查 APPROVE：loadShare 每请求执行（提取码不可绕过）；isDescendant 种子含根本身且有测试；isDescendant 先于 getNode 不泄露存在性；独立软删的子目录与回收站后代均被拒。可选增强（带提取码 children 401 用例）不强加。——后端补遗 4/4 闭环。
+
 ---
 
 ### Task 5: 前端脚手架（Vite + React + Tailwind + 双测试管线）
