@@ -8,6 +8,7 @@ export default defineWorkersConfig(async () => {
   return {
     test: {
       setupFiles: ["./test/setup.ts"],
+      exclude: ["**/node_modules/**", "**/dist/**", "client/**"],
       poolOptions: {
         workers: {
           wrangler: { configPath: "./wrangler.jsonc" },
