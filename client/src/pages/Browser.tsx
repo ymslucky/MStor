@@ -1,9 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import { listShares } from "../api/shares";
 import { listTrash } from "../api/trash";
 import type { Me, Node } from "../api/types";
+import { contentUrl, deleteNode, moveNode } from "../api/nodes";
 import Breadcrumb from "../components/Breadcrumb";
 import FileList from "../components/FileList";
 import MoveDialog from "../components/MoveDialog";
@@ -74,8 +75,75 @@ export default function Browser() {
   const [preview, setPreview] = useState<Node | null>(null);
   const [sharing, setSharing] = useState<Node | null>(null);
   const [deleting, setDeleting] = useState<Node | null>(null);
+  // 批量选择状态（换目录清空）
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [batchDeleting, setBatchDeleting] = useState(false);
+  const [batchMoving, setBatchMoving] = useState(false);
+  const [batchBusy, setBatchBusy] = useState(false);
+  // 视图偏好持久化，缺省 list
+  const [view, setView] = useState<"list" | "grid">(() => (localStorage.getItem("mstor_view") === "grid" ? "grid" : "list"));
+  const queryClient = useQueryClient();
+
+  useEffect(() => setSelected(new Set()), [dir]);
 
   const openDir = (id: string) => setParams(id ? { dir: id } : {});
+
+  const toggleSelect = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const switchView = (v: "list" | "grid") => {
+    setView(v);
+    localStorage.setItem("mstor_view", v);
+  };
+
+  // 批量删除：顺序逐个删除，完成后失效 files + trash 缓存
+  const runBatchDelete = async () => {
+    setBatchBusy(true);
+    try {
+      for (const id of selected) await deleteNode(id);
+      setSelected(new Set());
+    } finally {
+      setBatchBusy(false);
+      setBatchDeleting(false);
+    }
+    void queryClient.invalidateQueries({ queryKey: ["files"] });
+    void queryClient.invalidateQueries({ queryKey: ["trash"] });
+  };
+
+  // 批量移动：顺序逐个移动
+  const runBatchMove = async (to: string) => {
+    setBatchBusy(true);
+    try {
+      for (const id of selected) await moveNode(id, to);
+      setSelected(new Set());
+    } finally {
+      setBatchBusy(false);
+      setBatchMoving(false);
+    }
+    void queryClient.invalidateQueries({ queryKey: ["files"] });
+  };
+
+  // 批量下载：仅文件，300ms 间隔逐个触发（避免浏览器拦截）
+  const batchDownload = () => {
+    const files = (query.data?.nodes ?? []).filter((n) => selected.has(n.id) && !n.is_dir);
+    files.forEach((n, i) =>
+      window.setTimeout(() => {
+        const a = document.createElement("a");
+        a.href = contentUrl(n.id, true);
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }, i * 300),
+    );
+  };
+
+  const selectedNodes = (query.data?.nodes ?? []).filter((n) => selected.has(n.id));
+  const hasFileSelected = selectedNodes.some((n) => !n.is_dir);
 
   const used = me?.usedBytes ?? 0;
   const quota = me?.quotaBytes ?? 0;
@@ -184,8 +252,23 @@ export default function Browser() {
       )}
       {query.data && (
         <GlassCard className="p-3 sm:p-4">
+          {/* 工具栏：右侧列表/网格分段控件 */}
+          <div className="mb-3 flex items-center justify-end">
+            <div role="group" aria-label="视图切换" className="inline-flex items-center gap-1 rounded-xl border border-line bg-gray-50 p-1">
+              <IconButton label="列表视图" active={view === "list"} aria-pressed={view === "list"} onClick={() => switchView("list")}>
+                <span aria-hidden>☰</span>
+              </IconButton>
+              <IconButton label="网格视图" active={view === "grid"} aria-pressed={view === "grid"} onClick={() => switchView("grid")}>
+                <span aria-hidden>▦</span>
+              </IconButton>
+            </div>
+          </div>
           <FileList
             nodes={query.data.nodes}
+            view={view}
+            selectable
+            selected={selected}
+            onToggle={toggleSelect}
             onOpenDir={openDir}
             onOpenFile={setPreview}
             actions={(n) => (
@@ -208,6 +291,28 @@ export default function Browser() {
         </GlassCard>
       )}
       <UploadPanel queue={queue} />
+      {/* 批量操作条：选中 ≥1 项时浮出，移动端避让底部导航（bottom-20） */}
+      {selected.size > 0 && !batchDeleting && !batchMoving && (
+        <div className="fixed inset-x-0 bottom-20 z-40 flex justify-center px-4 sm:bottom-6">
+          <div className="flex items-center gap-1.5 rounded-card border border-line bg-white p-2 shadow-card">
+            <span className="whitespace-nowrap px-2 text-sm font-medium text-ink">已选 {selected.size} 项</span>
+            {hasFileSelected && (
+              <Button size="sm" onClick={batchDownload}>
+                下载
+              </Button>
+            )}
+            <Button size="sm" onClick={() => setBatchMoving(true)}>
+              移动
+            </Button>
+            <Button size="sm" variant="danger" onClick={() => setBatchDeleting(true)}>
+              删除
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
+              取消
+            </Button>
+          </div>
+        </div>
+      )}
       {preview && <PreviewModal key={preview.id} node={preview} onClose={() => setPreview(null)} />}
       {sharing && <ShareDialog node={sharing} onClose={() => setSharing(null)} />}
       {creating && (
@@ -248,6 +353,26 @@ export default function Browser() {
           busy={move.isPending}
           onSubmit={(to) => move.mutate({ id: moving.id, to }, { onSuccess: () => setMoving(null) })}
           onCancel={() => setMoving(null)}
+        />
+      )}
+      {batchDeleting && (
+        <ConfirmDialog
+          open
+          title={`删除选中的 ${selected.size} 项`}
+          description={`确定删除选中的 ${selected.size} 项？可在回收站恢复。`}
+          confirmText="删除"
+          danger
+          busy={batchBusy}
+          onConfirm={() => void runBatchDelete()}
+          onCancel={() => setBatchDeleting(false)}
+        />
+      )}
+      {batchMoving && (
+        <MoveDialog
+          title={`移动 ${selected.size} 项到…`}
+          busy={batchBusy}
+          onSubmit={(to) => void runBatchMove(to)}
+          onCancel={() => setBatchMoving(false)}
         />
       )}
     </div>

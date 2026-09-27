@@ -120,6 +120,46 @@ test("shows error state with retry that refetches", async () => {
   await waitFor(() => expect(listFiles).toHaveBeenCalledTimes(2));
 });
 
+test("batch: select rows, toggle all, batch delete calls deleteNode per id", async () => {
+  vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
+  vi.mocked(deleteNode).mockClear(); // 清掉前面用例遗留的调用计数
+  vi.mocked(deleteNode).mockResolvedValue({ ok: true });
+  const { user } = renderWith(<Browser />);
+  await screen.findByText("📄 hello.txt");
+  // 单选一个文件：浮出批量操作条，且 checkbox 点击不触发行打开
+  await user.click(screen.getByRole("checkbox", { name: "选择 hello.txt" }));
+  expect(screen.getByText("已选 1 项")).toBeInTheDocument();
+  expect(screen.getByText("📄 hello.txt")).toBeInTheDocument();
+  // 表头全选：当前页全部选中
+  await user.click(screen.getByRole("checkbox", { name: "全选" }));
+  expect(screen.getByText("已选 2 项")).toBeInTheDocument();
+  // 批量删除：弹窗确认后逐个调用 deleteNode
+  await user.click(screen.getByRole("button", { name: "删除" }));
+  expect(await screen.findByText("确定删除选中的 2 项？可在回收站恢复。")).toBeInTheDocument();
+  expect(deleteNode).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button", { name: "删除" }));
+  await waitFor(() => expect(deleteNode).toHaveBeenCalledTimes(2));
+  expect(deleteNode).toHaveBeenCalledWith("f1");
+  expect(deleteNode).toHaveBeenCalledWith("d1");
+});
+
+test("view toggle switches grid container classes and persists preference", async () => {
+  localStorage.removeItem("mstor_view");
+  vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
+  const { user } = renderWith(<Browser />);
+  await screen.findByText("📄 hello.txt");
+  expect(screen.getByRole("table")).toBeInTheDocument(); // 默认列表视图
+  await user.click(screen.getByRole("button", { name: "网格视图" }));
+  const grid = screen.getByTestId("file-grid");
+  expect(grid).toHaveClass("grid", "grid-cols-2", "sm:grid-cols-3", "lg:grid-cols-4", "xl:grid-cols-6", "gap-3");
+  expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  expect(localStorage.getItem("mstor_view")).toBe("grid");
+  // 切回列表并持久化偏好
+  await user.click(screen.getByRole("button", { name: "列表视图" }));
+  expect(screen.getByRole("table")).toBeInTheDocument();
+  expect(localStorage.getItem("mstor_view")).toBe("list");
+});
+
 test("move via dialog calls moveNode with target dir", async () => {
   vi.mocked(listFiles).mockImplementation(async (parentId: string) =>
     parentId === "" ? ROOT_LIST : { nodes: [], breadcrumb: [], rootId: "root-1" },
