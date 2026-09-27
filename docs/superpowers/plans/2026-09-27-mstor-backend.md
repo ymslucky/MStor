@@ -1741,6 +1741,8 @@ git add server/lib/serve.ts server/routes/files.ts test/download.test.ts
 git commit -m "feat: ranged streaming download shared by preview/share/webdav"
 ```
 
+> **审查记录（2026-09-27）**：spec review PASS；quality review 首轮 REQUEST_CHANGES（1 Major：range 显式 end 超过 size 未钳制 → 206 content-length 谎报；Minor：不可解析 Range 应落 200、filename RFC 5987 转义、cache-control、range 大小写）→ commit `305d13b` 修复并补 3 用例（end 超界钳制 / 5-2 与 -0 → 416 / 多段 → 200 全量）→ 复审 APPROVE。最终 commit：`31858f4` + `305d13b`，52 tests passed、tsc 零错误。**实现期修正 2 处**：①XSS 兜底（Task 9 记录的强制要求）：nosniff + CSP sandbox 全响应，text/html/svg/xhtml 强制 attachment；②206 的 end/content-length 用计算值 actualLen 推导（不依赖 R2 range get 的 obj.size 语义）。授权偏差：dl=1/html 用例消费流（vitest-pool-workers 悬挂流）、json() as 断言。未做（有意）：416 的 `bytes */size` 头；**HEAD 路由留给 Task 16**（WebDAV 客户端需要）。serveObject 签名 (c, node) 对 Task 14 分享复用已确认够用。
+
 ---
 
 ### Task 11: 大文件分片直传（presigned multipart）
