@@ -92,6 +92,23 @@ test("POST /api/files/instant 未命中返回 404 NO_DEDUP", async () => {
   expect(((await res.json()) as { error: { code: string } }).error.code).toBe("NO_DEDUP");
 });
 
+test("POST /api/files/instant 不允许跨用户领取他人文件（hash 非持有性证明）", async () => {
+  const owner = await seedUser();
+  await SELF.fetch("https://example.com/api/files/upload?name=secret.txt", {
+    method: "PUT",
+    headers: { ...(await sessionHeaders(owner)), "content-type": "text/plain", "x-file-sha256": SHA },
+    body: "hello",
+  });
+  // 另一个用户拿到相同 hash+size（hash 可能随日志/清单泄露），尝试秒传领取
+  const attacker = await seedUser();
+  const res = await SELF.fetch("https://example.com/api/files/instant", {
+    method: "POST",
+    headers: { ...(await sessionHeaders(attacker)), "content-type": "application/json" },
+    body: JSON.stringify({ name: "mine.txt", parentId: "", size: 5, sha256: SHA }),
+  });
+  expect(res.status).toBe(404); // 未命中：不建 node，无法读取他人对象
+});
+
 test("POST /api/files/instant 参数不合法返回 400", async () => {
   const u = await seedUser();
   const res = await SELF.fetch("https://example.com/api/files/instant", {

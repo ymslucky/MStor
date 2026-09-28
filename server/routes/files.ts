@@ -114,9 +114,10 @@ files.post("/instant", async (c) => {
     : "application/octet-stream";
   const parent = parentId === "" ? await ensureRootDir(c.env.DB, user.id) : await getNode(c.env.DB, user.id, parentId);
   if (!parent || !parent.is_dir) throw errors.notFound();
+  // 秒传仅限同一用户内去重：跨用户按 hash 领取他人对象 = 知道 hash 即可获得内容（hash 非持有性证明），业界无此先例
   const hit = await c.env.DB.prepare(
-    "SELECT r2_key FROM nodes WHERE sha256 = ?1 AND size = ?2 AND deleted_at IS NULL AND is_dir = 0 LIMIT 1"
-  ).bind(sha256.toLowerCase(), size).first<{ r2_key: string }>();
+    "SELECT r2_key FROM nodes WHERE owner_id = ?1 AND sha256 = ?2 AND size = ?3 AND deleted_at IS NULL AND is_dir = 0 LIMIT 1"
+  ).bind(user.id, sha256.toLowerCase(), size).first<{ r2_key: string }>();
   if (!hit) throw new HttpError(404, "NO_DEDUP", "无相同内容文件");
   await assertQuota(c.env.DB, user.id, size, Number(c.env.DEFAULT_QUOTA_BYTES));
   const id = randomId();
