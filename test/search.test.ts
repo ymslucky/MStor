@@ -1,4 +1,4 @@
-import { SELF } from "cloudflare:test";
+import { SELF, env } from "cloudflare:test";
 import { expect, test } from "vitest";
 import { seedNode, seedUser, sessionHeaders } from "./helpers";
 
@@ -50,4 +50,33 @@ test("search returns breadcrumb paths", async () => {
   const data = await res.json<{ paths: Record<string, string> }>();
   expect(data.paths[nested.id]).toBe("相册/2026/聚会.jpg");
   expect(data.paths[top.id]).toBe("随笔.txt");
+});
+
+test("fts rowid mapping: rename/delete stay in sync without duplicates", async () => {
+  const u = await seedUser();
+  const f = await seedNode({ owner_id: u.id, name: "报告-v1.pdf", size: 1 });
+
+  // INSERT 触发器回写 fts_rowid，且 FTS 恰好 1 行
+  const row = await env.DB.prepare("SELECT fts_rowid FROM nodes WHERE id = ?1").bind(f.id).first<{ fts_rowid: number }>();
+  expect(row!.fts_rowid).toBeGreaterThan(0);
+
+  // 重命名：旧名搜不到、新名搜得到，FTS 仍是 1 行（rowid 复用，不累积重复行）
+  await env.DB.prepare("UPDATE nodes SET name = ?1, updated_at = ?2 WHERE id = ?3")
+    .bind("报告-v2.pdf", Date.now(), f.id).run();
+  const ftsCount = async () =>
+    (await env.DB.prepare("SELECT COUNT(*) AS n FROM nodes_fts WHERE node_id = ?1").bind(f.id).first<{ n: number }>())!.n;
+  expect(await ftsCount()).toBe(1);
+
+  const res = await SELF.fetch(`https://example.com/api/search?q=${encodeURIComponent("报告-v2")}`, {
+    headers: await sessionHeaders(u),
+  });
+  expect(((await res.json()) as { nodes: { id: string }[] }).nodes.map((n) => n.id)).toContain(f.id);
+  const resOld = await SELF.fetch(`https://example.com/api/search?q=${encodeURIComponent("报告-v1")}`, {
+    headers: await sessionHeaders(u),
+  });
+  expect(((await resOld.json()) as { nodes: { id: string }[] }).nodes).toHaveLength(0);
+
+  // 彻底删除：FTS 行随之清除
+  await env.DB.prepare("DELETE FROM nodes WHERE id = ?1").bind(f.id).run();
+  expect(await ftsCount()).toBe(0);
 });

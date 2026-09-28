@@ -1,6 +1,6 @@
 -- ============================================================
 -- MStor 数据库 Schema（DDL 全量版）
--- 由 migrations/0001-0004 合并而成，用于全新环境一次性建库：
+-- 由 migrations/0001-0007 合并而成，用于全新环境一次性建库：
 --   npx wrangler d1 execute mstor --remote --file=sql/schema.sql
 -- 既有环境请继续使用 migrations 增量迁移（wrangler d1 migrations apply），
 -- 两者表结构等价，勿混用导致重复执行。
@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS nodes (
   size INTEGER,
   mime TEXT,
   sha256 TEXT,                                   -- 秒传：文件内容 SHA-256（≤60MB 直传时写入）
+  fts_rowid INTEGER,                             -- FTS 行 rowid 映射（触发器按主键定位，删除/重命名 O(1)）
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
   deleted_at INTEGER,                            -- 回收站：软删除时间戳
@@ -77,14 +78,23 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 
 -- 文件名全文检索（trigram 分词，支持子串匹配）
+-- 触发器经 fts_rowid 按 rowid 主键定位（node_id UNINDEXED 建不了索引，按它删会全表扫）
 CREATE VIRTUAL TABLE IF NOT EXISTS nodes_fts USING fts5(node_id UNINDEXED, name, tokenize = 'trigram');
-CREATE TRIGGER IF NOT EXISTS nodes_ai AFTER INSERT ON nodes BEGIN
-  INSERT INTO nodes_fts(node_id, name) VALUES (new.id, new.name);
+CREATE TRIGGER IF NOT EXISTS nodes_ai AFTER INSERT ON nodes
+WHEN new.is_dir = 0
+BEGIN
+  INSERT INTO nodes_fts(rowid, node_id, name)
+    VALUES ((SELECT COALESCE(MAX(rowid), 0) + 1 FROM nodes_fts), new.id, new.name);
+  UPDATE nodes SET fts_rowid = (SELECT MAX(rowid) FROM nodes_fts) WHERE id = new.id;
 END;
-CREATE TRIGGER IF NOT EXISTS nodes_ad AFTER DELETE ON nodes BEGIN
-  DELETE FROM nodes_fts WHERE node_id = old.id;
+CREATE TRIGGER IF NOT EXISTS nodes_ad AFTER DELETE ON nodes
+WHEN old.fts_rowid IS NOT NULL
+BEGIN
+  DELETE FROM nodes_fts WHERE rowid = old.fts_rowid;
 END;
-CREATE TRIGGER IF NOT EXISTS nodes_au AFTER UPDATE OF name ON nodes BEGIN
-  DELETE FROM nodes_fts WHERE node_id = old.id;
-  INSERT INTO nodes_fts(node_id, name) VALUES (new.id, new.name);
+CREATE TRIGGER IF NOT EXISTS nodes_au AFTER UPDATE OF name ON nodes
+WHEN new.fts_rowid IS NOT NULL
+BEGIN
+  DELETE FROM nodes_fts WHERE rowid = new.fts_rowid;
+  INSERT INTO nodes_fts(rowid, node_id, name) VALUES (new.fts_rowid, new.id, new.name);
 END;
