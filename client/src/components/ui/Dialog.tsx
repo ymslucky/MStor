@@ -53,7 +53,7 @@ export function Dialog({ open, onClose, title, children, footer, skin = "glass" 
     >
       <div
         data-testid="dialog-panel"
-        className={`safe-bottom w-full rounded-t-panel p-4 transition-transform duration-320 ease-out-soft sm:max-w-md sm:rounded-panel sm:p-5 ${skinCls} ${entered ? "translate-y-0" : "translate-y-full"}`}
+        className={`w-full rounded-t-panel p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] transition-transform duration-320 ease-out-soft sm:max-w-md sm:rounded-panel sm:p-5 sm:pb-5 ${skinCls} ${entered ? "translate-y-0" : "translate-y-full"}`}
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg font-semibold text-ink">{title}</h2>
