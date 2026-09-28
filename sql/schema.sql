@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS users (
   disabled_at INTEGER,
   created_at INTEGER NOT NULL
 );
+CREATE INDEX IF NOT EXISTS idx_users_name ON users(name);
 
 -- 文件树节点：根目录为哨兵行（parent_id='' AND name=''）；文件才有 r2_key/size/mime
 CREATE TABLE IF NOT EXISTS nodes (
@@ -36,10 +37,12 @@ CREATE TABLE IF NOT EXISTS nodes (
   UNIQUE (owner_id, parent_id, name)
 );
 CREATE INDEX IF NOT EXISTS idx_nodes_owner_deleted ON nodes(owner_id, deleted_at);
-CREATE INDEX IF NOT EXISTS idx_nodes_sha256 ON nodes(sha256);
 -- 目录列表专用部分索引：等值过滤 + ORDER BY is_dir DESC, name 全覆盖，仅索引活跃行
 CREATE INDEX IF NOT EXISTS idx_nodes_listing
   ON nodes(owner_id, parent_id, is_dir DESC, name) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_nodes_sha256 ON nodes(sha256);
+CREATE INDEX IF NOT EXISTS idx_nodes_r2key ON nodes(r2_key);          -- R2 引用计数（purge 零引用判断）
+CREATE INDEX IF NOT EXISTS idx_nodes_trash ON nodes(deleted_at) WHERE deleted_at IS NOT NULL; -- 回收站过期 cron
 
 -- 分享链接：token 外部可见；password_hash 提取码；revoked_at 撤销
 CREATE TABLE IF NOT EXISTS shares (
