@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useRef, useState } from "react";
 import { ensureDir } from "../api/nodes";
-import { SMALL_FILE_LIMIT, abortUpload, sha256Hex, uploadLarge, uploadSmall } from "../api/uploads";
+import { SMALL_FILE_LIMIT, abortUpload, instantUpload, sha256Hex, uploadLarge, uploadSmall } from "../api/uploads";
 import type { Part } from "../api/uploads";
 import type { PendingUpload } from "../lib/dirscan";
 import { clearResume, fingerprint, loadResume, saveResume } from "../lib/resume";
@@ -149,13 +149,18 @@ export function useUploadQueue() {
               resume: resume ? { uploadId: resume.uploadId, partSize: resume.partSize, parts: resume.parts } : undefined,
             });
           } else {
-            // 秒传：≤60MB 预计算 SHA-256（失败忽略，正常直传）
+            // 秒传（先查后传）：≤60MB 预计算 SHA-256，命中直接建 node 不传文件体；
+            // hash 计算失败/未命中则正常直传（失败忽略，不影响上传）
             const sha = await sha256Hex(next.file).catch(() => null);
-            await uploadSmall(next.file, parentId, {
-              signal: controller.signal,
-              onProgress: (r) => onProgress(next.key, r),
-              sha256: sha ?? undefined,
-            });
+            if (sha && (await instantUpload(next.file, parentId, sha))) {
+              onProgress(next.key, 1);
+            } else {
+              await uploadSmall(next.file, parentId, {
+                signal: controller.signal,
+                onProgress: (r) => onProgress(next.key, r),
+                sha256: sha ?? undefined,
+              });
+            }
           }
           // 上传期间被取消/暂停：不标完成
           if (!cancelled.current.has(next.key)) {

@@ -25,6 +25,24 @@ export async function sha256Hex(file: File): Promise<string | null> {
   }
 }
 
+// 秒传（先查后传）：上传 body 前先查服务端是否已有同 hash 同 size 的文件，
+// 命中直接建 node（零文件体传输，瞬时完成）；未命中返回 null（调用方走正常上传）
+export async function instantUpload(
+  file: File,
+  parentId: string,
+  sha256: string,
+): Promise<{ id: string; name: string; size: number } | null> {
+  try {
+    return await api<{ id: string; name: string; size: number }>("/api/files/instant", {
+      method: "POST",
+      json: { name: file.name, parentId, size: file.size, sha256 },
+    });
+  } catch (e) {
+    if (e instanceof ApiError && e.code === "NO_DEDUP") return null;
+    throw e;
+  }
+}
+
 // 小文件直传：fetch 无上传进度事件，用 XHR（xhr.upload.onprogress）+ abort 支持；
 // 错误语义与 api() 对齐（401 → ApiError，非 2xx 解析 error envelope，x-act-as 透传）
 export const uploadSmall = (file: File, parentId: string, opts?: UploadSmallOpts) =>

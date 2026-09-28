@@ -9,6 +9,7 @@ vi.mock("../api/uploads", () => ({
   uploadLarge: vi.fn(),
   abortUpload: vi.fn(),
   sha256Hex: vi.fn(),
+  instantUpload: vi.fn(),
   SMALL_FILE_LIMIT: 1024,
 }));
 vi.mock("../api/nodes", () => ({
@@ -22,7 +23,7 @@ vi.mock("../lib/resume", () => ({
 }));
 
 import { ensureDir } from "../api/nodes";
-import { abortUpload, sha256Hex, uploadLarge, uploadSmall } from "../api/uploads";
+import { abortUpload, instantUpload, sha256Hex, uploadLarge, uploadSmall } from "../api/uploads";
 import { clearResume, loadResume, saveResume } from "../lib/resume";
 
 // 模块级 mock 跨用例累积调用计数，每例清零（保留已设实现，各例自行覆写）
@@ -30,6 +31,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(loadResume).mockReturnValue(null); // 清除上一用例泄漏的 mockReturnValue
   vi.mocked(sha256Hex).mockResolvedValue(null); // 秒传 hash 默认关，需要时各例覆写
+  vi.mocked(instantUpload).mockResolvedValue(null); // 默认不命中秒传，走正常直传
 });
 
 function makeFile(name: string, size: number): File {
@@ -263,4 +265,25 @@ test("SHA-256 计算失败时跳过秒传头正常上传", async () => {
   act(() => result.current.add([makeFile("a.txt", 5)], ""));
   await waitFor(() => expect(result.current.items[0].status).toBe("done"));
   expect(uploadSmall).toHaveBeenCalledWith(expect.any(File), "", expect.objectContaining({ sha256: undefined }));
+});
+
+test("秒传命中：instantUpload 成功则不传文件体", async () => {
+  vi.mocked(sha256Hex).mockResolvedValue("c".repeat(64));
+  vi.mocked(instantUpload).mockResolvedValue({ id: "n-dup", name: "a.txt", size: 5 });
+  const { result } = renderHook(() => useUploadQueue(), { wrapper });
+  act(() => result.current.add([makeFile("a.txt", 5)], ""));
+  await waitFor(() => expect(result.current.items[0].status).toBe("done"));
+  expect(instantUpload).toHaveBeenCalledWith(expect.any(File), "", "c".repeat(64));
+  expect(uploadSmall).not.toHaveBeenCalled();
+  expect(result.current.items[0].progress).toBe(1);
+});
+
+test("秒传未命中：回退正常直传并带 sha256 头", async () => {
+  vi.mocked(sha256Hex).mockResolvedValue("d".repeat(64));
+  vi.mocked(instantUpload).mockResolvedValue(null);
+  vi.mocked(uploadSmall).mockResolvedValue({ id: "n1", name: "a.txt", size: 5 });
+  const { result } = renderHook(() => useUploadQueue(), { wrapper });
+  act(() => result.current.add([makeFile("a.txt", 5)], ""));
+  await waitFor(() => expect(result.current.items[0].status).toBe("done"));
+  expect(uploadSmall).toHaveBeenCalledWith(expect.any(File), "", expect.objectContaining({ sha256: "d".repeat(64) }));
 });

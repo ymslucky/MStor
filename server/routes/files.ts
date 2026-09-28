@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../env";
 import { randomId } from "../lib/crypto";
-import { errors } from "../lib/errors";
+import { errors, HttpError } from "../lib/errors";
 import { assertQuota, breadcrumb, ensureRootDir, getNode, listChildren, moveNode, uniqueName, validateNodeName } from "../lib/nodes";
 import { serveObject } from "../lib/serve";
 import { softDeleteNode } from "./trash";
@@ -96,4 +96,41 @@ files.put("/upload", async (c) => {
 files.delete("/:id", async (c) => {
   await softDeleteNode(c.env.DB, c.get("user").id, c.req.param("id"));
   return c.json({ ok: true });
+});
+
+// 秒传（先查后传）：客户端算好 SHA-256 先调本端点，命中同 hash 同 size 的现有节点
+// 直接建 node 复用 R2 对象——不传文件体，实现瞬时完成；未命中（404 NO_DEDUP）走正常上传
+files.post("/instant", async (c) => {
+  const user = c.get("user");
+  const { name, parentId = "", size, sha256 } = await c.req.json<{
+    name: string; parentId?: string; size: number; sha256: string;
+  }>();
+  const safeName = validateNodeName(name);
+  if (!Number.isFinite(size) || size <= 0 || typeof sha256 !== "string" || !/^[0-9a-f]{64}$/i.test(sha256))
+    throw errors.badRequest("参数不合法");
+  const limit = Number(c.env.SMALL_FILE_LIMIT);
+  if (!Number.isFinite(limit)) throw new Error("SMALL_FILE_LIMIT 未配置或非法");
+  if (size > limit) throw errors.badRequest("秒传仅支持小文件");
+  const parent = parentId === "" ? await ensureRootDir(c.env.DB, user.id) : await getNode(c.env.DB, user.id, parentId);
+  if (!parent || !parent.is_dir) throw errors.notFound();
+  const hit = await c.env.DB.prepare(
+    "SELECT r2_key FROM nodes WHERE sha256 = ?1 AND size = ?2 AND deleted_at IS NULL AND is_dir = 0 LIMIT 1"
+  ).bind(sha256.toLowerCase(), size).first<{ r2_key: string }>();
+  if (!hit) throw new HttpError(404, "NO_DEDUP", "无相同内容文件");
+  await assertQuota(c.env.DB, user.id, size, Number(c.env.DEFAULT_QUOTA_BYTES));
+  const id = randomId();
+  const mime = "application/octet-stream"; // 秒传无文件体，mime 未知；下载时以扩展名兜底场景有限，接受
+  const now = Date.now();
+  let finalName = await uniqueName(c.env.DB, user.id, parentId, safeName);
+  const insert = c.env.DB.prepare(
+    "INSERT INTO nodes (id, owner_id, parent_id, name, is_dir, r2_key, size, mime, sha256, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,0,?5,?6,?7,?8,?9,?9,NULL)"
+  );
+  try {
+    await insert.bind(id, user.id, parentId, finalName, hit.r2_key, size, mime, sha256.toLowerCase(), now).run();
+  } catch (e) {
+    if (!(e instanceof Error && e.message.includes("UNIQUE constraint failed"))) throw e;
+    finalName = await uniqueName(c.env.DB, user.id, parentId, safeName);
+    await insert.bind(id, user.id, parentId, finalName, hit.r2_key, size, mime, sha256.toLowerCase(), now).run();
+  }
+  return c.json({ id, name: finalName, size, deduplicated: true }, 201);
 });
