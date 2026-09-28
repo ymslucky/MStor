@@ -22,6 +22,17 @@ test("GET content returns full body inline", async () => {
   expect(await res.text()).toBe("hello world");
 });
 
+test("image content 缓存一年 immutable（缩略图近似方案）", async () => {
+  const u = await seedUser();
+  const id = await upload(u, "a.png", "pngdata", "image/png");
+  const res = await SELF.fetch(`https://example.com/api/files/${id}/content`, { headers: await sessionHeaders(u) });
+  expect(res.headers.get("cache-control")).toBe("private, max-age=31536000, immutable");
+  // 非 image 维持 no-cache
+  const txt = await upload(u, "b.txt", "hi");
+  const res2 = await SELF.fetch(`https://example.com/api/files/${txt}/content`, { headers: await sessionHeaders(u) });
+  expect(res2.headers.get("cache-control")).toBe("private, no-cache");
+});
+
 test("range bytes=0-4 returns 206 slice", async () => {
   const u = await seedUser();
   const id = await upload(u, "a.txt", "hello world");

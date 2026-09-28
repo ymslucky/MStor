@@ -22,6 +22,11 @@ export async function serveObject(c: Context<AppEnv>, node: NodeRow): Promise<Re
     "cache-control": "private, no-cache",
     "content-disposition": `${disposition}; filename*=UTF-8''${encodedName}`,
   };
+  // 缩略图方案（近似）：图片内容不可变（同名修改=新 node 新 key），网格视图直接以原图作缩略图，
+  // 配合一年 immutable 强缓存 + 前端 loading="lazy"，回访秒开且不重复拉流量。
+  // 真缩略图（省流量）需 Cloudflare 付费 Image Resizing，届时在 fetch 上加：
+  //   cf: { image: { width: 256, fit: "cover" } } —— 代码预留钩子。
+  if (bare.startsWith("image/")) base["cache-control"] = "private, max-age=31536000, immutable";
   // 不可解析的 Range 视为不存在（RFC 9110），回落全量 200；语法合法但空范围（bytes=-）才 416
   const rangeHeader = c.req.header("range")?.toLowerCase();
   const m = rangeHeader ? /^bytes=(\d*)-(\d*)$/.exec(rangeHeader) : null;
