@@ -13,6 +13,13 @@
   "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "mstor" }],
   "d1_databases": [{ "binding": "DB", "database_name": "mstor", "database_id": "7d08a95a-6f35-4e8a-850f-682ec77d4f84" }],
   "triggers": { "crons": ["0 3 * * *"] },
+  "observability": {
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true,
+      "persist": true
+    }
+  },
   "vars": {
     "OIDC_ISSUER": "https://auth.msxor.com",
     "OIDC_CLIENT_ID": "huEjzaToFyCWfhDRUMAXnkqcAbxFTkaO",
