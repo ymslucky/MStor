@@ -36,6 +36,13 @@ app.route("/dav", dav);
 export default {
   fetch: app.fetch,
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
-    ctx.waitUntil(purgeExpiredTrash(env));
+    // 每日全量校准 used_bytes 兜底（防止极端并发下冗余列漂移）；一天一次全表 SUM 成本可忽略
+    ctx.waitUntil(Promise.all([
+      purgeExpiredTrash(env),
+      env.DB.prepare(`UPDATE users SET used_bytes = (
+        SELECT COALESCE(SUM(size), 0) FROM nodes
+        WHERE nodes.owner_id = users.id AND deleted_at IS NULL
+      )`).run(),
+    ]));
   },
 } satisfies ExportedHandler<Env>;

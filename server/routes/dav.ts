@@ -3,7 +3,7 @@ import type { Context } from "hono";
 import type { AppEnv, Env } from "../env";
 import { errors } from "../lib/errors";
 import {
-  assertQuota, childByName, createDir, ensureRootDir, isDescendant, listChildren, moveNode, validateNodeName,
+  assertQuota, adjustUsedBytes, childByName, createDir, ensureRootDir, isDescendant, listChildren, moveNode, validateNodeName,
 } from "../lib/nodes";
 import { randomId } from "../lib/crypto";
 import { serveObject } from "../lib/serve";
@@ -104,6 +104,7 @@ async function davPut(c: Context<AppEnv>): Promise<Response> {
     const obj = await c.env.BUCKET.put(r.node.r2_key!, c.req.raw.body, { httpMetadata: { contentType: mime } });
     await c.env.DB.prepare("UPDATE nodes SET size = ?1, mime = ?2, updated_at = ?3 WHERE id = ?4")
       .bind(obj.size, mime, Date.now(), r.node.id).run();
+    await adjustUsedBytes(c.env.DB, user.id, obj.size - (r.node.size ?? 0));
     // chunked PUT（无 Content-Length）预检失效的事后结算：旧对象已被覆盖无法回滚，
     // 超额时接受已发生的写入（保持 DB 与 R2 一致）再报错
     const delta = obj.size - (r.node.size ?? 0);
@@ -133,6 +134,7 @@ async function davPut(c: Context<AppEnv>): Promise<Response> {
     if (e instanceof Error && e.message.includes("UNIQUE constraint failed")) throw errors.conflict("目标名称被回收站占用");
     throw e;
   }
+  await adjustUsedBytes(c.env.DB, user.id, obj.size);
   return new Response(null, { status: 201 });
 }
 
@@ -239,6 +241,7 @@ async function copyInto(c: Context<AppEnv>, src: NodeRow, destParentId: string, 
       await c.env.BUCKET.delete(key);
       throw e;
     }
+    await adjustUsedBytes(c.env.DB, user.id, src.size ?? 0);
   }
 }
 

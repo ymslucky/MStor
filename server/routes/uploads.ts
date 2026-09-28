@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "../env";
 import { randomId } from "../lib/crypto";
 import { errors } from "../lib/errors";
-import { assertQuota, ensureRootDir, getNode, uniqueName, validateNodeName } from "../lib/nodes";
+import { assertQuota, adjustUsedBytes, ensureRootDir, getNode, uniqueName, validateNodeName } from "../lib/nodes";
 import { abortMultipart, completeMultipart, createMultipart, presignPart } from "../lib/r2";
 
 export const PART_SIZE = 16 * 1048576; // R2 分片最小 5MB（末片除外）
@@ -72,6 +72,7 @@ uploads.post("/:id/complete", async (c) => {
     finalName = await uniqueName(c.env.DB, user.id, row.parent_id, row.name);
     await c.env.DB.batch(buildBatch(finalName));
   }
+  await adjustUsedBytes(c.env.DB, user.id, row.size);
   return c.json({ nodeId: row.id, name: finalName }, 201);
 });
 

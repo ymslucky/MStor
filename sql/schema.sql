@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
   role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('admin','member')),
   webdav_password_hash TEXT,
   quota_bytes INTEGER NOT NULL,
+  used_bytes INTEGER NOT NULL DEFAULT 0,         -- 冗余配额统计（写入点同步增减，cron 每日校准），避免每次 SUM 全表扫描
   disabled_at INTEGER,
   created_at INTEGER NOT NULL
 );
@@ -36,6 +37,9 @@ CREATE TABLE IF NOT EXISTS nodes (
 );
 CREATE INDEX IF NOT EXISTS idx_nodes_owner_deleted ON nodes(owner_id, deleted_at);
 CREATE INDEX IF NOT EXISTS idx_nodes_sha256 ON nodes(sha256);
+-- 目录列表专用部分索引：等值过滤 + ORDER BY is_dir DESC, name 全覆盖，仅索引活跃行
+CREATE INDEX IF NOT EXISTS idx_nodes_listing
+  ON nodes(owner_id, parent_id, is_dir DESC, name) WHERE deleted_at IS NULL;
 
 -- 分享链接：token 外部可见；password_hash 提取码；revoked_at 撤销
 CREATE TABLE IF NOT EXISTS shares (

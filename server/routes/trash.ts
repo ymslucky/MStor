@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { AppEnv, Env } from "../env";
 import { errors, HttpError } from "../lib/errors";
-import { ensureRootDir, getNode, isDescendant, subtreeIds, uniqueName } from "../lib/nodes";
+import { ensureRootDir, getNode, isDescendant, subtreeIds, uniqueName, adjustUsedBytes } from "../lib/nodes";
 import { getSetting } from "../lib/settings";
 
 // D1 单语句绑定参数上限 100，IN 子句按分片循环执行
@@ -11,19 +11,36 @@ export function chunk<T>(arr: T[], n: number): T[][] {
   return out;
 }
 
+/** 子树内待变更的文件 size 总和：phase='soft' 统计未删除的（软删扣减用），phase='restore' 统计已删除的（还原加回用） */
+async function subtreeFileSizeSum(db: D1Database, ownerId: string, rootId: string, phase: "soft" | "restore"): Promise<number> {
+  const { results } = await db.prepare(`
+    WITH RECURSIVE sub AS (
+      SELECT id FROM nodes WHERE id = ?1 AND owner_id = ?2
+      UNION ALL SELECT n.id FROM nodes n JOIN sub s ON n.parent_id = s.id
+    ) SELECT COALESCE(SUM(size), 0) AS total FROM nodes
+      WHERE id IN (SELECT id FROM sub) AND is_dir = 0 AND size IS NOT NULL
+      AND deleted_at IS ${phase === "soft" ? "NULL" : "NOT NULL"}
+  `).bind(rootId, ownerId).all<{ total: number }>();
+  return results[0]?.total ?? 0;
+}
+
 export async function softDeleteNode(db: D1Database, ownerId: string, id: string): Promise<void> {
   const node = await getNode(db, ownerId, id);
   if (!node || node.deleted_at) throw errors.notFound();
   // 根目录哨兵行的特征是 parent_id='' 且 name=''；顶层节点 parent_id 同为 ''，只判 parent_id 会误伤
   if (node.parent_id === "" && node.name === "") throw errors.badRequest("不能删除根目录");
   const ids = await subtreeIds(db, ownerId, id);
+  const freed = await subtreeFileSizeSum(db, ownerId, id, "soft");
   const now = Date.now();
-  // 各分片收进一次 batch：软删除原子生效，中途失败不留部分标记
-  await db.batch(chunk(ids, 90).map((part) => {
-    const ph = part.map((_, i) => `?${i + 3}`).join(",");
-    return db.prepare(`UPDATE nodes SET deleted_at = ?1 WHERE owner_id = ?2 AND deleted_at IS NULL AND id IN (${ph})`)
-      .bind(now, ownerId, ...part);
-  }));
+  // 各分片 + 配额扣减收进一次 batch：软删除原子生效，中途失败不留部分标记
+  await db.batch([
+    ...chunk(ids, 90).map((part) => {
+      const ph = part.map((_, i) => `?${i + 3}`).join(",");
+      return db.prepare(`UPDATE nodes SET deleted_at = ?1 WHERE owner_id = ?2 AND deleted_at IS NULL AND id IN (${ph})`)
+        .bind(now, ownerId, ...part);
+    }),
+    db.prepare("UPDATE users SET used_bytes = MAX(0, used_bytes + ?1) WHERE id = ?2").bind(-freed, ownerId),
+  ]);
 }
 
 export async function permanentDeleteNode(env: Env, ownerId: string, id: string): Promise<void> {
@@ -86,12 +103,22 @@ export async function softDeleteMany(db: D1Database, ownerId: string, ids: strin
   if (!valid.length) return 0;
   const validIds = valid.map((r) => r.id);
   const validPh = validIds.map((_, i) => `?${i + 3}`).join(",");
+  // 软删扣减配额占用：先统计（行未标记前），与 UPDATE 同 batch 原子生效
+  const freedStmt = db.prepare(`
+    WITH RECURSIVE
+    roots AS (SELECT id FROM nodes WHERE owner_id = ?1 AND id IN (${validIds.map((_, i) => `?${i + 2}`).join(",")})),
+    sub AS (SELECT id FROM roots UNION ALL SELECT n.id FROM nodes n JOIN sub s ON n.parent_id = s.id)
+    SELECT COALESCE(SUM(size), 0) AS total FROM nodes
+    WHERE id IN (SELECT id FROM sub) AND is_dir = 0 AND size IS NOT NULL AND deleted_at IS NULL
+  `).bind(ownerId, ...validIds);
+  const freedRow = await freedStmt.first<{ total: number }>();
   await db.prepare(`
     WITH RECURSIVE
     roots AS (SELECT id FROM nodes WHERE owner_id = ?1 AND id IN (${validPh})),
     sub AS (SELECT id FROM roots UNION ALL SELECT n.id FROM nodes n JOIN sub s ON n.parent_id = s.id)
     UPDATE nodes SET deleted_at = ?2 WHERE deleted_at IS NULL AND id IN (SELECT id FROM sub)
   `).bind(ownerId, Date.now(), ...validIds).run();
+  await adjustUsedBytes(db, ownerId, -(freedRow?.total ?? 0));
   return valid.length;
 }
 
@@ -160,6 +187,7 @@ export async function restoreTrashNode(db: D1Database, ownerId: string, id: stri
   // 排除自身：节点仍在表内（软删除态），否则 childByName 命中自己导致恢复后变成 "f (2).txt"
   const name = await uniqueName(db, ownerId, targetParent, node.name, node.id);
   const ids = await subtreeIds(db, ownerId, node.id);
+  const restored = await subtreeFileSizeSum(db, ownerId, node.id, "restore");
   const statements = [
     ...chunk(ids, 99).map((part) => {
       const ph = part.map((_, i) => `?${i + 2}`).join(",");
@@ -168,6 +196,7 @@ export async function restoreTrashNode(db: D1Database, ownerId: string, id: stri
     }),
     db.prepare("UPDATE nodes SET parent_id = ?1, name = ?2 WHERE id = ?3")
       .bind(targetParent, name, node.id),
+    db.prepare("UPDATE users SET used_bytes = MAX(0, used_bytes + ?1) WHERE id = ?2").bind(restored, ownerId),
   ];
   try {
     await db.batch(statements);

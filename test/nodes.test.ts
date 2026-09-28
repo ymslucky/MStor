@@ -48,10 +48,9 @@ test("moveNode rejects moving dir into its own descendant", async () => {
   await expect(moveNode(env.DB, u.id, dir.id, child.id, "dir")).rejects.toThrow(/不能移动/);
 });
 
-test("quota check uses live size sum", async () => {
+test("quota check reads users.used_bytes column", async () => {
   const u = await seedUser({ quota_bytes: 100 });
-  const root = await ensureRootDir(env.DB, u.id);
-  await seedNode({ owner_id: u.id, parent_id: root.id, name: "f", size: 60 });
+  await env.DB.prepare("UPDATE users SET used_bytes = 60 WHERE id = ?1").bind(u.id).run();
   await expect(assertQuota(env.DB, u.id, 50)).rejects.toThrow(/配额/);
   await assertQuota(env.DB, u.id, 40);
   expect(await usedBytes(env.DB, u.id)).toBe(60);

@@ -125,13 +125,20 @@ export async function subtreeIds(db: D1Database, ownerId: string, rootId: string
   return results.map((r) => r.id);
 }
 
+/** 配额占用读 users.used_bytes 冗余列（O(1)），不再 SUM 全表扫描。
+ * 写入点（上传/秒传/覆盖/软删/还原）同步增减，cron 每日校准兜底。 */
 export async function usedBytes(db: D1Database, ownerId: string): Promise<number> {
-  const row = await db.prepare("SELECT COALESCE(SUM(size),0) AS s FROM nodes WHERE owner_id = ?1 AND deleted_at IS NULL").bind(ownerId).first<{ s: number }>();
-  return row!.s;
+  const row = await db.prepare("SELECT used_bytes FROM users WHERE id = ?1").bind(ownerId).first<{ used_bytes: number }>();
+  return row?.used_bytes ?? 0;
+}
+
+/** 同步调整配额占用（delta 可负）；MAX(0,...) 防御历史数据漂移导致负值 */
+export async function adjustUsedBytes(db: D1Database, ownerId: string, delta: number): Promise<void> {
+  if (!delta) return;
+  await db.prepare("UPDATE users SET used_bytes = MAX(0, used_bytes + ?1) WHERE id = ?2").bind(delta, ownerId).run();
 }
 
 export async function assertQuota(db: D1Database, ownerId: string, extraBytes: number, defaultQuota = 10_737_418_240): Promise<void> {
-  const user = await db.prepare("SELECT quota_bytes FROM users WHERE id = ?1").bind(ownerId).first<{ quota_bytes: number }>();
-  const used = await usedBytes(db, ownerId);
-  if (used + extraBytes > (user?.quota_bytes ?? defaultQuota)) throw errors.quotaExceeded();
+  const user = await db.prepare("SELECT quota_bytes, used_bytes FROM users WHERE id = ?1").bind(ownerId).first<{ quota_bytes: number; used_bytes: number }>();
+  if ((user?.used_bytes ?? 0) + extraBytes > (user?.quota_bytes ?? defaultQuota)) throw errors.quotaExceeded();
 }

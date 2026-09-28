@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "../env";
 import { randomId } from "../lib/crypto";
 import { errors, HttpError } from "../lib/errors";
-import { assertQuota, breadcrumb, ensureRootDir, getNode, listChildren, moveNode, uniqueName, validateNodeName } from "../lib/nodes";
+import { assertQuota, adjustUsedBytes, breadcrumb, ensureRootDir, getNode, listChildren, moveNode, uniqueName, validateNodeName } from "../lib/nodes";
 import { serveObject } from "../lib/serve";
 import { moveMany, permanentDeleteMany, softDeleteMany, softDeleteNode, parseIds } from "./trash";
 
@@ -56,9 +56,10 @@ files.put("/upload", async (c) => {
   const sha256 = c.req.header("x-file-sha256");
   const normalizedSha = sha256 && /^[0-9a-f]{64}$/i.test(sha256) ? sha256.toLowerCase() : null;
   if (normalizedSha) {
+    // 与 /instant 同款 owner 隔离：跨用户按 hash 领取 = 知道 hash 即可获得内容
     const hit = await c.env.DB.prepare(
-      "SELECT r2_key FROM nodes WHERE sha256 = ?1 AND size = ?2 AND deleted_at IS NULL AND is_dir = 0 LIMIT 1"
-    ).bind(normalizedSha, len).first<{ r2_key: string }>();
+      "SELECT r2_key FROM nodes WHERE owner_id = ?1 AND sha256 = ?2 AND size = ?3 AND deleted_at IS NULL AND is_dir = 0 LIMIT 1"
+    ).bind(user.id, normalizedSha, len).first<{ r2_key: string }>();
     if (hit) {
       const id = randomId();
       const insertDup = c.env.DB.prepare(
@@ -71,6 +72,7 @@ files.put("/upload", async (c) => {
         finalName = await uniqueName(c.env.DB, user.id, parentId, name);
         await insertDup.bind(id, user.id, parentId, finalName, hit.r2_key, len, mime, normalizedSha, now).run();
       }
+      await adjustUsedBytes(c.env.DB, user.id, len);
       return c.json({ id, name: finalName, size: len, deduplicated: true }, 201);
     }
   }
@@ -90,6 +92,7 @@ files.put("/upload", async (c) => {
     finalName = await uniqueName(c.env.DB, user.id, parentId, name);
     await insert.bind(id, user.id, parentId, finalName, key, obj.size, mime, normalizedSha, now).run();
   }
+  await adjustUsedBytes(c.env.DB, user.id, obj.size);
   return c.json({ id, name: finalName, size: obj.size }, 201);
 });
 
@@ -133,6 +136,7 @@ files.post("/instant", async (c) => {
     finalName = await uniqueName(c.env.DB, user.id, parentId, safeName);
     await insert.bind(id, user.id, parentId, finalName, hit.r2_key, size, safeMime, sha256.toLowerCase(), now).run();
   }
+  await adjustUsedBytes(c.env.DB, user.id, size);
   return c.json({ id, name: finalName, size, deduplicated: true }, 201);
 });
 
