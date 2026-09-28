@@ -122,10 +122,16 @@ export function useUploadQueue() {
         try {
           // 嵌套上传：先逐级 ensure 中间目录，得到最终父目录
           const parentId = next.path ? await ensureDirs(next.parentId, next.path) : next.parentId;
-          if (next.file.size > SMALL_FILE_LIMIT) {
+          const isLarge = next.file.size > SMALL_FILE_LIMIT;
+          // 大文件才维护续传记录（fingerprint）；有续传记录说明此前已查过秒传未命中，跳过避免重复 hash
+          const resume = isLarge && next.fingerprint ? loadResume(next.fingerprint) : null;
+          // 秒传（先查后传）：流式算 SHA-256（大文件安全）后查询，命中直接建 node 零文件体传输
+          const sha = resume ? null : await sha256Hex(next.file).catch(() => null);
+          if (sha && (await instantUpload(next.file, parentId, sha))) {
+            onProgress(next.key, 1);
+          } else if (isLarge) {
             const fp = next.fingerprint ?? fingerprint(next.file, next.parentId);
             if (!next.fingerprint) update(next.key, { fingerprint: fp });
-            const resume = loadResume(fp);
             const acc = { uploadId: resume?.uploadId ?? "", partSize: 0, parts: [] as Part[], done: 0 };
             if (resume) {
               acc.uploadId = resume.uploadId;
@@ -147,20 +153,14 @@ export function useUploadQueue() {
               },
               concurrency: getUploadConcurrency(),
               resume: resume ? { uploadId: resume.uploadId, partSize: resume.partSize, parts: resume.parts } : undefined,
+              sha256: sha ?? undefined, // complete 时写入 nodes.sha256，后续同文件可秒传
             });
           } else {
-            // 秒传（先查后传）：≤60MB 预计算 SHA-256，命中直接建 node 不传文件体；
-            // hash 计算失败/未命中则正常直传（失败忽略，不影响上传）
-            const sha = await sha256Hex(next.file).catch(() => null);
-            if (sha && (await instantUpload(next.file, parentId, sha))) {
-              onProgress(next.key, 1);
-            } else {
-              await uploadSmall(next.file, parentId, {
-                signal: controller.signal,
-                onProgress: (r) => onProgress(next.key, r),
-                sha256: sha ?? undefined,
-              });
-            }
+            await uploadSmall(next.file, parentId, {
+              signal: controller.signal,
+              onProgress: (r) => onProgress(next.key, r),
+              sha256: sha ?? undefined,
+            });
           }
           // 上传期间被取消/暂停：不标完成
           if (!cancelled.current.has(next.key)) {

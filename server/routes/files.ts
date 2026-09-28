@@ -108,9 +108,6 @@ files.post("/instant", async (c) => {
   const safeName = validateNodeName(name);
   if (!Number.isFinite(size) || size <= 0 || typeof sha256 !== "string" || !/^[0-9a-f]{64}$/i.test(sha256))
     throw errors.badRequest("参数不合法");
-  const limit = Number(c.env.SMALL_FILE_LIMIT);
-  if (!Number.isFinite(limit)) throw new Error("SMALL_FILE_LIMIT 未配置或非法");
-  if (size > limit) throw errors.badRequest("秒传仅支持小文件");
   const parent = parentId === "" ? await ensureRootDir(c.env.DB, user.id) : await getNode(c.env.DB, user.id, parentId);
   if (!parent || !parent.is_dir) throw errors.notFound();
   const hit = await c.env.DB.prepare(

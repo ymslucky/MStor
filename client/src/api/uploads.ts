@@ -1,4 +1,5 @@
 import { ApiError, api } from "./client";
+import { createSHA256 } from "hash-wasm";
 import type { InitUpload } from "./types";
 import { DEFAULT_UPLOAD_CONCURRENCY } from "../lib/settings";
 
@@ -14,12 +15,17 @@ export interface UploadSmallOpts {
   sha256?: string;
 }
 
-/** 文件内容 SHA-256（64 hex 小写）；crypto 不可用或失败返回 null（调用方跳过秒传） */
+/** 流式 SHA-256（64 hex 小写）：分块读取，内存占用恒定，GB 级大文件也能安全计算；
+ * crypto/wasm 不可用或失败返回 null（调用方跳过秒传） */
 export async function sha256Hex(file: File): Promise<string | null> {
+  const CHUNK = 8 * 1024 * 1024; // 8MB 分块
   try {
-    const buf = await file.arrayBuffer();
-    const digest = await crypto.subtle.digest("SHA-256", buf);
-    return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+    const hasher = await createSHA256();
+    hasher.init();
+    for (let pos = 0; pos < file.size; pos += CHUNK) {
+      hasher.update(new Uint8Array(await file.slice(pos, pos + CHUNK).arrayBuffer()));
+    }
+    return hasher.digest("hex");
   } catch {
     return null;
   }
@@ -109,6 +115,8 @@ export interface UploadLargeOpts {
   concurrency?: number;
   /** 断点续传：传入后跳过 init，直接复用 uploadId 续传未完成分片 */
   resume?: { uploadId: string; partSize: number; parts: Part[] };
+  /** 文件内容 SHA-256：complete 时写入 nodes.sha256，供后续同文件秒传 */
+  sha256?: string;
   /** 每个分片传完回调（队列用于增量保存续传记录；partSize 用于记录总公式） */
   onPartDone?: (part: Part, partSize: number) => void;
 }
@@ -168,7 +176,7 @@ export async function uploadLarge(
   await Promise.all(Array.from({ length: Math.min(opts?.concurrency ?? DEFAULT_UPLOAD_CONCURRENCY, totalParts) }, worker));
   return api<{ nodeId: string; name: string }>(`/api/uploads/${uploadId}/complete`, {
     method: "POST",
-    json: { parts, mime: file.type || undefined },
+    json: { parts, mime: file.type || undefined, sha256: opts?.sha256 },
   });
 }
 

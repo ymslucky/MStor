@@ -43,10 +43,13 @@ uploads.post("/:id/part-urls", async (c) => {
 
 uploads.post("/:id/complete", async (c) => {
   const user = c.get("user");
-  const { parts, mime } = await c.req.json<{ parts: { partNumber: number; etag: string }[]; mime?: string }>();
+  const { parts, mime, sha256 } = await c.req.json<{
+    parts: { partNumber: number; etag: string }[]; mime?: string; sha256?: string;
+  }>();
   if (!Array.isArray(parts) || !parts.length || parts.length > 10000) throw errors.badRequest("parts 不合法");
   // S3/R2 ETag 是带双引号的 32 位 hex；白名单校验同时挡住 XML 注入
   if (parts.some((p) => !/^"[0-9a-f]{32}"$/i.test(p.etag))) throw errors.badRequest("etag 不合法");
+  if (sha256 !== undefined && !/^[0-9a-f]{64}$/i.test(sha256)) throw errors.badRequest("sha256 不合法");
   const row = await c.env.DB.prepare("SELECT * FROM uploads WHERE id = ?1 AND owner_id = ?2 AND status = 'pending'")
     .bind(c.req.param("id"), user.id).first<{ id: string; parent_id: string; name: string; size: number; r2_key: string; r2_upload_id: string }>();
   if (!row) throw errors.notFound();
@@ -57,8 +60,9 @@ uploads.post("/:id/complete", async (c) => {
   const buildBatch = (n: string) => [
     c.env.DB.prepare("UPDATE uploads SET status = 'done' WHERE id = ?1").bind(row.id),
     c.env.DB.prepare(
-      "INSERT INTO nodes (id, owner_id, parent_id, name, is_dir, r2_key, size, mime, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,0,?5,?6,?7,?8,?8,NULL)"
-    ).bind(row.id, user.id, row.parent_id, n, row.r2_key, row.size, mime ?? "application/octet-stream", now),
+      "INSERT INTO nodes (id, owner_id, parent_id, name, is_dir, r2_key, size, mime, sha256, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,0,?5,?6,?7,?8,?9,?9,NULL)"
+    ).bind(row.id, user.id, row.parent_id, n, row.r2_key, row.size, mime ?? "application/octet-stream",
+      sha256 ? sha256.toLowerCase() : null, now),
   ];
   try {
     await c.env.DB.batch(buildBatch(finalName));

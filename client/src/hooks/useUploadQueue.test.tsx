@@ -287,3 +287,24 @@ test("秒传未命中：回退正常直传并带 sha256 头", async () => {
   await waitFor(() => expect(result.current.items[0].status).toBe("done"));
   expect(uploadSmall).toHaveBeenCalledWith(expect.any(File), "", expect.objectContaining({ sha256: "d".repeat(64) }));
 });
+
+test("大文件秒传命中：不发起 multipart", async () => {
+  vi.mocked(sha256Hex).mockResolvedValue("e".repeat(64));
+  vi.mocked(instantUpload).mockResolvedValue({ id: "n-big", name: "big.bin", size: 4096 });
+  const { result } = renderHook(() => useUploadQueue(), { wrapper });
+  act(() => result.current.add([makeFile("big.bin", 4096)], "d1"));
+  await waitFor(() => expect(result.current.items[0].status).toBe("done"));
+  expect(instantUpload).toHaveBeenCalledWith(expect.any(File), "d1", "e".repeat(64));
+  expect(uploadLarge).not.toHaveBeenCalled();
+});
+
+test("大文件秒传未命中：走 multipart 且透传 sha256", async () => {
+  vi.mocked(sha256Hex).mockResolvedValue("f".repeat(64));
+  vi.mocked(instantUpload).mockResolvedValue(null);
+  vi.mocked(uploadLarge).mockResolvedValue({ nodeId: "n9", name: "big.bin" });
+  const { result } = renderHook(() => useUploadQueue(), { wrapper });
+  act(() => result.current.add([makeFile("big.bin", 4096)], "d1"));
+  await waitFor(() => expect(result.current.items[0].status).toBe("done"));
+  expect(uploadLarge).toHaveBeenCalledWith(expect.any(File), "d1", expect.anything(), 1000,
+    expect.objectContaining({ sha256: "f".repeat(64) }));
+});
