@@ -207,10 +207,10 @@ export default function Browser() {
     localStorage.setItem("mstor_view", v);
   };
 
-  // 批量请求分块并行：每块 20 个 id，3 路并发；进度按已处理条目推进
+  // 批量请求分块并行：每块 100 个 id（服务端集合式处理，单请求毫秒级），2 路并发；进度按已处理条目推进
   const runChunkedParallel = async (ids: string[], worker: (chunk: string[]) => Promise<number>) => {
-    const CHUNK = 20;
-    const CONCURRENCY = 3;
+    const CHUNK = 100;
+    const CONCURRENCY = 2;
     const chunks: string[][] = [];
     for (let i = 0; i < ids.length; i += CHUNK) chunks.push(ids.slice(i, i + CHUNK));
     let done = 0;

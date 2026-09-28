@@ -30,7 +30,7 @@ test("POST /api/files/batch-delete 软删：全部进回收站", async () => {
   expect(trash.nodes).toHaveLength(2);
 });
 
-test("POST /api/files/batch-delete permanent：对象清理、不存在的 id 记入 failed", async () => {
+test("POST /api/files/batch-delete permanent：对象清理、不存在的 id 静默忽略", async () => {
   const u = await seedUser();
   const a = await upload(u, "a.txt", "a");
   const res = await SELF.fetch("https://example.com/api/files/batch-delete", {
@@ -38,9 +38,9 @@ test("POST /api/files/batch-delete permanent：对象清理、不存在的 id �
     headers: { ...(await sessionHeaders(u)), "content-type": "application/json" },
     body: JSON.stringify({ ids: [a, "nonexistent"], permanent: true }),
   });
-  const body = (await res.json()) as { deleted: number; failed: { id: string }[] };
-  expect(body.deleted).toBe(1);
-  expect(body.failed.map((f) => f.id)).toEqual(["nonexistent"]);
+  const body = (await res.json()) as { deleted: number; failed: unknown[] };
+  expect(body.deleted).toBe(1); // 集合式删除：实际存在的根计数，不存在的 id 静默忽略
+  expect(body.failed).toHaveLength(0);
   expect((await env.BUCKET.list()).objects).toHaveLength(0);
 });
 

@@ -4,7 +4,7 @@ import { randomId } from "../lib/crypto";
 import { errors, HttpError } from "../lib/errors";
 import { assertQuota, breadcrumb, ensureRootDir, getNode, listChildren, moveNode, uniqueName, validateNodeName } from "../lib/nodes";
 import { serveObject } from "../lib/serve";
-import { permanentDeleteNode, softDeleteNode, parseIds } from "./trash";
+import { moveMany, permanentDeleteMany, softDeleteMany, softDeleteNode, parseIds } from "./trash";
 
 export const files = new Hono<AppEnv>();
 
@@ -135,43 +135,22 @@ files.post("/instant", async (c) => {
   return c.json({ id, name: finalName, size, deduplicated: true }, 201);
 });
 
-// 批量删除：服务端逐个处理（无逐项 HTTP 往返），permanent 时软删后立即 purge
+// 批量删除：集合式（一次递归闭包 + 批量语句），permanent 时软删后集合式 purge + R2 并行清理
 files.post("/batch-delete", async (c) => {
   const user = c.get("user");
   const { ids, permanent = false } = await c.req.json<{ ids: string[]; permanent?: boolean }>();
   const list = parseIds({ ids });
-  let deleted = 0;
-  const failed: { id: string; reason: string }[] = [];
-  for (const id of list) {
-    try {
-      await softDeleteNode(c.env.DB, user.id, id);
-      if (permanent) await permanentDeleteNode(c.env, user.id, id);
-      deleted++;
-    } catch (e) {
-      failed.push({ id, reason: e instanceof Error ? e.message : "删除失败" });
-    }
-  }
-  return c.json({ ok: true, deleted, failed });
+  const deleted = permanent
+    ? (await softDeleteMany(c.env.DB, user.id, list), await permanentDeleteMany(c.env, user.id, list))
+    : await softDeleteMany(c.env.DB, user.id, list);
+  return c.json({ ok: true, deleted, failed: [] });
 });
 
-// 批量移动：校验目标目录后逐个移动（沿用 PATCH 的同名冲突处理语义）
+// 批量移动：集合式（目标校验 + 同名冲突一次查 + 单条 UPDATE）
 files.post("/batch-move", async (c) => {
   const user = c.get("user");
   const { ids, parentId } = await c.req.json<{ ids: string[]; parentId: string }>();
   const list = parseIds({ ids });
-  const parent = parentId === "" ? await ensureRootDir(c.env.DB, user.id) : await getNode(c.env.DB, user.id, parentId);
-  if (!parent || !parent.is_dir) throw errors.notFound();
-  let moved = 0;
-  const failed: { id: string; reason: string }[] = [];
-  for (const id of list) {
-    try {
-      const node = await getNode(c.env.DB, user.id, id);
-      if (!node) throw errors.notFound();
-      await moveNode(c.env.DB, user.id, node.id, parentId, node.name);
-      moved++;
-    } catch (e) {
-      failed.push({ id, reason: e instanceof Error ? e.message : "移动失败" });
-    }
-  }
-  return c.json({ ok: true, moved, failed });
+  const moved = await moveMany(c.env.DB, user.id, list, parentId);
+  return c.json({ ok: true, moved, failed: [] });
 });
