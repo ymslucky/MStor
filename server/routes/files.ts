@@ -11,14 +11,15 @@ export const files = new Hono<AppEnv>();
 files.get("/", async (c) => {
   const user = c.get("user");
   const parentId = c.req.query("parentId") ?? "";
-  const root = await ensureRootDir(c.env.DB, user.id);
-  if (parentId !== "") {
-    const parent = await getNode(c.env.DB, user.id, parentId);
-    if (!parent || !parent.is_dir) throw errors.notFound();
-  }
+  // ensureRootDir / 列目录 / breadcrumb / 父目录校验相互独立，并行降低 D1 串行往返（p99 优化）
+  const [root, nodes, crumbs, parent] = await Promise.all([
+    ensureRootDir(c.env.DB, user.id),
+    listChildren(c.env.DB, user.id, parentId),
+    parentId === "" ? Promise.resolve([]) : breadcrumb(c.env.DB, user.id, parentId),
+    parentId === "" ? Promise.resolve(null) : getNode(c.env.DB, user.id, parentId),
+  ]);
+  if (parentId !== "" && (!parent || !parent.is_dir)) throw errors.notFound();
   // 根目录哨兵行由 listChildren 的 name != '' 过滤
-  const nodes = await listChildren(c.env.DB, user.id, parentId);
-  const crumbs = parentId === "" ? [] : await breadcrumb(c.env.DB, user.id, parentId);
   return c.json({ nodes, breadcrumb: crumbs, rootId: root.id });
 });
 
