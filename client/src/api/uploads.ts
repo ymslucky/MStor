@@ -1,5 +1,6 @@
 import { ApiError, api } from "./client";
 import type { InitUpload } from "./types";
+import { DEFAULT_UPLOAD_CONCURRENCY } from "../lib/settings";
 
 // 与后端 wrangler.jsonc 的 SMALL_FILE_LIMIT 同步（60MB）
 export const SMALL_FILE_LIMIT = 60 * 1024 * 1024;
@@ -72,6 +73,8 @@ export interface UploadLargeOpts {
   signal?: AbortSignal;
   /** init 拿到 uploadId 后回调（队列记录用于取消时清理服务端分片） */
   onUploadId?: (uploadId: string) => void;
+  /** 分片并发 worker 数（默认 3；设置页可调 1-16，实际取 min(并发, 分片数)） */
+  concurrency?: number;
 }
 
 export async function uploadLarge(
@@ -111,7 +114,7 @@ export async function uploadLarge(
       emit();
     }
   };
-  await Promise.all(Array.from({ length: Math.min(3, totalParts) }, worker));
+  await Promise.all(Array.from({ length: Math.min(opts?.concurrency ?? DEFAULT_UPLOAD_CONCURRENCY, totalParts) }, worker));
   return api<{ nodeId: string; name: string }>(`/api/uploads/${uploadId}/complete`, {
     method: "POST",
     json: { parts, mime: file.type || undefined },

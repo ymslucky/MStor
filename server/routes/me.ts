@@ -3,6 +3,7 @@ import type { AppEnv } from "../env";
 import { pbkdf2Hash } from "../lib/crypto";
 import { errors } from "../lib/errors";
 import { usedBytes } from "../lib/nodes";
+import { getSetting } from "../lib/settings";
 import { requireAdmin } from "../middleware/admin";
 
 export const me = new Hono<AppEnv>();
@@ -35,6 +36,26 @@ me.get("/admin/users", requireAdmin, async (c) => {
     "SELECT id, name, role, quota_bytes, created_at, disabled_at FROM users ORDER BY created_at"
   ).all();
   return c.json({ users: results });
+});
+
+// 动态配置（admin 设置页）：白名单键 + 应用层校验；读取方（如回收站清理）env 回退
+const TRASH_RETENTION_MIN = 1;
+const TRASH_RETENTION_MAX = 365;
+
+me.get("/admin/settings", requireAdmin, async (c) => {
+  const configured = await getSetting(c.env, "trash_retention_days");
+  return c.json({ trash_retention_days: Number(configured ?? c.env.TRASH_RETENTION_DAYS) });
+});
+
+me.patch("/admin/settings", requireAdmin, async (c) => {
+  const { trash_retention_days } = await c.req.json<{ trash_retention_days?: unknown }>();
+  if (!Number.isInteger(trash_retention_days) || (trash_retention_days as number) < TRASH_RETENTION_MIN || (trash_retention_days as number) > TRASH_RETENTION_MAX) {
+    throw errors.badRequest(`保留天数须为 ${TRASH_RETENTION_MIN}-${TRASH_RETENTION_MAX} 的整数`);
+  }
+  await c.env.DB.prepare(
+    "INSERT INTO settings (key, value) VALUES ('trash_retention_days', ?1) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+  ).bind(String(trash_retention_days)).run();
+  return c.json({ ok: true });
 });
 
 me.patch("/admin/users/:id", requireAdmin, async (c) => {

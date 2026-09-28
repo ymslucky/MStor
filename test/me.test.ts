@@ -259,3 +259,46 @@ test("GET /api/me self mirrors user when not acting as", async () => {
   const body = (await res.json()) as { id: string; name: string; role: string; self: { id: string; name: string; role: string } };
   expect(body.self).toEqual({ id: body.id, name: body.name, role: body.role });
 });
+
+test("admin settings: GET 返回默认（env 回退），PATCH 后生效", async () => {
+  const admin = await seedUser({ role: "admin" });
+  const h = await sessionHeaders(admin);
+  // 默认值来自 env.TRASH_RETENTION_DAYS
+  const res1 = await SELF.fetch("https://example.com/api/me/admin/settings", { headers: h });
+  expect(res1.status).toBe(200);
+  const body1 = (await res1.json()) as { trash_retention_days: number };
+  expect(body1.trash_retention_days).toBe(Number(env.TRASH_RETENTION_DAYS));
+  // PATCH 更新后 GET 反映新值
+  const res2 = await SELF.fetch("https://example.com/api/me/admin/settings", {
+    method: "PATCH",
+    headers: { ...h, "content-type": "application/json" },
+    body: JSON.stringify({ trash_retention_days: 7 }),
+  });
+  expect(res2.status).toBe(200);
+  const res3 = await SELF.fetch("https://example.com/api/me/admin/settings", { headers: h });
+  const body3 = (await res3.json()) as { trash_retention_days: number };
+  expect(body3.trash_retention_days).toBe(7);
+  // settings 表确有落库
+  const row = await env.DB.prepare("SELECT value FROM settings WHERE key = 'trash_retention_days'").first<{ value: string }>();
+  expect(row?.value).toBe("7");
+});
+
+test("admin settings: 非法天数 400，member 403", async () => {
+  const admin = await seedUser({ role: "admin" });
+  const member = await seedUser();
+  const h = await sessionHeaders(admin);
+  for (const days of [0, -3, 366, 7.5, "x"]) {
+    const res = await SELF.fetch("https://example.com/api/me/admin/settings", {
+      method: "PATCH",
+      headers: { ...h, "content-type": "application/json" },
+      body: JSON.stringify({ trash_retention_days: days }),
+    });
+    expect(res.status).toBe(400);
+  }
+  const res = await SELF.fetch("https://example.com/api/me/admin/settings", {
+    method: "PATCH",
+    headers: { ...(await sessionHeaders(member)), "content-type": "application/json" },
+    body: JSON.stringify({ trash_retention_days: 7 }),
+  });
+  expect(res.status).toBe(403);
+});

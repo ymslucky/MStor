@@ -3,6 +3,7 @@ import { useCallback, useRef, useState } from "react";
 import { ensureDir } from "../api/nodes";
 import { SMALL_FILE_LIMIT, abortUpload, uploadLarge, uploadSmall } from "../api/uploads";
 import type { PendingUpload } from "../lib/dirscan";
+import { getUploadConcurrency } from "../lib/settings";
 import { SpeedTracker } from "../lib/speed";
 
 export type QueueStatus = "pending" | "uploading" | "done" | "error";
@@ -90,52 +91,57 @@ export function useUploadQueue() {
   const drain = useCallback(async () => {
     if (running.current) return;
     running.current = true;
-    for (;;) {
-      const next = itemsRef.current.find((it) => it.status === "pending");
-      if (!next) break;
-      // 上传前才被取消的项：直接落「已取消」，不再发起
-      if (cancelled.current.has(next.key)) {
-        cancelled.current.delete(next.key);
-        update(next.key, { status: "error", error: "已取消" });
-        continue;
-      }
-      update(next.key, { status: "uploading", error: undefined });
-      const controller = new AbortController();
-      controllers.current.set(next.key, controller);
-      try {
-        // 嵌套上传：先逐级 ensure 中间目录，得到最终父目录
-        const parentId = next.path ? await ensureDirs(next.parentId, next.path) : next.parentId;
-        if (next.file.size > SMALL_FILE_LIMIT) {
-          await uploadLarge(next.file, parentId, (p) => onProgress(next.key, p), 1000, {
-            signal: controller.signal,
-            onUploadId: (uploadId) => update(next.key, { uploadId }),
-          });
-        } else {
-          await uploadSmall(next.file, parentId, {
-            signal: controller.signal,
-            onProgress: (r) => onProgress(next.key, r),
-          });
+    // 并发 worker：N 个协程竞争取 pending 项（N = 设置的上传并发数，1-16）
+    const worker = async () => {
+      for (;;) {
+        const next = itemsRef.current.find((it) => it.status === "pending");
+        if (!next) break;
+        // 上传前才被取消的项：直接落「已取消」，不再发起
+        if (cancelled.current.has(next.key)) {
+          cancelled.current.delete(next.key);
+          update(next.key, { status: "error", error: "已取消" });
+          continue;
         }
-        // 上传期间被取消：保持「已取消」，不标完成
-        if (!cancelled.current.has(next.key)) {
-          update(next.key, { status: "done", progress: 1, speed: undefined });
+        update(next.key, { status: "uploading", error: undefined });
+        const controller = new AbortController();
+        controllers.current.set(next.key, controller);
+        try {
+          // 嵌套上传：先逐级 ensure 中间目录，得到最终父目录
+          const parentId = next.path ? await ensureDirs(next.parentId, next.path) : next.parentId;
+          if (next.file.size > SMALL_FILE_LIMIT) {
+            await uploadLarge(next.file, parentId, (p) => onProgress(next.key, p), 1000, {
+              signal: controller.signal,
+              onUploadId: (uploadId) => update(next.key, { uploadId }),
+              concurrency: getUploadConcurrency(),
+            });
+          } else {
+            await uploadSmall(next.file, parentId, {
+              signal: controller.signal,
+              onProgress: (r) => onProgress(next.key, r),
+            });
+          }
+          // 上传期间被取消：保持「已取消」，不标完成
+          if (!cancelled.current.has(next.key)) {
+            update(next.key, { status: "done", progress: 1, speed: undefined });
+            resetSampling(next.key);
+            void queryClient.invalidateQueries({ queryKey: ["files"] });
+            void queryClient.invalidateQueries({ queryKey: ["me"] });
+          }
+        } catch (e) {
+          // 取消触发的失败：保持 cancel 已写入的「已取消」文案
+          if (!cancelled.current.has(next.key)) {
+            update(next.key, { status: "error", error: e instanceof Error ? e.message : "上传失败", speed: undefined });
+          }
           resetSampling(next.key);
-          void queryClient.invalidateQueries({ queryKey: ["files"] });
-          void queryClient.invalidateQueries({ queryKey: ["me"] });
+        } finally {
+          cancelled.current.delete(next.key);
+          controllers.current.delete(next.key);
         }
-      } catch (e) {
-        // 取消触发的失败：保持 cancel 已写入的「已取消」文案
-        if (!cancelled.current.has(next.key)) {
-          update(next.key, { status: "error", error: e instanceof Error ? e.message : "上传失败", speed: undefined });
-        }
-        resetSampling(next.key);
-      } finally {
-        cancelled.current.delete(next.key);
-        controllers.current.delete(next.key);
       }
-    }
+    };
+    await Promise.all(Array.from({ length: getUploadConcurrency() }, worker));
     running.current = false;
-  }, [ensureDirs, onProgress, queryClient, update]);
+  }, [ensureDirs, onProgress, queryClient, resetSampling, update]);
 
   const add = useCallback(
     (items: (File | PendingUpload)[], parentId: string) => {

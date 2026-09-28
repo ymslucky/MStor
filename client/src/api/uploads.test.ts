@@ -6,6 +6,8 @@ afterEach(() => {
   vi.restoreAllMocks();
   FakePartXhr.sent.length = 0;
   FakePartXhr.failCount = 0;
+  FakePartXhr.inFlight = 0;
+  FakePartXhr.maxInFlight = 0;
 });
 
 // —— uploadSmall XHR 假件 ——
@@ -109,6 +111,8 @@ function jsonRes(body: unknown, status = 200) {
 class FakePartXhr {
   static sent: FakePartXhr[] = [];
   static failCount = 0; // 前 N 次返回 500（测重试）
+  static inFlight = 0;
+  static maxInFlight = 0;
   status = 200;
   responseText = "";
   upload = { onprogress: null as ((e: { lengthComputable: boolean; loaded: number; total: number }) => void) | null };
@@ -121,7 +125,10 @@ class FakePartXhr {
   }
   send() {
     const idx = FakePartXhr.sent.push(this) - 1;
+    FakePartXhr.inFlight++;
+    FakePartXhr.maxInFlight = Math.max(FakePartXhr.maxInFlight, FakePartXhr.inFlight);
     queueMicrotask(() => {
+      FakePartXhr.inFlight--;
       if (idx < FakePartXhr.failCount) {
         this.status = 500;
       } else {
@@ -187,4 +194,35 @@ test("part PUT failure retries then throws after 3 attempts", async () => {
 
 test("SMALL_FILE_LIMIT matches backend 60MB", () => {
   expect(SMALL_FILE_LIMIT).toBe(60 * 1024 * 1024);
+});
+
+test("并发数生效：concurrency 4 时 4 分片同时在途", async () => {
+  vi.stubGlobal("XMLHttpRequest", FakePartXhr);
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url === "/api/uploads") return jsonRes({ uploadId: "up3", partSize: 8 }, 201);
+    if (url.endsWith("/part-urls")) return jsonRes({ urls: ["https://r2.example/put"] });
+    if (url.endsWith("/complete")) return jsonRes({ nodeId: "n3", name: "big.bin" }, 201);
+    throw new Error(`unexpected fetch ${url}`);
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  // 32B / 8B = 4 分片，concurrency 4 → 峰值在途 4
+  await uploadLarge(makeFile("big.bin", 32), "", undefined, 0, { concurrency: 4 });
+  expect(FakePartXhr.sent).toHaveLength(4);
+  expect(FakePartXhr.maxInFlight).toBe(4);
+});
+
+test("并发数默认 3：5 分片时峰值在途 3", async () => {
+  vi.stubGlobal("XMLHttpRequest", FakePartXhr);
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url === "/api/uploads") return jsonRes({ uploadId: "up4", partSize: 8 }, 201);
+    if (url.endsWith("/part-urls")) return jsonRes({ urls: ["https://r2.example/put"] });
+    if (url.endsWith("/complete")) return jsonRes({ nodeId: "n4", name: "big.bin" }, 201);
+    throw new Error(`unexpected fetch ${url}`);
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  await uploadLarge(makeFile("big.bin", 40), "", undefined, 0);
+  expect(FakePartXhr.sent).toHaveLength(5);
+  expect(FakePartXhr.maxInFlight).toBe(3);
 });

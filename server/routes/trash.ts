@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv, Env } from "../env";
 import { errors, HttpError } from "../lib/errors";
 import { getNode, subtreeIds, uniqueName } from "../lib/nodes";
+import { getSetting } from "../lib/settings";
 
 // D1 单语句绑定参数上限 100，IN 子句按分片循环执行
 export function chunk<T>(arr: T[], n: number): T[][] {
@@ -41,7 +42,10 @@ export async function permanentDeleteNode(env: Env, ownerId: string, id: string)
 }
 
 export async function purgeExpiredTrash(env: Env): Promise<void> {
-  const cutoff = Date.now() - Number(env.TRASH_RETENTION_DAYS) * 86400000;
+  // 保留天数：admin 设置页动态配置优先，未配置回退 env
+  const configured = await getSetting(env, "trash_retention_days");
+  const days = Number(configured ?? env.TRASH_RETENTION_DAYS);
+  const cutoff = Date.now() - days * 86400000;
   const { results } = await env.DB.prepare(
     "SELECT id, owner_id FROM nodes WHERE deleted_at IS NOT NULL AND deleted_at < ?1"
   ).bind(cutoff).all<{ id: string; owner_id: string }>();

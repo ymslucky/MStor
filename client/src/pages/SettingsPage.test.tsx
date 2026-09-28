@@ -10,9 +10,11 @@ vi.mock("../api/me", () => ({
   setWebdavPassword: vi.fn(),
   listAdminUsers: vi.fn(),
   patchAdminUser: vi.fn(),
+  getAdminSettings: vi.fn(),
+  patchAdminSettings: vi.fn(),
 }));
 
-import { listAdminUsers, patchAdminUser, setWebdavPassword } from "../api/me";
+import { getAdminSettings, listAdminUsers, patchAdminSettings, patchAdminUser, setWebdavPassword } from "../api/me";
 
 const ME: Me = { id: "u-admin", name: "Alice", role: "admin", quotaBytes: 100, usedBytes: 10, self: { id: "u-admin", name: "Alice", role: "admin" } };
 
@@ -49,6 +51,7 @@ test("admin edits quota via PATCH", async () => {
   vi.mocked(listAdminUsers).mockResolvedValue({ users: [mkUser()] });
   vi.mocked(patchAdminUser).mockResolvedValue({ ok: true });
   const { user } = renderWith(<SettingsPage me={ME} />);
+  await user.click(await screen.findByRole("tab", { name: "管理" }));
   await screen.findByText("Bob");
   const input = screen.getByLabelText("配额 GB（Bob）");
   await user.clear(input);
@@ -61,10 +64,36 @@ test("admin toggles disable and enters user space", async () => {
   vi.mocked(listAdminUsers).mockResolvedValue({ users: [mkUser()] });
   vi.mocked(patchAdminUser).mockResolvedValue({ ok: true });
   const { user } = renderWith(<SettingsPage me={ME} />);
+  await user.click(await screen.findByRole("tab", { name: "管理" }));
   await screen.findByText("Bob");
   await user.click(screen.getByRole("button", { name: "停用" }));
   await waitFor(() => expect(patchAdminUser).toHaveBeenCalledWith("u1", { disabled: true }));
   await user.click(screen.getByRole("button", { name: /进入空间/ }));
   expect(localStorage.getItem("mstor_act_as")).toBe("u1");
   localStorage.removeItem("mstor_act_as");
+});
+
+test("upload tab saves concurrency to localStorage", async () => {
+  const { user } = renderWith(<SettingsPage me={ME} />);
+  await user.click(await screen.findByRole("tab", { name: "上传" }));
+  const input = screen.getByLabelText("上传并发数");
+  await user.clear(input);
+  await user.type(input, "8");
+  await user.click(screen.getByRole("button", { name: "保存" }));
+  expect(localStorage.getItem("mstor_upload_concurrency")).toBe("8");
+  localStorage.removeItem("mstor_upload_concurrency");
+});
+
+test("admin saves trash retention days", async () => {
+  vi.mocked(getAdminSettings).mockResolvedValue({ trash_retention_days: 30 });
+  vi.mocked(patchAdminSettings).mockResolvedValue({ ok: true });
+  const { user } = renderWith(<SettingsPage me={ME} />);
+  await user.click(await screen.findByRole("tab", { name: "管理" }));
+  const input = await screen.findByLabelText("回收站保留天数");
+  // 默认展示服务端值
+  expect(input).toHaveValue(30);
+  await user.clear(input);
+  await user.type(input, "7");
+  await user.click(screen.getByRole("button", { name: "保存" }));
+  await waitFor(() => expect(patchAdminSettings).toHaveBeenCalledWith({ trash_retention_days: 7 }));
 });
