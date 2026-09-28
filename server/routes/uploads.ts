@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { AppEnv } from "../env";
+import type { AppEnv, Env } from "../env";
 import { randomId } from "../lib/crypto";
 import { errors } from "../lib/errors";
 import { assertQuota, adjustUsedBytes, ensureRootDir, getNode, uniqueName, validateNodeName } from "../lib/nodes";
@@ -85,3 +85,20 @@ uploads.delete("/:id", async (c) => {
   await c.env.DB.prepare("DELETE FROM uploads WHERE id = ?1").bind(row.id).run();
   return c.json({ ok: true });
 });
+
+/** cron 清理遗弃的 pending multipart 会话：用户中途放弃（关页/断网）后无人 abort，
+ * R2 会对已传分片持续计费。超过 24h 的 pending 一律 abort + 删行（PK 扫描，行数=遗弃数）。 */
+export async function abortStaleUploads(env: Env): Promise<void> {
+  const cutoff = Date.now() - 24 * 3600_000;
+  const { results } = await env.DB.prepare(
+    "SELECT id, r2_key, r2_upload_id FROM uploads WHERE status = 'pending' AND created_at < ?1"
+  ).bind(cutoff).all<{ id: string; r2_key: string; r2_upload_id: string }>();
+  await Promise.all(results.map(async (row) => {
+    try {
+      await abortMultipart(env, row.r2_key, row.r2_upload_id);
+      await env.DB.prepare("DELETE FROM uploads WHERE id = ?1").bind(row.id).run();
+    } catch (e) {
+      console.warn("abortStaleUploads: 清理 pending 会话失败", row.id, e);
+    }
+  }));
+}

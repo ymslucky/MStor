@@ -9,6 +9,7 @@ import { files } from "./routes/files";
 import { dirs } from "./routes/dirs";
 import { uploads } from "./routes/uploads";
 import { trash, purgeExpiredTrash } from "./routes/trash";
+import { abortStaleUploads } from "./routes/uploads";
 import { search } from "./routes/search";
 import { dav } from "./routes/dav";
 
@@ -39,6 +40,7 @@ export default {
     // 每日全量校准 used_bytes 兜底（防止极端并发下冗余列漂移）；一天一次全表 SUM 成本可忽略
     ctx.waitUntil(Promise.all([
       purgeExpiredTrash(env),
+      abortStaleUploads(env),
       env.DB.prepare(`UPDATE users SET used_bytes = (
         SELECT COALESCE(SUM(size), 0) FROM nodes
         WHERE nodes.owner_id = users.id AND deleted_at IS NULL
