@@ -15,6 +15,7 @@ export const errors = {
   notFound: () => new HttpError(404, "NOT_FOUND", "资源不存在"),
   conflict: (m = "名称已存在") => new HttpError(409, "CONFLICT", m),
   badRequest: (m = "请求参数错误") => new HttpError(400, "BAD_REQUEST", m),
+  badGateway: (m = "上游服务暂时不可用，请稍后重试") => new HttpError(502, "BAD_GATEWAY", m),
 };
 
 export async function errorHandler(e: Error, c: Context) {

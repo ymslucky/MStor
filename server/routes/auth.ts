@@ -18,9 +18,24 @@ interface Discovery {
 }
 
 async function discover(env: Env): Promise<Discovery> {
-  const res = await fetch(`${env.OIDC_ISSUER}/.well-known/openid-configuration`);
-  if (!res.ok) throw new Error("OIDC discovery failed");
-  return (await res.json()) as Discovery;
+  // IdP 发现文档：任何失败（网络/非 2xx/非 JSON）都记日志并映射 502，避免落成无信息量的 500
+  let res: Response;
+  try {
+    res = await fetch(`${env.OIDC_ISSUER}/.well-known/openid-configuration`);
+  } catch (e) {
+    console.error("OIDC discovery fetch error", env.OIDC_ISSUER, e instanceof Error ? e.message : e);
+    throw errors.badGateway("登录服务暂时不可用，请稍后重试");
+  }
+  if (!res.ok) {
+    console.error("OIDC discovery failed", res.status, await res.text().catch(() => ""));
+    throw errors.badGateway("登录服务暂时不可用，请稍后重试");
+  }
+  try {
+    return (await res.json()) as Discovery;
+  } catch {
+    console.error("OIDC discovery returned invalid JSON");
+    throw errors.badGateway("登录服务暂时不可用，请稍后重试");
+  }
 }
 
 auth.get("/login", async (c) => {
