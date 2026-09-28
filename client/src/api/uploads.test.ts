@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { SMALL_FILE_LIMIT, uploadLarge, uploadSmall } from "./uploads";
+import { SMALL_FILE_LIMIT, sha256Hex, uploadLarge, uploadSmall } from "./uploads";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -95,6 +95,18 @@ test("uploadSmall 携带 x-act-as 头", async () => {
   } finally {
     localStorage.removeItem("mstor_act_as");
   }
+});
+
+test("uploadSmall 携带 x-file-sha256 头（秒传）", async () => {
+  vi.stubGlobal("XMLHttpRequest", FakeXhr);
+  uploadSmall(new File(["x"], "a.txt"), "d1", { sha256: "a".repeat(64) });
+  expect(FakeXhr.last!.headers["x-file-sha256"]).toBe("a".repeat(64));
+});
+
+test("sha256Hex 计算文件内容哈希（64 hex 小写）", async () => {
+  const hex = await sha256Hex(new File(["hello"], "a.txt"));
+  // SHA-256("hello") 的已知值
+  expect(hex).toBe("2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824");
 });
 
 function makeFile(name: string, size: number): File {

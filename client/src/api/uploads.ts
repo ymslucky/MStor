@@ -10,6 +10,19 @@ export interface UploadSmallOpts {
   signal?: AbortSignal;
   /** 上传进度（0-1） */
   onProgress?: (ratio: number) => void;
+  /** 文件内容 SHA-256（64 hex）：服务端命中同 hash 同 size 时秒传（复用 R2 对象） */
+  sha256?: string;
+}
+
+/** 文件内容 SHA-256（64 hex 小写）；crypto 不可用或失败返回 null（调用方跳过秒传） */
+export async function sha256Hex(file: File): Promise<string | null> {
+  try {
+    const buf = await file.arrayBuffer();
+    const digest = await crypto.subtle.digest("SHA-256", buf);
+    return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  } catch {
+    return null;
+  }
 }
 
 // 小文件直传：fetch 无上传进度事件，用 XHR（xhr.upload.onprogress）+ abort 支持；
@@ -24,6 +37,7 @@ export const uploadSmall = (file: File, parentId: string, opts?: UploadSmallOpts
       const actAs = localStorage.getItem("mstor_act_as");
       if (actAs) xhr.setRequestHeader("x-act-as", actAs);
     }
+    if (opts?.sha256) xhr.setRequestHeader("x-file-sha256", opts.sha256);
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) opts?.onProgress?.(e.loaded / e.total);
     };

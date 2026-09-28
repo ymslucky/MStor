@@ -31,13 +31,23 @@ export async function permanentDeleteNode(env: Env, ownerId: string, id: string)
   const node = await getNode(env.DB, ownerId, id);
   if (!node || !node.deleted_at) throw errors.notFound();
   const ids = await subtreeIds(env.DB, ownerId, id);
+  const r2Keys: string[] = [];
   for (const part of chunk(ids, 50)) {
     const ph = part.map((_, i) => `?${i + 1}`).join(",");
+    // 先收集 r2_key，再删行（行删完后按引用计数决定是否删 R2 对象——秒传副本共享同一对象）
     const files = await env.DB.prepare(`SELECT r2_key FROM nodes WHERE id IN (${ph}) AND r2_key IS NOT NULL`)
       .bind(...part).all<{ r2_key: string }>();
-    await Promise.all(files.results.map((f) => env.BUCKET.delete(f.r2_key)));
+    r2Keys.push(...files.results.map((f) => f.r2_key));
     await env.DB.prepare(`DELETE FROM shares WHERE node_id IN (${ph})`).bind(...part).run();
     await env.DB.prepare(`DELETE FROM nodes WHERE id IN (${ph})`).bind(...part).run();
+  }
+  // 引用计数：仅当已无任何节点引用该对象时才从 R2 删除
+  for (const part of chunk([...new Set(r2Keys)], 90)) {
+    const ph = part.map((_, i) => `?${i + 1}`).join(",");
+    const { results } = await env.DB.prepare(`SELECT DISTINCT r2_key FROM nodes WHERE r2_key IN (${ph})`)
+      .bind(...part).all<{ r2_key: string }>();
+    const stillReferenced = new Set(results.map((r) => r.r2_key));
+    await Promise.all(part.filter((k) => !stillReferenced.has(k)).map((k) => env.BUCKET.delete(k)));
   }
 }
 

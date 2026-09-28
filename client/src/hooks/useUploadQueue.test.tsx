@@ -8,6 +8,7 @@ vi.mock("../api/uploads", () => ({
   uploadSmall: vi.fn(),
   uploadLarge: vi.fn(),
   abortUpload: vi.fn(),
+  sha256Hex: vi.fn(),
   SMALL_FILE_LIMIT: 1024,
 }));
 vi.mock("../api/nodes", () => ({
@@ -21,13 +22,14 @@ vi.mock("../lib/resume", () => ({
 }));
 
 import { ensureDir } from "../api/nodes";
-import { abortUpload, uploadLarge, uploadSmall } from "../api/uploads";
+import { abortUpload, sha256Hex, uploadLarge, uploadSmall } from "../api/uploads";
 import { clearResume, loadResume, saveResume } from "../lib/resume";
 
 // 模块级 mock 跨用例累积调用计数，每例清零（保留已设实现，各例自行覆写）
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(loadResume).mockReturnValue(null); // 清除上一用例泄漏的 mockReturnValue
+  vi.mocked(sha256Hex).mockResolvedValue(null); // 秒传 hash 默认关，需要时各例覆写
 });
 
 function makeFile(name: string, size: number): File {
@@ -241,4 +243,24 @@ test("clearFinished 保留 paused 项", async () => {
   act(() => result.current.clearFinished());
   expect(result.current.items).toHaveLength(1);
   expect(result.current.items[0].status).toBe("paused");
+});
+
+// —— 秒传 ——
+
+test("小文件上传前计算 SHA-256 传给 uploadSmall", async () => {
+  vi.mocked(sha256Hex).mockResolvedValue("b".repeat(64));
+  vi.mocked(uploadSmall).mockResolvedValue({ id: "n1", name: "a.txt", size: 5 });
+  const { result } = renderHook(() => useUploadQueue(), { wrapper });
+  act(() => result.current.add([makeFile("a.txt", 5)], ""));
+  await waitFor(() => expect(result.current.items[0].status).toBe("done"));
+  expect(uploadSmall).toHaveBeenCalledWith(expect.any(File), "", expect.objectContaining({ sha256: "b".repeat(64) }));
+});
+
+test("SHA-256 计算失败时跳过秒传头正常上传", async () => {
+  vi.mocked(sha256Hex).mockRejectedValue(new Error("crypto 不可用"));
+  vi.mocked(uploadSmall).mockResolvedValue({ id: "n1", name: "a.txt", size: 5 });
+  const { result } = renderHook(() => useUploadQueue(), { wrapper });
+  act(() => result.current.add([makeFile("a.txt", 5)], ""));
+  await waitFor(() => expect(result.current.items[0].status).toBe("done"));
+  expect(uploadSmall).toHaveBeenCalledWith(expect.any(File), "", expect.objectContaining({ sha256: undefined }));
 });
