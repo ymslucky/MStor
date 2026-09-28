@@ -135,6 +135,8 @@ function TrashRetentionSection() {
     onSuccess: () => {
       toast("回收站保留天数已更新", "info");
       void queryClient.invalidateQueries({ queryKey: ["admin-settings"] });
+      // 同步回收站页描述文字（读取 /api/me 的 trashRetentionDays）
+      void queryClient.invalidateQueries({ queryKey: ["me"] });
     },
   });
   return (

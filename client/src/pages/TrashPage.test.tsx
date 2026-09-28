@@ -13,12 +13,22 @@ vi.mock("../api/trash", () => ({
   batchRestore: vi.fn(),
   batchPurge: vi.fn(),
 }));
+vi.mock("../api/me", () => ({ getMe: vi.fn() }));
 
+import { getMe } from "../api/me";
 import { batchPurge, batchRestore, listTrash, purgeNode, restoreNode } from "../api/trash";
 
 // 模块级 mock 跨用例累积调用计数，每例清零
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(getMe).mockResolvedValue({ id: "u1", name: "u", role: "admin", quotaBytes: 0, usedBytes: 0, trashRetentionDays: 30, self: { id: "u1", name: "u", role: "admin" } });
+});
+
+test("retention text follows trashRetentionDays from /api/me", async () => {
+  vi.mocked(getMe).mockResolvedValue({ id: "u1", name: "u", role: "admin", quotaBytes: 0, usedBytes: 0, trashRetentionDays: 7, self: { id: "u1", name: "u", role: "admin" } });
+  vi.mocked(listTrash).mockResolvedValue({ nodes: [] });
+  renderWith(<TrashPage />);
+  expect(await screen.findByText(/保留 7 天后自动清理/)).toBeInTheDocument();
 });
 
 function node(over: Partial<Node> = {}): Node {

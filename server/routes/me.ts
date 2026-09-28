@@ -12,12 +12,15 @@ me.get("/", async (c) => {
   const u = c.get("user");
   // self = 会话原始用户（登录账号）：act-as 查看他人空间时，前端据此区分「登录账号」与「当前空间」
   const s = c.get("selfUser");
+  // 回收站保留天数：动态配置优先，未配置回退 env——回收站页描述文字随配置展示
+  const configuredDays = await getSetting(c.env, "trash_retention_days");
   return c.json({
     id: u.id,
     name: u.name,
     role: u.role,
     quotaBytes: u.quota_bytes,
     usedBytes: await usedBytes(c.env.DB, u.id),
+    trashRetentionDays: Number(configuredDays ?? c.env.TRASH_RETENTION_DAYS),
     self: { id: s.id, name: s.name, role: s.role },
   });
 });

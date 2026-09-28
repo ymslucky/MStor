@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+﻿import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
@@ -6,7 +6,7 @@ import { beforeAll, beforeEach, expect, test, vi } from "vitest";
 import AppShell from "./AppShell";
 
 vi.mock("../api/me", () => ({
-  getMe: vi.fn(async () => ({ id: "u1", name: "Alice", role: "admin", quotaBytes: 100, usedBytes: 40, self: { id: "u1", name: "Alice", role: "admin" } })),
+  getMe: vi.fn(async () => ({ id: "u1", name: "Alice", role: "admin", quotaBytes: 100, usedBytes: 40, trashRetentionDays: 30, self: { id: "u1", name: "Alice", role: "admin" } })),
 }));
 
 // clearSessionFlag 由退出确认触发；保留 ApiError/handleSessionExpired 真实现供 QueryCache 使用
@@ -94,7 +94,7 @@ test("sidebar shows login account (self) while acting as another user", async ()
   localStorage.setItem("mstor_act_as", "u2");
   // admin 进入 Bob 的空间：/api/me 返回当前空间用户 Bob + 登录账号 self=Alice
   vi.mocked(getMe).mockResolvedValueOnce({
-    id: "u2", name: "Bob", role: "member", quotaBytes: 100, usedBytes: 40,
+    id: "u2", name: "Bob", role: "member", quotaBytes: 100, usedBytes: 40, trashRetentionDays: 30,
     self: { id: "u1", name: "Alice", role: "admin" },
   });
   renderShell();

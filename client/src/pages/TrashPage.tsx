@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { RotateCcw, Trash2 } from "lucide-react";
 import { batchPurge, batchRestore, listTrash, purgeNode, restoreNode } from "../api/trash";
+import { getMe } from "../api/me";
 import type { Node } from "../api/types";
 import FileList from "../components/FileList";
 import { toast } from "../components/Toaster";
@@ -12,6 +13,9 @@ import { formatBytes, formatDate } from "../lib/format";
 export default function TrashPage() {
   const queryClient = useQueryClient();
   const query = useQuery({ queryKey: ["trash"], queryFn: listTrash });
+  // 保留天数随动态配置：设置页变更后 invalidate ["me"] 即同步
+  const meQuery = useQuery({ queryKey: ["me"], queryFn: getMe });
+  const retentionDays = meQuery.data?.trashRetentionDays ?? 30;
   const nodes = query.data?.nodes ?? [];
   const ids = nodes.map((n) => n.id);
   const selection = useFileSelection(ids, "trash");
@@ -74,7 +78,7 @@ export default function TrashPage() {
           </Button>
         )}
       </div>
-      <p className="mb-3 text-xs text-ink-faint">回收站内容保留 30 天后自动清理；彻底删除不可恢复。</p>
+      <p className="mb-3 text-xs text-ink-faint">回收站内容保留 {retentionDays} 天后自动清理；彻底删除不可恢复。</p>
       {query.isPending && <div className="py-16 text-center text-sm text-ink-dim">加载中…</div>}
       {query.data && (
         <GlassCard className="p-3 sm:p-4">

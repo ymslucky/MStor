@@ -22,6 +22,8 @@ export interface Me {
   role: "admin" | "member";
   quotaBytes: number;
   usedBytes: number;
+  /** 回收站保留天数（动态配置，随设置页变更） */
+  trashRetentionDays: number;
   /** 会话原始用户（登录账号）：admin act-as 查看他人空间时，与上方字段（当前空间用户）不同 */
   self: { id: string; name: string; role: "admin" | "member" };
 }
