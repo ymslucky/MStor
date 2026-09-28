@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CalendarClock, KeyRound, Link2 } from "lucide-react";
+import { renderSVG } from "uqr";
 import { createShare } from "../api/shares";
 import type { Node } from "../api/types";
 import { toast } from "../components/Toaster";
@@ -54,6 +55,12 @@ export default function ShareDialog({ node, onClose }: Props) {
     >
       {url ? (
         <>
+          {/* 二维码：手机扫码直接打开分享（renderSVG 零依赖生成） */}
+          <div
+            className="mx-auto w-24 [&>svg]:h-full [&>svg]:w-full"
+            aria-label="分享链接二维码"
+            dangerouslySetInnerHTML={{ __html: renderSVG(url, { pixelSize: 4 }) }}
+          />
           <Input readOnly value={url} onFocus={(e) => e.target.select()} />
           <Button className="mt-2 w-full" onClick={() => void navigator.clipboard.writeText(url)}>
             <Link2 size={16} aria-hidden />

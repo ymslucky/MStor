@@ -42,6 +42,14 @@ test("createShare reject 时显示错误提示", async () => {
   expect(await screen.findByText("名称已存在")).toBeInTheDocument();
 });
 
+test("创建成功后渲染分享链接二维码", async () => {
+  vi.mocked(createShare).mockResolvedValue({ token: "tok123", url: "https://stor.msxor.com/s/tok123" });
+  const { user } = renderWith(<ShareDialog node={node()} onClose={() => {}} />);
+  await user.click(screen.getByRole("button", { name: "创建" }));
+  const qr = await screen.findByLabelText("分享链接二维码");
+  expect(qr.querySelector("svg")).not.toBeNull();
+});
+
 function renderWith(ui: JSX.Element) {
   const utils = render(ui);
   return { ...utils, user: userEvent.setup() };

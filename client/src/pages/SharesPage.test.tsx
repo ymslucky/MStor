@@ -34,6 +34,22 @@ test("lists shares with url, downloads and expiry", async () => {
   expect(screen.getByText(/2029/)).toBeInTheDocument(); // 有效期至
 });
 
+test("过期分享显示「已过期」灰标，未过期不显示", async () => {
+  vi.mocked(listShares).mockResolvedValue({
+    shares: [
+      share({ id: "expired", token: "tok-old", node_name: "旧文件.txt", expires_at: Date.now() - 1000 }),
+      share({ id: "active", token: "tok-new", node_name: "新文件.txt", expires_at: Date.now() + 86400000 }),
+    ],
+  });
+  renderWith(<SharesPage />);
+  expect(await screen.findByText("已过期")).toBeInTheDocument();
+  // 只有过期那一条带灰标（token 路径用于区分行）
+  const expiredRow = screen.getByText(/tok-old/).closest("tr")!;
+  expect(within(expiredRow).getByText("已过期")).toBeInTheDocument();
+  const activeRow = screen.getByText(/tok-new/).closest("tr")!;
+  expect(within(activeRow).queryByText("已过期")).toBeNull();
+});
+
 test("revoke asks confirm then calls revokeShare and refreshes", async () => {
   // 首次返回一条，失效重拉后返回空，才能断言「暂无分享」
   vi.mocked(listShares).mockResolvedValueOnce({ shares: [share()] }).mockResolvedValue({ shares: [] });

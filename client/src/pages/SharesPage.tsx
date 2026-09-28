@@ -77,6 +77,10 @@ export default function SharesPage() {
                     <div className="flex items-center gap-1.5 font-medium text-ink">
                       <NodeIcon node={{ is_dir: s.node_is_dir, mime: null }} size={16} className="shrink-0" />
                       <span className="truncate">{s.node_name}</span>
+                      {/* 过期灰标：纯展示（打开链接仍 410） */}
+                      {s.expires_at && s.expires_at < Date.now() && (
+                        <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-ink-3">已过期</span>
+                      )}
                     </div>
                     <div className="text-xs text-ink-3">/s/{s.token}</div>
                   </td>
