@@ -9,6 +9,22 @@ export class ApiError extends Error {
   }
 }
 
+// 常见错误码 → 用户友好文案（服务端原文已可读的码不在表内，保留原文）
+const FRIENDLY_MESSAGES: Record<string, string> = {
+  RATE_LIMITED: "操作过于频繁，请稍后再试",
+  NOT_FOUND: "文件不存在或已被删除",
+  INTERNAL: "服务暂时不可用，请稍后重试",
+  NETWORK: "网络连接异常，请检查网络后重试",
+  FORBIDDEN: "没有权限执行此操作",
+};
+
+/** 统一错误展示文案：映射常见错误码，保留服务端已可读的原文 */
+export function friendlyMessage(e: unknown): string {
+  if (e instanceof ApiError) return FRIENDLY_MESSAGES[e.code] ?? e.message;
+  if (e instanceof DOMException && e.name === "AbortError") return "已取消";
+  return e instanceof Error ? e.message : "操作失败，请重试";
+}
+
 // —— 会话重登策略（防 IAM authorize 端点限流）——
 // 未登录的首次访问渲染登录落地页（不自动跳转）；「曾登录过」的会话中途过期才自动重登，
 // 且每轮页面生命周期只跳一次（redirecting 守卫），避免并发 401 造成 authorize 请求风暴。
@@ -81,7 +97,7 @@ export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
     } catch {
       // 非 JSON 错误体，保留默认文案
     }
-    throw new ApiError(res.status, code, message);
+    throw new ApiError(res.status, code, FRIENDLY_MESSAGES[code] ?? message);
   }
   return (await res.json()) as T;
 }

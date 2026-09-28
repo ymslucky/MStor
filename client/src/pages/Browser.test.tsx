@@ -172,6 +172,25 @@ test("batch: select rows, toggle all, batch delete calls deleteNode per id", asy
   expect(deleteNode).toHaveBeenCalledWith("d1");
 });
 
+test("batch delete shows progress (处理中 i/n) while running", async () => {
+  vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
+  vi.mocked(deleteNode).mockClear();
+  // 逐个延迟完成：第一个完成后进度条显示 1/2
+  vi.mocked(deleteNode).mockImplementation(async () => {
+    await new Promise((r) => setTimeout(r, 20));
+    return { ok: true };
+  });
+  const { user } = renderWith(<Browser />);
+  await screen.findByText("hello.txt");
+  await user.click(screen.getByRole("checkbox", { name: "全选" }));
+  await user.click(screen.getByRole("button", { name: "删除" }));
+  await user.click(within(await screen.findByTestId("dialog-panel")).getByRole("button", { name: "删除" }));
+  expect(await screen.findByTestId("batch-progress")).toHaveTextContent(/处理中 \d\/2/);
+  // 完成后进度条消失
+  await waitFor(() => expect(screen.queryByTestId("batch-progress")).toBeNull());
+  await waitFor(() => expect(deleteNode).toHaveBeenCalledTimes(2));
+});
+
 test("selection hook: ctrl-click toggles and shift-click selects range", async () => {
   vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
   renderWithProviders(<Browser />);

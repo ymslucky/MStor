@@ -1,10 +1,30 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { ApiError, api, clearSessionFlag, handleSessionExpired, markSessionActive } from "./client";
+import { ApiError, api, clearSessionFlag, friendlyMessage, handleSessionExpired, markSessionActive } from "./client";
 
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   clearSessionFlag();
+});
+
+test("已知错误码映射为友好文案（保留原始 code）", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () =>
+    new Response(JSON.stringify({ error: { code: "RATE_LIMITED", message: "Too many requests" } }), { status: 429 }),
+  ));
+  const err: ApiError = await api("/api/files").then(
+    () => { throw new Error("should reject"); },
+    (e: ApiError) => e,
+  );
+  expect(err.code).toBe("RATE_LIMITED");
+  expect(err.message).toBe("操作过于频繁，请稍后再试");
+});
+
+test("friendlyMessage：映射码用文案，未知码保留原文，非 Error 兜底", () => {
+  expect(friendlyMessage(new ApiError(404, "NOT_FOUND", "not found"))).toBe("文件不存在或已被删除");
+  expect(friendlyMessage(new ApiError(409, "CONFLICT", "名称已存在"))).toBe("名称已存在");
+  expect(friendlyMessage(new DOMException("x", "AbortError"))).toBe("已取消");
+  expect(friendlyMessage(new Error("任意错误"))).toBe("任意错误");
+  expect(friendlyMessage("字符串")).toBe("操作失败，请重试");
 });
 
 test("unwraps error envelope into ApiError", async () => {

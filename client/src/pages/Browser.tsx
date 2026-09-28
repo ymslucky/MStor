@@ -4,6 +4,7 @@ import type { MouseEvent as ReactMouseEvent } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import { Copy, Download, ExternalLink, FolderInput, FolderPlus, FolderUp, Info, LayoutGrid, Link2, List, Pencil, Share2, Trash2, TriangleAlert, Upload } from "lucide-react";
 import { listShares } from "../api/shares";
+import { friendlyMessage } from "../api/client";
 import type { Me, Node } from "../api/types";
 import { contentUrl, deleteNode, deleteNodePermanently, moveNode } from "../api/nodes";
 import Breadcrumb from "../components/Breadcrumb";
@@ -146,6 +147,8 @@ export default function Browser() {
   const [batchMoving, setBatchMoving] = useState(false);
   const [batchBusy, setBatchBusy] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  // 批量操作进度（done/total），完成或失败后置 null
+  const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
   // 视图偏好持久化，缺省 list
   const [view, setView] = useState<"list" | "grid">(() => (localStorage.getItem("mstor_view") === "grid" ? "grid" : "list"));
   // 拖拽上传：dragenter/leave 计数法防子元素闪烁，>0 时显示全屏覆盖层
@@ -206,18 +209,22 @@ export default function Browser() {
   // 批量删除：顺序逐个删除（permanent 时软删后立即 purge），完成后失效 files + trash 缓存
   const runBatchDelete = async (permanent = false) => {
     setBatchBusy(true);
+    setBatchProgress({ done: 0, total: selection.selected.size });
+    let done = 0;
     try {
       for (const id of selection.selected) {
         if (permanent) await deleteNodePermanently(id);
         else await deleteNode(id);
+        setBatchProgress({ done: ++done, total: selection.selected.size });
       }
       selection.clear();
       toast(permanent ? "已彻底删除选中项" : "已移入回收站", "info");
     } catch (e) {
-      toast(e instanceof Error ? e.message : "批量删除失败", "error");
+      toast(friendlyMessage(e), "error");
     } finally {
       setBatchBusy(false);
       setBatchDeleting(false);
+      setBatchProgress(null);
     }
     void queryClient.invalidateQueries({ queryKey: ["files"] });
     void queryClient.invalidateQueries({ queryKey: ["trash"] });
@@ -244,12 +251,18 @@ export default function Browser() {
   // 批量移动：顺序逐个移动
   const runBatchMove = async (to: string) => {
     setBatchBusy(true);
+    setBatchProgress({ done: 0, total: selection.selected.size });
+    let done = 0;
     try {
-      for (const id of selection.selected) await moveNode(id, to);
+      for (const id of selection.selected) {
+        await moveNode(id, to);
+        setBatchProgress({ done: ++done, total: selection.selected.size });
+      }
       selection.clear();
     } finally {
       setBatchBusy(false);
       setBatchMoving(false);
+      setBatchProgress(null);
     }
     void queryClient.invalidateQueries({ queryKey: ["files"] });
   };
@@ -577,6 +590,23 @@ export default function Browser() {
         </div>
       )}
       {preview && <PreviewModal key={preview.id} node={preview} onClose={() => setPreview(null)} />}
+      {/* 批量操作进行中进度条（弹窗底部语义）：处理中 i/n */}
+      {batchProgress && (
+        <div
+          data-testid="batch-progress"
+          className="fixed inset-x-0 bottom-20 z-50 flex justify-center px-4 sm:bottom-6"
+        >
+          <div className="flex items-center gap-2 rounded-card border border-line bg-white px-3 py-2 text-sm text-ink shadow-card">
+            <span className="whitespace-nowrap">处理中 {batchProgress.done}/{batchProgress.total}</span>
+            <div className="h-1.5 w-24 overflow-hidden rounded bg-gray-100">
+              <div
+                className="h-full rounded bg-primary transition-[width] duration-200"
+                style={{ width: `${Math.round((batchProgress.done / Math.max(batchProgress.total, 1)) * 100)}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
       {sharing && <ShareDialog node={sharing} onClose={() => setSharing(null)} />}
       {creating && (
         <NameDialog
