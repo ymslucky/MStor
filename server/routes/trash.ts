@@ -59,22 +59,16 @@ export async function permanentDeleteMany(env: Env, ownerId: string, ids: string
   if (!roots.length) return 0;
   const rootIds = roots.map((r) => r.id);
   const rootPh = rootIds.map((_, i) => `?${i + 2}`).join(",");
-  // 多根子树闭包：一条递归 CTE 汇总所有根的子孙
+  // 多根子树闭包：一条递归 CTE 同时取 id 和 r2_key（秒传副本共享同一对象，删行后按引用计数决定是否删对象），
+  // 省掉删行前重读一遍行收集 key 的查询
   const { results: closure } = await env.DB.prepare(`
     WITH RECURSIVE
-    roots AS (SELECT id FROM nodes WHERE owner_id = ?1 AND id IN (${rootPh})),
-    sub AS (SELECT id FROM roots UNION ALL SELECT n.id FROM nodes n JOIN sub s ON n.parent_id = s.id)
-    SELECT id FROM sub
-  `).bind(ownerId, ...rootIds).all<{ id: string }>();
+    roots AS (SELECT id, r2_key FROM nodes WHERE owner_id = ?1 AND id IN (${rootPh})),
+    sub AS (SELECT id, r2_key FROM roots UNION ALL SELECT n.id, n.r2_key FROM nodes n JOIN sub s ON n.parent_id = s.id)
+    SELECT id, r2_key FROM sub
+  `).bind(ownerId, ...rootIds).all<{ id: string; r2_key: string | null }>();
   const all = closure.map((r) => r.id);
-  // 收集 r2_key（秒传副本共享同一对象，删行后按引用计数决定是否删对象）
-  const r2Keys: string[] = [];
-  for (const part of chunk(all, 90)) {
-    const ph = part.map((_, i) => `?${i + 1}`).join(",");
-    const files = await env.DB.prepare(`SELECT DISTINCT r2_key FROM nodes WHERE id IN (${ph}) AND r2_key IS NOT NULL`)
-      .bind(...part).all<{ r2_key: string }>();
-    r2Keys.push(...files.results.map((f) => f.r2_key));
-  }
+  const r2Keys = [...new Set(closure.map((r) => r.r2_key).filter((k): k is string => k !== null))];
   // 删行：shares + nodes 分片 batch，行删除后未删的秒传副本仍在引用计数里
   for (const part of chunk(all, 90)) {
     const ph = part.map((_, i) => `?${i + 1}`).join(",");
