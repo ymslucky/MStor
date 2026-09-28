@@ -13,13 +13,21 @@ vi.mock("../api/uploads", () => ({
 vi.mock("../api/nodes", () => ({
   ensureDir: vi.fn(),
 }));
+vi.mock("../lib/resume", () => ({
+  fingerprint: vi.fn((f: File, p: string) => `${f.name}:${f.size}:${p}`),
+  loadResume: vi.fn(),
+  saveResume: vi.fn(),
+  clearResume: vi.fn(),
+}));
 
 import { ensureDir } from "../api/nodes";
 import { abortUpload, uploadLarge, uploadSmall } from "../api/uploads";
+import { clearResume, loadResume, saveResume } from "../lib/resume";
 
 // 模块级 mock 跨用例累积调用计数，每例清零（保留已设实现，各例自行覆写）
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(loadResume).mockReturnValue(null); // 清除上一用例泄漏的 mockReturnValue
 });
 
 function makeFile(name: string, size: number): File {
@@ -156,4 +164,81 @@ test("cancel on small upload marks item 已取消 without server abortUpload", a
   expect(result.current.items[0].status).toBe("error");
   expect(result.current.items[0].error).toBe("已取消");
   expect(abortUpload).not.toHaveBeenCalled();
+});
+
+// —— 断点续传 ——
+
+test("大文件暂停：不调 abortUpload，状态 paused，分片完成写入 resume", async () => {
+  vi.mocked(uploadLarge).mockImplementation(async (_f, _p, _onProgress, _delay, opts) => {
+    opts?.onUploadId?.("up-big");
+    opts?.onPartDone?.({ partNumber: 1, etag: '"e1"' }, 1024);
+    opts?.onPartDone?.({ partNumber: 2, etag: '"e2"' }, 1024);
+    return new Promise(() => {}); // 挂起模拟传输中
+  });
+  const { result } = renderHook(() => useUploadQueue(), { wrapper });
+  act(() => result.current.add([makeFile("big.bin", 4096)], "d1"));
+  await waitFor(() => expect(result.current.items[0].status).toBe("uploading"));
+  act(() => result.current.cancel(result.current.items[0].key));
+  expect(result.current.items[0].status).toBe("paused");
+  expect(result.current.items[0].fingerprint).toBe("big.bin:4096:d1");
+  expect(abortUpload).not.toHaveBeenCalled(); // 暂停保留服务端分片
+  expect(saveResume).toHaveBeenCalledWith("big.bin:4096:d1", {
+    uploadId: "up-big", partSize: 1024,
+    parts: [{ partNumber: 1, etag: '"e1"' }, { partNumber: 2, etag: '"e2"' }],
+    done: 2048,
+  });
+});
+
+test("retry 续传：loadResume 记录传给 uploadLarge，成功后 clearResume", async () => {
+  vi.mocked(loadResume).mockReturnValue({ uploadId: "up-res", partSize: 1024, parts: [{ partNumber: 1, etag: '"e1"' }], done: 1024 });
+  vi.mocked(uploadLarge).mockResolvedValue({ nodeId: "n9", name: "big.bin" });
+  const { result } = renderHook(() => useUploadQueue(), { wrapper });
+  act(() => result.current.add([makeFile("big.bin", 4096)], "d1"));
+  act(() => result.current.retry(result.current.items[0].key));
+  await waitFor(() => expect(result.current.items[0].status).toBe("done"));
+  expect(uploadLarge).toHaveBeenCalledWith(expect.any(File), "d1", expect.anything(), 1000,
+    expect.objectContaining({ resume: { uploadId: "up-res", partSize: 1024, parts: [{ partNumber: 1, etag: '"e1"' }] } }));
+  expect(clearResume).toHaveBeenCalledWith("big.bin:4096:d1");
+});
+
+test("失败（非取消）保留 resume，供 retry 续传", async () => {
+  vi.mocked(uploadLarge).mockImplementation(async (_f, _p, _onProgress, _delay, opts) => {
+    opts?.onUploadId?.("up-f");
+    opts?.onPartDone?.({ partNumber: 1, etag: '"e1"' }, 1024);
+    throw new Error("网络错误");
+  });
+  const { result } = renderHook(() => useUploadQueue(), { wrapper });
+  act(() => result.current.add([makeFile("big.bin", 4096)], "d1"));
+  await waitFor(() => expect(result.current.items[0].status).toBe("error"));
+  expect(saveResume).toHaveBeenCalledWith("big.bin:4096:d1", {
+    uploadId: "up-f", partSize: 1024, parts: [{ partNumber: 1, etag: '"e1"' }], done: 1024,
+  });
+});
+
+test("彻底取消 purge：abortUpload + clearResume + 移除队列项", async () => {
+  vi.mocked(uploadLarge).mockImplementation(async (_f, _p, _onProgress, _delay, opts) => {
+    opts?.onUploadId?.("up-p");
+    return new Promise(() => {});
+  });
+  const { result } = renderHook(() => useUploadQueue(), { wrapper });
+  act(() => result.current.add([makeFile("big.bin", 4096)], "d1"));
+  await waitFor(() => expect(result.current.items[0].status).toBe("uploading"));
+  act(() => result.current.purge(result.current.items[0].key));
+  expect(abortUpload).toHaveBeenCalledWith("up-p");
+  expect(clearResume).toHaveBeenCalledWith("big.bin:4096:d1");
+  expect(result.current.items).toHaveLength(0);
+});
+
+test("clearFinished 保留 paused 项", async () => {
+  vi.mocked(uploadLarge).mockImplementation(async (_f, _p, _onProgress, _delay, opts) => {
+    opts?.onUploadId?.("up-q");
+    return new Promise(() => {});
+  });
+  const { result } = renderHook(() => useUploadQueue(), { wrapper });
+  act(() => result.current.add([makeFile("big.bin", 4096)], "d1"));
+  await waitFor(() => expect(result.current.items[0].status).toBe("uploading"));
+  act(() => result.current.cancel(result.current.items[0].key));
+  act(() => result.current.clearFinished());
+  expect(result.current.items).toHaveLength(1);
+  expect(result.current.items[0].status).toBe("paused");
 });

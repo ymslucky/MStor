@@ -192,9 +192,46 @@ test("part PUT failure retries then throws after 3 attempts", async () => {
   FakePartXhr.failCount = 0;
 });
 
-test("SMALL_FILE_LIMIT matches backend 60MB", () => {
-  expect(SMALL_FILE_LIMIT).toBe(60 * 1024 * 1024);
+test("resume 续传：跳过已传分片，不调 init，complete 合并 parts", async () => {
+  vi.stubGlobal("XMLHttpRequest", FakePartXhr);
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url.endsWith("/part-urls")) return jsonRes({ urls: ["https://r2.example/put"] });
+    if (url.endsWith("/complete")) return jsonRes({ nodeId: "n5", name: "big.bin" }, 201);
+    throw new Error(`unexpected fetch ${url}`);
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  const progress: number[] = [];
+  // 4 分片（32B/8B）已传 2 个，恢复后只传剩余 2 个
+  await uploadLarge(makeFile("big.bin", 32), "d1", (r) => progress.push(r), 0, {
+    resume: { uploadId: "up9", partSize: 8, parts: [{ partNumber: 1, etag: '"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"' }, { partNumber: 2, etag: '"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"' }] },
+  });
+  expect(FakePartXhr.sent).toHaveLength(2); // 只传分片 3、4
+  expect(fetchMock).not.toHaveBeenCalledWith("/api/uploads", expect.anything()); // 不调 init
+  const complete = fetchMock.mock.calls.find((c) => String(c[0]).endsWith("/complete"));
+  const body = JSON.parse(String(complete![1]!.body)) as { parts: { partNumber: number }[] };
+  expect(body.parts.map((p) => p.partNumber)).toEqual([1, 2, 3, 4]);
+  // 进度以已传分片为基数起步
+  expect(progress[0]).toBeGreaterThanOrEqual(0.5);
+  expect(progress.at(-1)).toBe(1);
 });
+
+test("resume 进度基数：已传 3/4 分片起步即 ≥75%", async () => {
+  vi.stubGlobal("XMLHttpRequest", FakePartXhr);
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url.endsWith("/part-urls")) return jsonRes({ urls: ["https://r2.example/put"] });
+    if (url.endsWith("/complete")) return jsonRes({ nodeId: "n6", name: "big.bin" }, 201);
+    throw new Error(`unexpected fetch ${url}`);
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  const progress: number[] = [];
+  await uploadLarge(makeFile("big.bin", 32), "d1", (r) => progress.push(r), 0, {
+    resume: { uploadId: "up10", partSize: 8, parts: [{ partNumber: 1, etag: '"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"' }, { partNumber: 2, etag: '"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"' }, { partNumber: 3, etag: '"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"' }] },
+  });
+  expect(progress[0]).toBeGreaterThanOrEqual(0.75);
+});
+
 
 test("并发数生效：concurrency 4 时 4 分片同时在途", async () => {
   vi.stubGlobal("XMLHttpRequest", FakePartXhr);

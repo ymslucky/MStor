@@ -2,11 +2,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useRef, useState } from "react";
 import { ensureDir } from "../api/nodes";
 import { SMALL_FILE_LIMIT, abortUpload, uploadLarge, uploadSmall } from "../api/uploads";
+import type { Part } from "../api/uploads";
 import type { PendingUpload } from "../lib/dirscan";
+import { clearResume, fingerprint, loadResume, saveResume } from "../lib/resume";
 import { getUploadConcurrency } from "../lib/settings";
 import { SpeedTracker } from "../lib/speed";
 
-export type QueueStatus = "pending" | "uploading" | "done" | "error";
+export type QueueStatus = "pending" | "uploading" | "paused" | "done" | "error";
 
 export interface QueueItem {
   key: number;
@@ -21,8 +23,10 @@ export interface QueueItem {
   /** 估计上传速度（bytes/s），uploading 态有效 */
   speed?: number;
   error?: string;
-  /** 大文件 init 后记录，取消时调用 abortUpload 清理服务端分片 */
+  /** 大文件 init 后记录，「彻底取消」时调用 abortUpload 清理服务端分片 */
   uploadId?: string;
+  /** 大文件指纹：暂停/失败后据此续传 */
+  fingerprint?: string;
 }
 
 export function useUploadQueue() {
@@ -31,9 +35,11 @@ export function useUploadQueue() {
   const itemsRef = useRef<QueueItem[]>([]);
   const seq = useRef(0);
   const running = useRef(false);
-  // 取消：在途分片请求 AbortController + 已取消标记（结果落地时保持「已取消」态）
+  // 取消/暂停：在途分片请求 AbortController + 已取消标记（结果落地时保持「已取消」态）
   const controllers = useRef(new Map<number, AbortController>());
   const cancelled = useRef(new Set<number>());
+  // 大文件续传累计：key → {uploadId, partSize, parts, done}，暂停/失败时写入 localStorage
+  const partAcc = useRef(new Map<number, { uploadId: string; partSize: number; parts: Part[]; done: number }>());
   // 速度采样器 + 进度节流时间戳（key → …），完成/失败/重试时清理
   const speeds = useRef(new Map<number, SpeedTracker>());
   const lastEmit = useRef(new Map<number, number>());
@@ -88,6 +94,14 @@ export function useUploadQueue() {
     return parent;
   }, []);
 
+  // 暂停/失败时保存续传记录（仅大文件且有累计）
+  const stashResume = useCallback((key: number) => {
+    const item = itemsRef.current.find((it) => it.key === key);
+    const acc = partAcc.current.get(key);
+    if (!item?.fingerprint || !acc || !acc.partSize) return; // partSize 未知（init 前中断）则无可续传信息
+    saveResume(item.fingerprint, acc);
+  }, []);
+
   const drain = useCallback(async () => {
     if (running.current) return;
     running.current = true;
@@ -109,10 +123,30 @@ export function useUploadQueue() {
           // 嵌套上传：先逐级 ensure 中间目录，得到最终父目录
           const parentId = next.path ? await ensureDirs(next.parentId, next.path) : next.parentId;
           if (next.file.size > SMALL_FILE_LIMIT) {
+            const fp = next.fingerprint ?? fingerprint(next.file, next.parentId);
+            if (!next.fingerprint) update(next.key, { fingerprint: fp });
+            const resume = loadResume(fp);
+            const acc = { uploadId: resume?.uploadId ?? "", partSize: 0, parts: [] as Part[], done: 0 };
+            if (resume) {
+              acc.uploadId = resume.uploadId;
+              acc.partSize = resume.partSize;
+              acc.parts = [...resume.parts];
+              acc.done = resume.done;
+            }
+            partAcc.current.set(next.key, acc);
             await uploadLarge(next.file, parentId, (p) => onProgress(next.key, p), 1000, {
               signal: controller.signal,
-              onUploadId: (uploadId) => update(next.key, { uploadId }),
+              onUploadId: (uploadId) => {
+                update(next.key, { uploadId });
+                if (!acc.uploadId) acc.uploadId = uploadId;
+              },
+              onPartDone: (part, partSize) => {
+                acc.partSize = partSize;
+                acc.parts.push(part);
+                acc.done += Math.min(part.partNumber * partSize, next.size) - (part.partNumber - 1) * partSize;
+              },
               concurrency: getUploadConcurrency(),
+              resume: resume ? { uploadId: resume.uploadId, partSize: resume.partSize, parts: resume.parts } : undefined,
             });
           } else {
             await uploadSmall(next.file, parentId, {
@@ -120,16 +154,19 @@ export function useUploadQueue() {
               onProgress: (r) => onProgress(next.key, r),
             });
           }
-          // 上传期间被取消：保持「已取消」，不标完成
+          // 上传期间被取消/暂停：不标完成
           if (!cancelled.current.has(next.key)) {
+            if (next.fingerprint) clearResume(next.fingerprint);
+            partAcc.current.delete(next.key);
             update(next.key, { status: "done", progress: 1, speed: undefined });
             resetSampling(next.key);
             void queryClient.invalidateQueries({ queryKey: ["files"] });
             void queryClient.invalidateQueries({ queryKey: ["me"] });
           }
         } catch (e) {
-          // 取消触发的失败：保持 cancel 已写入的「已取消」文案
+          // 取消/暂停触发的失败：保持 cancel 已写入的状态
           if (!cancelled.current.has(next.key)) {
+            stashResume(next.key); // 失败（非取消）同样保留续传记录，retry 自动续传
             update(next.key, { status: "error", error: e instanceof Error ? e.message : "上传失败", speed: undefined });
           }
           resetSampling(next.key);
@@ -141,7 +178,7 @@ export function useUploadQueue() {
     };
     await Promise.all(Array.from({ length: getUploadConcurrency() }, worker));
     running.current = false;
-  }, [ensureDirs, onProgress, queryClient, resetSampling, update]);
+  }, [ensureDirs, onProgress, queryClient, resetSampling, stashResume, update]);
 
   const add = useCallback(
     (items: (File | PendingUpload)[], parentId: string) => {
@@ -150,6 +187,8 @@ export function useUploadQueue() {
         return {
           key: ++seq.current, name: file.name, path, size: file.size,
           parentId, file, status: "pending" as QueueStatus, progress: 0,
+          // 大文件才计算指纹（续传只对 multipart 有意义）
+          fingerprint: file.size > SMALL_FILE_LIMIT ? fingerprint(file, parentId) : undefined,
         };
       });
       itemsRef.current = [...itemsRef.current, ...normalized];
@@ -169,26 +208,47 @@ export function useUploadQueue() {
     [drain, resetSampling, update],
   );
 
-  // 取消（「暂停」语义，续传需后端支持，备案）：中止在途请求 + abortUpload 清理服务端分片
+  // 暂停（大文件）：中止在途请求但保留服务端分片与续传记录，retry 自动续传
   const cancel = useCallback(
     (key: number) => {
       const item = itemsRef.current.find((it) => it.key === key);
-      if (!item || item.status === "done" || item.status === "error") return;
+      if (!item || item.status === "done" || item.status === "error" || item.status === "paused") return;
       cancelled.current.add(key);
       controllers.current.get(key)?.abort();
-      if (item.uploadId) void abortUpload(item.uploadId).catch(() => {});
+      if (item.uploadId) {
+        stashResume(key);
+        update(key, { status: "paused", error: undefined, speed: undefined });
+      } else {
+        update(key, { status: "error", error: "已取消", speed: undefined });
+      }
       resetSampling(key);
-      update(key, { status: "error", error: "已取消", speed: undefined });
     },
-    [resetSampling, update],
+    [resetSampling, stashResume, update],
+  );
+
+  // 彻底取消：清理服务端分片与本地续传记录，并从队列移除
+  const purge = useCallback(
+    (key: number) => {
+      const item = itemsRef.current.find((it) => it.key === key);
+      if (!item) return;
+      cancelled.current.add(key);
+      controllers.current.get(key)?.abort();
+      if (item.uploadId) void Promise.resolve(abortUpload(item.uploadId)).catch(() => {});
+      if (item.fingerprint) clearResume(item.fingerprint);
+      partAcc.current.delete(key);
+      resetSampling(key);
+      itemsRef.current = itemsRef.current.filter((it) => it.key !== key);
+      setItems([...itemsRef.current]);
+    },
+    [resetSampling],
   );
 
   const clearFinished = useCallback(() => {
-    const removed = itemsRef.current.filter((it) => it.status !== "uploading" && it.status !== "pending");
+    const removed = itemsRef.current.filter((it) => it.status !== "uploading" && it.status !== "pending" && it.status !== "paused");
     for (const it of removed) resetSampling(it.key);
-    itemsRef.current = itemsRef.current.filter((it) => it.status === "uploading" || it.status === "pending");
+    itemsRef.current = itemsRef.current.filter((it) => it.status === "uploading" || it.status === "pending" || it.status === "paused");
     setItems([...itemsRef.current]);
   }, [resetSampling]);
 
-  return { items, add, retry, cancel, clearFinished };
+  return { items, add, retry, cancel, purge, clearFinished };
 }

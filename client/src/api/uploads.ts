@@ -75,6 +75,10 @@ export interface UploadLargeOpts {
   onUploadId?: (uploadId: string) => void;
   /** 分片并发 worker 数（默认 3；设置页可调 1-16，实际取 min(并发, 分片数)） */
   concurrency?: number;
+  /** 断点续传：传入后跳过 init，直接复用 uploadId 续传未完成分片 */
+  resume?: { uploadId: string; partSize: number; parts: Part[] };
+  /** 每个分片传完回调（队列用于增量保存续传记录；partSize 用于记录总公式） */
+  onPartDone?: (part: Part, partSize: number) => void;
 }
 
 export async function uploadLarge(
@@ -84,15 +88,28 @@ export async function uploadLarge(
   baseDelayMs = 1000,
   opts?: UploadLargeOpts,
 ): Promise<{ nodeId: string; name: string }> {
-  const { uploadId, partSize } = await api<InitUpload>("/api/uploads", {
-    method: "POST",
-    json: { parentId, name: file.name, size: file.size, mime: file.type || undefined },
-  });
+  const resume = opts?.resume;
+  let uploadId: string;
+  let partSize: number;
+  if (resume) {
+    uploadId = resume.uploadId;
+    partSize = resume.partSize;
+  } else {
+    ({ uploadId, partSize } = await api<InitUpload>("/api/uploads", {
+      method: "POST",
+      json: { parentId, name: file.name, size: file.size, mime: file.type || undefined },
+    }));
+  }
   opts?.onUploadId?.(uploadId);
   const totalParts = Math.ceil(file.size / partSize);
-  const parts: Part[] = [];
-  // 字节级进度聚合：每分片记录已传字节（重试时归零重计），求和后按总字节回传
+  const parts: Part[] = resume ? [...resume.parts] : [];
+  const donePartNumbers = new Set(parts.map((p) => p.partNumber));
+  // 字节级进度聚合：每分片记录已传字节（重试时归零重计），求和后按总字节回传；续传以已传分片字节为基数
   const loadedByPart = new Map<number, number>();
+  for (const p of resume?.parts ?? []) {
+    const bytes = Math.min(p.partNumber * partSize, file.size) - (p.partNumber - 1) * partSize;
+    loadedByPart.set(p.partNumber, bytes);
+  }
   const emit = () => {
     let sum = 0;
     for (const v of loadedByPart.values()) sum += v;
@@ -102,6 +119,7 @@ export async function uploadLarge(
   const worker = async () => {
     while (next <= totalParts) {
       const partNumber = next++;
+      if (donePartNumbers.has(partNumber)) continue; // 续传：跳过已传分片
       const partBytes = Math.min(partNumber * partSize, file.size) - (partNumber - 1) * partSize;
       parts.push({
         partNumber,
@@ -110,6 +128,7 @@ export async function uploadLarge(
           emit();
         }),
       });
+      opts?.onPartDone?.({ partNumber, etag: parts.at(-1)!.etag }, partSize);
       loadedByPart.set(partNumber, partBytes);
       emit();
     }
