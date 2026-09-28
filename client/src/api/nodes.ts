@@ -27,4 +27,18 @@ export async function deleteNodePermanently(id: string): Promise<void> {
   await purgeNode(id);
 }
 
+// 批量删除（服务端一次处理一批，无逐项往返）；permanent 时软删后立即 purge
+export const batchDeleteNodes = (ids: string[], permanent = false) =>
+  api<{ ok: true; deleted: number; failed: { id: string; reason: string }[] }>("/api/files/batch-delete", {
+    method: "POST",
+    json: { ids, permanent },
+  });
+
+// 批量移动
+export const batchMoveNodes = (ids: string[], parentId: string) =>
+  api<{ ok: true; moved: number; failed: { id: string; reason: string }[] }>("/api/files/batch-move", {
+    method: "POST",
+    json: { ids, parentId },
+  });
+
 export const contentUrl = (id: string, dl = false) => `/api/files/${id}/content${dl ? "?dl=1" : ""}`;

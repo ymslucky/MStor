@@ -4,7 +4,7 @@ import { randomId } from "../lib/crypto";
 import { errors, HttpError } from "../lib/errors";
 import { assertQuota, breadcrumb, ensureRootDir, getNode, listChildren, moveNode, uniqueName, validateNodeName } from "../lib/nodes";
 import { serveObject } from "../lib/serve";
-import { softDeleteNode } from "./trash";
+import { permanentDeleteNode, softDeleteNode, parseIds } from "./trash";
 
 export const files = new Hono<AppEnv>();
 
@@ -102,12 +102,16 @@ files.delete("/:id", async (c) => {
 // 直接建 node 复用 R2 对象——不传文件体，实现瞬时完成；未命中（404 NO_DEDUP）走正常上传
 files.post("/instant", async (c) => {
   const user = c.get("user");
-  const { name, parentId = "", size, sha256 } = await c.req.json<{
-    name: string; parentId?: string; size: number; sha256: string;
+  const { name, parentId = "", size, sha256, mime } = await c.req.json<{
+    name: string; parentId?: string; size: number; sha256: string; mime?: string;
   }>();
   const safeName = validateNodeName(name);
   if (!Number.isFinite(size) || size <= 0 || typeof sha256 !== "string" || !/^[0-9a-f]{64}$/i.test(sha256))
     throw errors.badRequest("参数不合法");
+  // 秒传无文件体，mime 由客户端提供（浏览器 File.type）；非法值兜底 octet-stream
+  const safeMime = typeof mime === "string" && /^[a-z0-9][a-z0-9!#$&^_.+-]{0,126}\/[a-z0-9][a-z0-9!#$&^_.+-]{0,126}$/i.test(mime)
+    ? mime
+    : "application/octet-stream";
   const parent = parentId === "" ? await ensureRootDir(c.env.DB, user.id) : await getNode(c.env.DB, user.id, parentId);
   if (!parent || !parent.is_dir) throw errors.notFound();
   const hit = await c.env.DB.prepare(
@@ -116,18 +120,58 @@ files.post("/instant", async (c) => {
   if (!hit) throw new HttpError(404, "NO_DEDUP", "无相同内容文件");
   await assertQuota(c.env.DB, user.id, size, Number(c.env.DEFAULT_QUOTA_BYTES));
   const id = randomId();
-  const mime = "application/octet-stream"; // 秒传无文件体，mime 未知；下载时以扩展名兜底场景有限，接受
   const now = Date.now();
   let finalName = await uniqueName(c.env.DB, user.id, parentId, safeName);
   const insert = c.env.DB.prepare(
     "INSERT INTO nodes (id, owner_id, parent_id, name, is_dir, r2_key, size, mime, sha256, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,0,?5,?6,?7,?8,?9,?9,NULL)"
   );
   try {
-    await insert.bind(id, user.id, parentId, finalName, hit.r2_key, size, mime, sha256.toLowerCase(), now).run();
+    await insert.bind(id, user.id, parentId, finalName, hit.r2_key, size, safeMime, sha256.toLowerCase(), now).run();
   } catch (e) {
     if (!(e instanceof Error && e.message.includes("UNIQUE constraint failed"))) throw e;
     finalName = await uniqueName(c.env.DB, user.id, parentId, safeName);
-    await insert.bind(id, user.id, parentId, finalName, hit.r2_key, size, mime, sha256.toLowerCase(), now).run();
+    await insert.bind(id, user.id, parentId, finalName, hit.r2_key, size, safeMime, sha256.toLowerCase(), now).run();
   }
   return c.json({ id, name: finalName, size, deduplicated: true }, 201);
+});
+
+// 批量删除：服务端逐个处理（无逐项 HTTP 往返），permanent 时软删后立即 purge
+files.post("/batch-delete", async (c) => {
+  const user = c.get("user");
+  const { ids, permanent = false } = await c.req.json<{ ids: string[]; permanent?: boolean }>();
+  const list = parseIds({ ids });
+  let deleted = 0;
+  const failed: { id: string; reason: string }[] = [];
+  for (const id of list) {
+    try {
+      await softDeleteNode(c.env.DB, user.id, id);
+      if (permanent) await permanentDeleteNode(c.env, user.id, id);
+      deleted++;
+    } catch (e) {
+      failed.push({ id, reason: e instanceof Error ? e.message : "删除失败" });
+    }
+  }
+  return c.json({ ok: true, deleted, failed });
+});
+
+// 批量移动：校验目标目录后逐个移动（沿用 PATCH 的同名冲突处理语义）
+files.post("/batch-move", async (c) => {
+  const user = c.get("user");
+  const { ids, parentId } = await c.req.json<{ ids: string[]; parentId: string }>();
+  const list = parseIds({ ids });
+  const parent = parentId === "" ? await ensureRootDir(c.env.DB, user.id) : await getNode(c.env.DB, user.id, parentId);
+  if (!parent || !parent.is_dir) throw errors.notFound();
+  let moved = 0;
+  const failed: { id: string; reason: string }[] = [];
+  for (const id of list) {
+    try {
+      const node = await getNode(c.env.DB, user.id, id);
+      if (!node) throw errors.notFound();
+      await moveNode(c.env.DB, user.id, node.id, parentId, node.name);
+      moved++;
+    } catch (e) {
+      failed.push({ id, reason: e instanceof Error ? e.message : "移动失败" });
+    }
+  }
+  return c.json({ ok: true, moved, failed });
 });

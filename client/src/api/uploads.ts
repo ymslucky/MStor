@@ -41,7 +41,7 @@ export async function instantUpload(
   try {
     return await api<{ id: string; name: string; size: number }>("/api/files/instant", {
       method: "POST",
-      json: { name: file.name, parentId, size: file.size, sha256 },
+      json: { name: file.name, parentId, size: file.size, sha256, mime: file.type || undefined },
     });
   } catch (e) {
     if (e instanceof ApiError && e.code === "NO_DEDUP") return null;

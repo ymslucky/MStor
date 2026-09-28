@@ -15,6 +15,7 @@ vi.mock("../api/nodes", async (importOriginal) => ({
   renameNode: vi.fn(),
   moveNode: vi.fn(),
   deleteNode: vi.fn(),
+  batchDeleteNodes: vi.fn(),
 }));
 
 // 上传队列 mock：拖拽/文件选择断言 queue.add 调用（不入真实上传流程）
@@ -27,7 +28,7 @@ vi.mock("../api/shares", () => ({
   listShares: vi.fn().mockResolvedValue({ shares: [] }),
 }));
 
-import { createDir, deleteNode, listFiles, moveNode, renameNode } from "../api/nodes";
+import { createDir, batchDeleteNodes, deleteNode, listFiles, moveNode, renameNode } from "../api/nodes";
 import { listShares } from "../api/shares";
 
 function fileNode(over: Partial<Node> = {}): Node {
@@ -149,10 +150,10 @@ test("shows error state with retry that refetches", async () => {
   await waitFor(() => expect(listFiles).toHaveBeenCalledTimes(2));
 });
 
-test("batch: select rows, toggle all, batch delete calls deleteNode per id", async () => {
+test("batch: select rows, toggle all, batch delete calls batchDeleteNodes", async () => {
   vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
-  vi.mocked(deleteNode).mockClear(); // 清掉前面用例遗留的调用计数
-  vi.mocked(deleteNode).mockResolvedValue({ ok: true });
+  vi.mocked(batchDeleteNodes).mockClear();
+  vi.mocked(batchDeleteNodes).mockResolvedValue({ ok: true, deleted: 2, failed: [] });
   const { user } = renderWith(<Browser />);
   await screen.findByText("hello.txt");
   // 单选一个文件：浮出批量操作条，且 checkbox 点击不触发行打开
@@ -162,23 +163,22 @@ test("batch: select rows, toggle all, batch delete calls deleteNode per id", asy
   // 表头全选：当前页全部选中
   await user.click(screen.getByRole("checkbox", { name: "全选" }));
   expect(screen.getByText("已选 2 项")).toBeInTheDocument();
-  // 批量删除：弹窗确认后逐个调用 deleteNode
+  // 批量删除：弹窗确认后一次批量请求（服务端分块处理）
   await user.click(screen.getByRole("button", { name: "删除" }));
   expect(await screen.findByText("确定删除选中的 2 项？可在回收站恢复。")).toBeInTheDocument();
-  expect(deleteNode).not.toHaveBeenCalled();
+  expect(batchDeleteNodes).not.toHaveBeenCalled();
   await user.click(screen.getByRole("button", { name: "删除" }));
-  await waitFor(() => expect(deleteNode).toHaveBeenCalledTimes(2));
-  expect(deleteNode).toHaveBeenCalledWith("f1");
-  expect(deleteNode).toHaveBeenCalledWith("d1");
+  await waitFor(() => expect(batchDeleteNodes).toHaveBeenCalledTimes(1));
+  expect(batchDeleteNodes).toHaveBeenCalledWith(["f1", "d1"], false);
 });
 
 test("batch delete shows progress (处理中 i/n) while running", async () => {
   vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
-  vi.mocked(deleteNode).mockClear();
-  // 逐个延迟完成：第一个完成后进度条显示 1/2
-  vi.mocked(deleteNode).mockImplementation(async () => {
-    await new Promise((r) => setTimeout(r, 20));
-    return { ok: true };
+  vi.mocked(batchDeleteNodes).mockClear();
+  // 延迟完成：批量请求在途时进度条可见
+  vi.mocked(batchDeleteNodes).mockImplementation(async () => {
+    await new Promise((r) => setTimeout(r, 200));
+    return { ok: true, deleted: 2, failed: [] };
   });
   const { user } = renderWith(<Browser />);
   await screen.findByText("hello.txt");
@@ -188,7 +188,7 @@ test("batch delete shows progress (处理中 i/n) while running", async () => {
   expect(await screen.findByTestId("batch-progress")).toHaveTextContent(/处理中 \d\/2/);
   // 完成后进度条消失
   await waitFor(() => expect(screen.queryByTestId("batch-progress")).toBeNull());
-  await waitFor(() => expect(deleteNode).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(batchDeleteNodes).toHaveBeenCalledTimes(1));
 });
 
 test("selection hook: ctrl-click toggles and shift-click selects range", async () => {

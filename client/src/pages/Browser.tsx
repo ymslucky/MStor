@@ -3,8 +3,9 @@ import { useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import { Copy, Download, ExternalLink, FolderInput, FolderPlus, FolderUp, Info, LayoutGrid, Link2, List, Pencil, Share2, Trash2, TriangleAlert, Upload } from "lucide-react";
-import { listShares } from "../api/shares";
+import { batchDeleteNodes, batchMoveNodes } from "../api/nodes";
 import { friendlyMessage } from "../api/client";
+import { listShares } from "../api/shares";
 import type { Me, Node } from "../api/types";
 import { contentUrl, deleteNode, deleteNodePermanently, moveNode } from "../api/nodes";
 import Breadcrumb from "../components/Breadcrumb";
@@ -206,26 +207,47 @@ export default function Browser() {
     localStorage.setItem("mstor_view", v);
   };
 
-  // 批量删除：顺序逐个删除（permanent 时软删后立即 purge），完成后失效 files + trash 缓存
+  // 批量请求分块并行：每块 20 个 id，3 路并发；进度按已处理条目推进
+  const runChunkedParallel = async (ids: string[], worker: (chunk: string[]) => Promise<number>) => {
+    const CHUNK = 20;
+    const CONCURRENCY = 3;
+    const chunks: string[][] = [];
+    for (let i = 0; i < ids.length; i += CHUNK) chunks.push(ids.slice(i, i + CHUNK));
+    let done = 0;
+    let failed = 0;
+    let idx = 0;
+    setBatchProgress({ done: 0, total: ids.length });
+    await Promise.all(
+      Array.from({ length: Math.min(CONCURRENCY, chunks.length) }, async () => {
+        for (;;) {
+          const i = idx++;
+          if (i >= chunks.length) break;
+          try {
+            done += await worker(chunks[i]);
+          } catch {
+            failed += chunks[i].length; // 整块请求失败（网络/4xx）计入失败
+          }
+          setBatchProgress({ done: Math.min(done + failed, ids.length), total: ids.length });
+        }
+      }),
+    );
+    return { done, failed };
+  };
+
+  // 批量删除：服务端 batch-delete 一次处理一块（无逐项 HTTP 往返），分块并行加速
   const runBatchDelete = async (permanent = false) => {
     setBatchBusy(true);
-    setBatchProgress({ done: 0, total: selection.selected.size });
-    let done = 0;
-    try {
-      for (const id of selection.selected) {
-        if (permanent) await deleteNodePermanently(id);
-        else await deleteNode(id);
-        setBatchProgress({ done: ++done, total: selection.selected.size });
-      }
-      selection.clear();
-      toast(permanent ? "已彻底删除选中项" : "已移入回收站", "info");
-    } catch (e) {
-      toast(friendlyMessage(e), "error");
-    } finally {
-      setBatchBusy(false);
-      setBatchDeleting(false);
-      setBatchProgress(null);
-    }
+    const ids = [...selection.selected];
+    const { done, failed } = await runChunkedParallel(ids, async (chunk) => {
+      const r = await batchDeleteNodes(chunk, permanent);
+      return r.deleted;
+    });
+    selection.clear();
+    setBatchBusy(false);
+    setBatchDeleting(false);
+    setBatchProgress(null);
+    if (failed > 0) toast(`部分项处理失败（${failed} 项），请重试`, "error");
+    else toast(permanent ? `已彻底删除 ${done} 项` : `已移入回收站 ${done} 项`, "info");
     void queryClient.invalidateQueries({ queryKey: ["files"] });
     void queryClient.invalidateQueries({ queryKey: ["trash"] });
     if (permanent) void queryClient.invalidateQueries({ queryKey: ["me"] });
@@ -248,22 +270,20 @@ export default function Browser() {
     void queryClient.invalidateQueries({ queryKey: ["me"] });
   };
 
-  // 批量移动：顺序逐个移动
+  // 批量移动：服务端 batch-move 一次处理一块，分块并行
   const runBatchMove = async (to: string) => {
     setBatchBusy(true);
-    setBatchProgress({ done: 0, total: selection.selected.size });
-    let done = 0;
-    try {
-      for (const id of selection.selected) {
-        await moveNode(id, to);
-        setBatchProgress({ done: ++done, total: selection.selected.size });
-      }
-      selection.clear();
-    } finally {
-      setBatchBusy(false);
-      setBatchMoving(false);
-      setBatchProgress(null);
-    }
+    const ids = [...selection.selected];
+    const { done, failed } = await runChunkedParallel(ids, async (chunk) => {
+      const r = await batchMoveNodes(chunk, to);
+      return r.moved;
+    });
+    selection.clear();
+    setBatchBusy(false);
+    setBatchMoving(false);
+    setBatchProgress(null);
+    if (failed > 0) toast(`部分项移动失败（${failed} 项），请重试`, "error");
+    else toast(`已移动 ${done} 项`, "info");
     void queryClient.invalidateQueries({ queryKey: ["files"] });
   };
 
