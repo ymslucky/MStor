@@ -45,8 +45,14 @@ server 121 / client 144 测试全绿，tsc 双管线 0 错误，build gzip ≈12
 | act-as 展示修正 | `/api/me` 返回 `self`；侧栏恒显登录账号；admin API 不被 act-as 劫持 |
 | 设置页 Tab 化 | 账户/上传/管理三分类；回收站保留天数服务端动态配置（D1 settings 表） |
 | 主内容块去冗余 | KPI 4 卡→1 张存储卡；快捷操作行移除并合并进工具栏 |
+| 断点续传（P0） | 大文件暂停保留服务端分片 + localStorage 续传记录（fingerprint→uploadId/parts），失败/刷新后自动跳过已传分片；「彻底取消」才 abort |
+| 秒传（P0） | ≤60MB 客户端 SHA-256（`x-file-sha256`），服务端同 hash 同 size 直接复用 R2 对象（migration 0004 `nodes.sha256`）；删除按引用计数，防误删共享对象 |
+| 分享增强（P0） | 分享弹窗 uqr 二维码；分享列表过期项灰标 |
+| 缩略图近似 | `image/*` content 一年 immutable 强缓存 + 网格视图原图懒加载（真缩略图需付费 Image Resizing，serve.ts 已预留 cf.image 钩子） |
 
 ## 三、待升级建议（按优先级）
+
+> P0 三项与缩略图已于 2026-09-28 完成（见上表），部署 Version `c7388cd1`。
 
 ### P0 — 核心能力补强
 
