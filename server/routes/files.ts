@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "../env";
 import { randomId } from "../lib/crypto";
 import { errors, HttpError } from "../lib/errors";
-import { assertQuota, adjustUsedBytes, breadcrumb, ensureRootDir, getNode, listChildren, moveNode, uniqueName, validateNodeName } from "../lib/nodes";
+import { assertQuota, adjustUsedBytes, breadcrumb, childPath, ensureRootDir, getNode, listChildren, moveNode, uniqueName, validateNodeName } from "../lib/nodes";
 import { serveObject } from "../lib/serve";
 import { moveMany, permanentDeleteMany, softDeleteMany, softDeleteNode, parseIds } from "./trash";
 
@@ -56,6 +56,7 @@ files.put("/upload", async (c) => {
   // 秒传：客户端对 ≤60MB 文件预计算 SHA-256，命中同 hash 同 size 的现有节点直接复用 R2 对象（不重复存储）
   const sha256 = c.req.header("x-file-sha256");
   const normalizedSha = sha256 && /^[0-9a-f]{64}$/i.test(sha256) ? sha256.toLowerCase() : null;
+  const parentPath = childPath(parent);
   if (normalizedSha) {
     // 与 /instant 同款 owner 隔离：跨用户按 hash 领取 = 知道 hash 即可获得内容
     const hit = await c.env.DB.prepare(
@@ -64,14 +65,14 @@ files.put("/upload", async (c) => {
     if (hit) {
       const id = randomId();
       const insertDup = c.env.DB.prepare(
-        "INSERT INTO nodes (id, owner_id, parent_id, name, is_dir, r2_key, size, mime, sha256, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,0,?5,?6,?7,?8,?9,?9,NULL)"
+        "INSERT INTO nodes (id, owner_id, parent_id, path, name, is_dir, r2_key, size, mime, sha256, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,?5,0,?6,?7,?8,?9,?10,?10,NULL)"
       );
       try {
-        await insertDup.bind(id, user.id, parentId, finalName, hit.r2_key, len, mime, normalizedSha, now).run();
+        await insertDup.bind(id, user.id, parentId, parentPath, finalName, hit.r2_key, len, mime, normalizedSha, now).run();
       } catch (e) {
         if (!(e instanceof Error && e.message.includes("UNIQUE constraint failed"))) throw e;
         finalName = await uniqueName(c.env.DB, user.id, parentId, name);
-        await insertDup.bind(id, user.id, parentId, finalName, hit.r2_key, len, mime, normalizedSha, now).run();
+        await insertDup.bind(id, user.id, parentId, parentPath, finalName, hit.r2_key, len, mime, normalizedSha, now).run();
       }
       await adjustUsedBytes(c.env.DB, user.id, len);
       return c.json({ id, name: finalName, size: len, deduplicated: true }, 201);
@@ -83,15 +84,15 @@ files.put("/upload", async (c) => {
   if (!body) throw errors.badRequest("缺少请求体");
   const obj = await c.env.BUCKET.put(key, body, { httpMetadata: { contentType: mime } });
   const insert = c.env.DB.prepare(
-    "INSERT INTO nodes (id, owner_id, parent_id, name, is_dir, r2_key, size, mime, sha256, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,0,?5,?6,?7,?8,?9,?9,NULL)"
+    "INSERT INTO nodes (id, owner_id, parent_id, path, name, is_dir, r2_key, size, mime, sha256, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,?5,0,?6,?7,?8,?9,?10,?10,NULL)"
   );
   try {
-    await insert.bind(id, user.id, parentId, finalName, key, obj.size, mime, normalizedSha, now).run();
+    await insert.bind(id, user.id, parentId, parentPath, finalName, key, obj.size, mime, normalizedSha, now).run();
   } catch (e) {
     // uniqueName 与 INSERT 之间并发同名撞 UNIQUE：换名重试一次（R2 key 随机，无需重传）
     if (!(e instanceof Error && e.message.includes("UNIQUE constraint failed"))) throw e;
     finalName = await uniqueName(c.env.DB, user.id, parentId, name);
-    await insert.bind(id, user.id, parentId, finalName, key, obj.size, mime, normalizedSha, now).run();
+    await insert.bind(id, user.id, parentId, parentPath, finalName, key, obj.size, mime, normalizedSha, now).run();
   }
   await adjustUsedBytes(c.env.DB, user.id, obj.size);
   return c.json({ id, name: finalName, size: obj.size }, 201);
@@ -128,14 +129,14 @@ files.post("/instant", async (c) => {
   const now = Date.now();
   let finalName = await uniqueName(c.env.DB, user.id, parentId, safeName);
   const insert = c.env.DB.prepare(
-    "INSERT INTO nodes (id, owner_id, parent_id, name, is_dir, r2_key, size, mime, sha256, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,0,?5,?6,?7,?8,?9,?9,NULL)"
+    "INSERT INTO nodes (id, owner_id, parent_id, path, name, is_dir, r2_key, size, mime, sha256, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,?5,0,?6,?7,?8,?9,?10,?10,NULL)"
   );
   try {
-    await insert.bind(id, user.id, parentId, finalName, hit.r2_key, size, safeMime, sha256.toLowerCase(), now).run();
+    await insert.bind(id, user.id, parentId, childPath(parent), finalName, hit.r2_key, size, safeMime, sha256.toLowerCase(), now).run();
   } catch (e) {
     if (!(e instanceof Error && e.message.includes("UNIQUE constraint failed"))) throw e;
     finalName = await uniqueName(c.env.DB, user.id, parentId, safeName);
-    await insert.bind(id, user.id, parentId, finalName, hit.r2_key, size, safeMime, sha256.toLowerCase(), now).run();
+    await insert.bind(id, user.id, parentId, childPath(parent), finalName, hit.r2_key, size, safeMime, sha256.toLowerCase(), now).run();
   }
   await adjustUsedBytes(c.env.DB, user.id, size);
   return c.json({ id, name: finalName, size, deduplicated: true }, 201);

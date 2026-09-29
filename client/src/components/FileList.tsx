@@ -310,11 +310,11 @@ export default function FileList({
     toast("文件名已复制", "info");
   };
 
-  // 操作列：下载（蓝）/ 复制文件名（中性）/ 外部 actions（分享紫、重命名中性、移动琥珀、删除红）
-  // 点击/双击阻断冒泡：操作列不应触发行选择或行打开
+  // 操作列：下载（蓝）/ 外部 actions（分享紫、重命名中性、移动琥珀、删除红）。
+  // 始终显示（不随 hover 隐藏），按钮组并列居中；点击/双击阻断冒泡：不触发行选择或行打开
   const actionCell = (n: Node) => (
     <span
-      className="flex shrink-0 items-center justify-end gap-0.5 pr-1 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+      className="flex shrink-0 items-center justify-center gap-0.5 px-1"
       onClick={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
     >
@@ -328,9 +328,6 @@ export default function FileList({
           <Download size={14} aria-hidden />
         </a>
       )}
-      <RowAction label={`复制文件名 ${n.name}`} onClick={() => copyName(n)}>
-        <Copy size={14} aria-hidden />
-      </RowAction>
       {actions?.(n)}
     </span>
   );
@@ -487,11 +484,23 @@ export default function FileList({
       <span className="flex justify-center">
         <NodeIcon node={n} size={18} className="shrink-0" />
       </span>
-      <span className="flex min-w-0 items-center gap-2">
+      <span className="flex min-w-0 items-center gap-1">
         {/* 点击事件由行容器统一处理（避免冒泡双重 toggle），按钮仅承担样式与 title */}
         <button type="button" className="min-w-0 truncate text-left text-ink hover:underline" title={n.name} tabIndex={-1}>
           {truncateMiddle(n.name)}
         </button>
+        {/* 复制文件名：紧跟文件名后（不属于操作列），点击阻断冒泡 */}
+        <RowAction
+          label={`复制文件名 ${n.name}`}
+          className="h-6 w-6 opacity-60 hover:opacity-100"
+          onClick={(e) => {
+            e.stopPropagation();
+            copyName(n);
+          }}
+          onDoubleClick={(e) => e.stopPropagation()}
+        >
+          <Copy size={12} aria-hidden />
+        </RowAction>
         {sharedBadge(n)}
       </span>
       {showSize && <span className="truncate px-2 text-right tabular-nums text-ink-dim">{formatBytes(n.size)}</span>}

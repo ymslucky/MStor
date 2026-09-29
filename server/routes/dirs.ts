@@ -10,11 +10,9 @@ dirs.post("/", async (c) => {
   const user = c.get("user");
   const { parentId = "", name } = await c.req.json<{ parentId?: string; name: string }>();
   const validName = validateNodeName(name);
-  if (parentId !== "") {
-    const parent = await getNode(c.env.DB, user.id, parentId);
-    if (!parent || !parent.is_dir) throw errors.notFound();
-  }
-  const node = await createDir(c.env.DB, user.id, parentId, validName);
+  const found = parentId === "" ? undefined : await getNode(c.env.DB, user.id, parentId);
+  if (parentId !== "" && (!found || !found.is_dir)) throw errors.notFound();
+  const node = await createDir(c.env.DB, user.id, parentId, validName, found ?? undefined);
   return c.json(node, 201);
 });
 
@@ -24,14 +22,12 @@ dirs.post("/ensure", async (c) => {
   const user = c.get("user");
   const { parentId = "", name } = await c.req.json<{ parentId?: string; name: string }>();
   const validName = validateNodeName(name);
-  if (parentId !== "") {
-    const parent = await getNode(c.env.DB, user.id, parentId);
-    if (!parent || !parent.is_dir) throw errors.notFound();
-  }
+  const found = parentId === "" ? undefined : await getNode(c.env.DB, user.id, parentId);
+  if (parentId !== "" && (!found || !found.is_dir)) throw errors.notFound();
   const active = await c.env.DB.prepare(
     "SELECT * FROM nodes WHERE owner_id = ?1 AND parent_id = ?2 AND name = ?3 AND is_dir = 1 AND deleted_at IS NULL",
   ).bind(user.id, parentId, validName).first<NodeRow>();
   if (active) return c.json(active);
-  const node = await createDir(c.env.DB, user.id, parentId, await uniqueName(c.env.DB, user.id, parentId, validName));
+  const node = await createDir(c.env.DB, user.id, parentId, await uniqueName(c.env.DB, user.id, parentId, validName), found ?? undefined);
   return c.json(node, 201);
 });

@@ -3,7 +3,7 @@ import type { Context } from "hono";
 import type { AppEnv, Env } from "../env";
 import { errors } from "../lib/errors";
 import {
-  assertQuota, adjustUsedBytes, childByName, createDir, ensureRootDir, isDescendant, listChildren, moveNode, validateNodeName,
+  assertQuota, adjustUsedBytes, childByName, childPath, createDir, ensureRootDir, isDescendant, listChildren, moveNode, validateNodeName,
 } from "../lib/nodes";
 import { randomId } from "../lib/crypto";
 import { serveObject } from "../lib/serve";
@@ -125,8 +125,8 @@ async function davPut(c: Context<AppEnv>): Promise<Response> {
   }
   const now = Date.now();
   const insert = c.env.DB.prepare(
-    "INSERT INTO nodes (id, owner_id, parent_id, name, is_dir, r2_key, size, mime, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,0,?5,?6,?7,?8,?8,NULL)"
-  ).bind(id, user.id, r.parentId, name, key, obj.size, mime, now);
+    "INSERT INTO nodes (id, owner_id, parent_id, path, name, is_dir, r2_key, size, mime, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,?5,0,?6,?7,?8,?9,?9,NULL)"
+  ).bind(id, user.id, r.parentId, childPath(r.parent), name, key, obj.size, mime, now);
   try {
     await insert.run();
   } catch (e) {
@@ -162,17 +162,23 @@ function destinationSegments(c: Context<AppEnv>): string[] | null {
 }
 
 // 逐段解析目标父路径：与 resolvePath 同语义（liveChild 过滤回收站、每段必须是目录），
-// 返回该父目录的 DB parent_id——Destination 在根时为 ''（根哨兵行 id 不是顶级节点的父）
-async function walkToDir(c: Context<AppEnv>, segments: string[]): Promise<string | null> {
+// 返回该父目录的节点行（物化路径需要父行）——Destination 在根时为根哨兵行（其 id 不是顶级节点的父）
+async function walkToDir(c: Context<AppEnv>, segments: string[]): Promise<NodeRow | null> {
   const user = c.get("user");
-  await ensureRootDir(c.env.DB, user.id);
+  let parent = await ensureRootDir(c.env.DB, user.id);
   let parentId = "";
   for (const seg of segments) {
     const next = await liveChild(c.env.DB, user.id, parentId, seg);
     if (!next || !next.is_dir) return null;
+    parent = next;
     parentId = next.id;
   }
-  return parentId;
+  return parent;
+}
+
+/** DB parent_id 约定：根哨兵行（name=''）的子节点 parent_id 为 ''，其余为父行 id */
+function parentIdOf(row: NodeRow): string {
+  return row.name === "" ? "" : row.id;
 }
 
 async function davMkcol(c: Context<AppEnv>): Promise<Response> {
@@ -202,8 +208,9 @@ async function davMove(c: Context<AppEnv>): Promise<Response> {
   const destSegs = destinationSegments(c);
   if (!destSegs) return new Response(null, { status: 400 });
   const destName = validateNodeName(destSegs[destSegs.length - 1]);
-  const destParentId = await walkToDir(c, destSegs.slice(0, -1));
-  if (destParentId === null) return new Response(null, { status: 409 });
+  const destParent = await walkToDir(c, destSegs.slice(0, -1));
+  if (destParent === null) return new Response(null, { status: 409 });
+  const destParentId = parentIdOf(destParent);
   const existing = await childByName(c.env.DB, user.id, destParentId, destName);
   if (existing && existing.id === r.node.id) return new Response(null, { status: 403 }); // 原地 MOVE 会先毁源
   if (existing && c.req.header("overwrite")?.toLowerCase() === "f") return new Response(null, { status: 412 });
@@ -216,12 +223,14 @@ async function davMove(c: Context<AppEnv>): Promise<Response> {
   return new Response(null, { status: existing ? 204 : 201 });
 }
 
-async function copyInto(c: Context<AppEnv>, src: NodeRow, destParentId: string, name: string): Promise<void> {
+async function copyInto(c: Context<AppEnv>, src: NodeRow, destParent: NodeRow, name: string): Promise<void> {
   const user = c.get("user");
+  const destParentId = parentIdOf(destParent);
   if (src.is_dir) {
-    const dir = await createDir(c.env.DB, user.id, destParentId, name);
+    // 传入父行 parentHint：createDir 免去重复查询
+    const dir = await createDir(c.env.DB, user.id, destParentId, name, destParent);
     for (const child of await listChildren(c.env.DB, user.id, src.id)) {
-      await copyInto(c, child, dir.id, child.name);
+      await copyInto(c, child, dir, child.name);
     }
   } else {
     // 复制生成新 id / 新 r2_key，对象独立不与源共享：
@@ -234,8 +243,8 @@ async function copyInto(c: Context<AppEnv>, src: NodeRow, destParentId: string, 
     const now = Date.now();
     try {
       await c.env.DB.prepare(
-        "INSERT INTO nodes (id, owner_id, parent_id, name, is_dir, r2_key, size, mime, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,0,?5,?6,?7,?8,?8,NULL)"
-      ).bind(id, user.id, destParentId, name, key, src.size, src.mime, now).run();
+        "INSERT INTO nodes (id, owner_id, parent_id, path, name, is_dir, r2_key, size, mime, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,?5,0,?6,?7,?8,?9,?9,NULL)"
+      ).bind(id, user.id, destParentId, childPath(destParent), name, key, src.size, src.mime, now).run();
     } catch (e) {
       // 对齐 davPut 新建分支：DB 插入失败清掉已复制的 R2 对象，不留孤儿
       await c.env.BUCKET.delete(key);
@@ -252,8 +261,9 @@ async function davCopy(c: Context<AppEnv>): Promise<Response> {
   const destSegs = destinationSegments(c);
   if (!destSegs) return new Response(null, { status: 400 });
   const destName = validateNodeName(destSegs[destSegs.length - 1]);
-  const destParentId = await walkToDir(c, destSegs.slice(0, -1));
-  if (destParentId === null) return new Response(null, { status: 409 });
+  const destParent = await walkToDir(c, destSegs.slice(0, -1));
+  if (destParent === null) return new Response(null, { status: 409 });
+  const destParentId = parentIdOf(destParent);
   // 目录不能复制进自身子树：copyInto 会无限递归
   if (r.node.is_dir && await isDescendant(c.env.DB, user.id, r.node.id, destParentId))
     return new Response(null, { status: 409 });
@@ -261,7 +271,7 @@ async function davCopy(c: Context<AppEnv>): Promise<Response> {
   if (existing && existing.id === r.node.id) return new Response(null, { status: 403 });
   if (existing && c.req.header("overwrite")?.toLowerCase() === "f") return new Response(null, { status: 412 });
   if (existing) await purgeNode(c.env, user.id, existing.id, existing.deleted_at);
-  await copyInto(c, r.node, destParentId, destName);
+  await copyInto(c, r.node, destParent, destName);
   return new Response(null, { status: existing ? 204 : 201 });
 }
 

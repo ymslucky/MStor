@@ -1,6 +1,6 @@
 -- ============================================================
 -- MStor 数据库 Schema（DDL 全量版）
--- 由 migrations/0001-0007 合并而成，用于全新环境一次性建库：
+-- 由 migrations/0001-0008 合并而成，用于全新环境一次性建库：
 --   npx wrangler d1 execute mstor --remote --file=sql/schema.sql
 -- 既有环境请继续使用 migrations 增量迁移（wrangler d1 migrations apply），
 -- 两者表结构等价，勿混用导致重复执行。
@@ -21,10 +21,13 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE INDEX IF NOT EXISTS idx_users_name ON users(name);
 
 -- 文件树节点：根目录为哨兵行（parent_id='' AND name=''）；文件才有 r2_key/size/mime
+-- path = 物化祖先 id 链（不含自身）：根 '/'，根子节点 '/{rootId}/'，更深 '{父path}{父id}/'；
+-- 子树前缀 = path || id || '/'，子树查询/批量改路径用 path LIKE '{prefix}%'
 CREATE TABLE IF NOT EXISTS nodes (
   id TEXT PRIMARY KEY,
   owner_id TEXT NOT NULL REFERENCES users(id),
   parent_id TEXT NOT NULL DEFAULT '',
+  path TEXT NOT NULL DEFAULT '/',
   name TEXT NOT NULL,
   is_dir INTEGER NOT NULL CHECK (is_dir IN (0,1)),
   r2_key TEXT,
@@ -42,6 +45,7 @@ CREATE INDEX IF NOT EXISTS idx_nodes_owner_deleted ON nodes(owner_id, deleted_at
 CREATE INDEX IF NOT EXISTS idx_nodes_listing
   ON nodes(owner_id, parent_id, is_dir DESC, name) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_nodes_sha256 ON nodes(sha256);
+CREATE INDEX IF NOT EXISTS idx_nodes_path ON nodes(owner_id, path);          -- 物化路径：子树 LIKE 前缀扫描
 CREATE INDEX IF NOT EXISTS idx_nodes_r2key ON nodes(r2_key);          -- R2 引用计数（purge 零引用判断）
 CREATE INDEX IF NOT EXISTS idx_nodes_trash ON nodes(deleted_at) WHERE deleted_at IS NOT NULL; -- 回收站过期 cron
 

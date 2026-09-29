@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv, Env } from "../env";
 import { randomId } from "../lib/crypto";
 import { errors } from "../lib/errors";
-import { assertQuota, adjustUsedBytes, ensureRootDir, getNode, uniqueName, validateNodeName } from "../lib/nodes";
+import { assertQuota, adjustUsedBytes, childPath, ensureRootDir, getNode, uniqueName, validateNodeName } from "../lib/nodes";
 import { abortMultipart, completeMultipart, createMultipart, presignPart } from "../lib/r2";
 
 export const PART_SIZE = 16 * 1048576; // R2 分片最小 5MB（末片除外）
@@ -55,13 +55,17 @@ uploads.post("/:id/complete", async (c) => {
   if (!row) throw errors.notFound();
   parts.sort((a, b) => a.partNumber - b.partNumber); // R2 要求 PartNumber 升序，避免 InvalidPartOrder
   await completeMultipart(c.env, row.r2_key, row.r2_upload_id, parts);
+  // 物化路径需要父行（uploads 表只存 parent_id）
+  const parent = row.parent_id === "" ? await ensureRootDir(c.env.DB, user.id) : await getNode(c.env.DB, user.id, row.parent_id);
+  if (!parent || !parent.is_dir) throw errors.notFound();
+  const parentPath = childPath(parent);
   let finalName = await uniqueName(c.env.DB, user.id, row.parent_id, row.name);
   const now = Date.now();
   const buildBatch = (n: string) => [
     c.env.DB.prepare("UPDATE uploads SET status = 'done' WHERE id = ?1").bind(row.id),
     c.env.DB.prepare(
-      "INSERT INTO nodes (id, owner_id, parent_id, name, is_dir, r2_key, size, mime, sha256, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,0,?5,?6,?7,?8,?9,?9,NULL)"
-    ).bind(row.id, user.id, row.parent_id, n, row.r2_key, row.size, mime ?? "application/octet-stream",
+      "INSERT INTO nodes (id, owner_id, parent_id, path, name, is_dir, r2_key, size, mime, sha256, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,?5,0,?6,?7,?8,?9,?10,?10,NULL)"
+    ).bind(row.id, user.id, row.parent_id, parentPath, n, row.r2_key, row.size, mime ?? "application/octet-stream",
       sha256 ? sha256.toLowerCase() : null, now),
   ];
   try {

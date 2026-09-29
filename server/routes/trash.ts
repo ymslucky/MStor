@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import type { AppEnv, Env } from "../env";
 import { errors, HttpError } from "../lib/errors";
-import { ensureRootDir, getNode, isDescendant, subtreeIds, uniqueName, adjustUsedBytes } from "../lib/nodes";
+import { childPath, ensureRootDir, getNode, isDescendant, subtreePrefix, subtreeRange, uniqueName, adjustUsedBytes } from "../lib/nodes";
+import type { NodeRow } from "../types";
 import { getSetting } from "../lib/settings";
 
 // D1 单语句绑定参数上限 100，IN 子句按分片循环执行
@@ -11,17 +12,27 @@ export function chunk<T>(arr: T[], n: number): T[][] {
   return out;
 }
 
-/** 子树内待变更的文件 size 总和：phase='soft' 统计未删除的（软删扣减用），phase='restore' 统计已删除的（还原加回用） */
-async function subtreeFileSizeSum(db: D1Database, ownerId: string, rootId: string, phase: "soft" | "restore"): Promise<number> {
+/** 子树内待变更的文件 size 总和：phase='soft' 统计未删除的（软删扣减用），phase='restore' 统计已删除的（还原加回用）。
+ * 物化路径范围扫描（含自身）替代递归 CTE。 */
+async function subtreeFileSizeSum(db: D1Database, ownerId: string, node: NodeRow, phase: "soft" | "restore"): Promise<number> {
+  const { lo, hi } = subtreeRange(subtreePrefix(node));
   const { results } = await db.prepare(`
-    WITH RECURSIVE sub AS (
-      SELECT id FROM nodes WHERE id = ?1 AND owner_id = ?2
-      UNION ALL SELECT n.id FROM nodes n JOIN sub s ON n.parent_id = s.id
-    ) SELECT COALESCE(SUM(size), 0) AS total FROM nodes
-      WHERE id IN (SELECT id FROM sub) AND is_dir = 0 AND size IS NOT NULL
-      AND deleted_at IS ${phase === "soft" ? "NULL" : "NOT NULL"}
-  `).bind(rootId, ownerId).all<{ total: number }>();
+    SELECT COALESCE(SUM(size), 0) AS total FROM nodes
+    WHERE owner_id = ?1 AND is_dir = 0 AND size IS NOT NULL
+    AND deleted_at IS ${phase === "soft" ? "NULL" : "NOT NULL"}
+    AND (id = ?2 OR (path >= ?3 AND path < ?4))
+  `).bind(ownerId, node.id, lo, hi).all<{ total: number }>();
   return results[0]?.total ?? 0;
+}
+
+/** 多根「自身或后代」条件的 SQL 片段：每根消耗 3 个绑定参数（id + 区间 lo/hi），调用方按 ≤30 根/语句分片 */
+function subtreeTerms(roots: NodeRow[]): string {
+  return roots.map(() => `(id = ? OR (path >= ? AND path < ?))`).join(" OR ");
+}
+
+/** 多根条件绑定值：id + subtreeRange 哨兵区间 */
+function subtreeBinds(roots: NodeRow[]): string[] {
+  return roots.flatMap((r) => [r.id, ...Object.values(subtreeRange(subtreePrefix(r)))]);
 }
 
 export async function softDeleteNode(db: D1Database, ownerId: string, id: string): Promise<void> {
@@ -29,17 +40,14 @@ export async function softDeleteNode(db: D1Database, ownerId: string, id: string
   if (!node || node.deleted_at) throw errors.notFound();
   // 根目录哨兵行的特征是 parent_id='' 且 name=''；顶层节点 parent_id 同为 ''，只判 parent_id 会误伤
   if (node.parent_id === "" && node.name === "") throw errors.badRequest("不能删除根目录");
-  const ids = await subtreeIds(db, ownerId, id);
-  const freed = await subtreeFileSizeSum(db, ownerId, id, "soft");
   const now = Date.now();
-  // 各分片 + 配额扣减收进一次 batch：软删除原子生效，中途失败不留部分标记
+  // 物化路径：子树（含自身）一条 UPDATE + 配额扣减收进一次 batch，软删除原子生效
+  const { lo, hi } = subtreeRange(subtreePrefix(node));
   await db.batch([
-    ...chunk(ids, 90).map((part) => {
-      const ph = part.map((_, i) => `?${i + 3}`).join(",");
-      return db.prepare(`UPDATE nodes SET deleted_at = ?1 WHERE owner_id = ?2 AND deleted_at IS NULL AND id IN (${ph})`)
-        .bind(now, ownerId, ...part);
-    }),
-    db.prepare("UPDATE users SET used_bytes = MAX(0, used_bytes + ?1) WHERE id = ?2").bind(-freed, ownerId),
+    db.prepare(`UPDATE nodes SET deleted_at = ?1 WHERE owner_id = ?2 AND deleted_at IS NULL AND (id = ?3 OR (path >= ?4 AND path < ?5))`)
+      .bind(now, ownerId, node.id, lo, hi),
+    db.prepare("UPDATE users SET used_bytes = MAX(0, used_bytes + ?1) WHERE id = ?2").bind(
+      -(await subtreeFileSizeSum(db, ownerId, node, "soft")), ownerId),
   ]);
 }
 
@@ -47,28 +55,34 @@ export async function permanentDeleteNode(env: Env, ownerId: string, id: string)
   await permanentDeleteMany(env, ownerId, [id]);
 }
 
-/** 多根集合式彻底删除：一次递归 CTE 取所有根的子树闭包，批量删行后并行按引用计数清 R2。
- * 比逐个 permanentDeleteNode 少一个数量级的 D1 往返，批量管理百毫秒级体验的关键。 */
+/** 多根集合式彻底删除：物化路径前缀扫描取所有根的子树闭包（id + r2_key），
+ * 批量删行后并行按引用计数清 R2。比逐个 permanentDeleteNode 少一个数量级的 D1 往返。 */
 export async function permanentDeleteMany(env: Env, ownerId: string, ids: string[]): Promise<number> {
   if (!ids.length) return 0;
-  const idPh = ids.map((_, i) => `?${i + 2}`).join(",");
   // 校验：只处理回收站内的根；返回实际存在的根数（不存在的 id 静默忽略）
-  const { results: roots } = await env.DB.prepare(
-    `SELECT id FROM nodes WHERE owner_id = ?1 AND deleted_at IS NOT NULL AND id IN (${idPh})`
-  ).bind(ownerId, ...ids).all<{ id: string }>();
+  const roots: NodeRow[] = [];
+  for (const part of chunk(ids, 90)) {
+    const ph = part.map((_, i) => `?${i + 2}`).join(",");
+    const { results } = await env.DB.prepare(
+      `SELECT * FROM nodes WHERE owner_id = ?1 AND deleted_at IS NOT NULL AND id IN (${ph})`
+    ).bind(ownerId, ...part).all<NodeRow>();
+    roots.push(...results);
+  }
   if (!roots.length) return 0;
-  const rootIds = roots.map((r) => r.id);
-  const rootPh = rootIds.map((_, i) => `?${i + 2}`).join(",");
-  // 多根子树闭包：一条递归 CTE 同时取 id 和 r2_key（秒传副本共享同一对象，删行后按引用计数决定是否删对象），
-  // 省掉删行前重读一遍行收集 key 的查询
-  const { results: closure } = await env.DB.prepare(`
-    WITH RECURSIVE
-    roots AS (SELECT id, r2_key FROM nodes WHERE owner_id = ?1 AND id IN (${rootPh})),
-    sub AS (SELECT id, r2_key FROM roots UNION ALL SELECT n.id, n.r2_key FROM nodes n JOIN sub s ON n.parent_id = s.id)
-    SELECT id, r2_key FROM sub
-  `).bind(ownerId, ...rootIds).all<{ id: string; r2_key: string | null }>();
-  const all = closure.map((r) => r.id);
-  const r2Keys = [...new Set(closure.map((r) => r.r2_key).filter((k): k is string => k !== null))];
+  // 多根子树闭包：范围扫描同时取 id 和 r2_key（秒传副本共享同一对象，删行后按引用计数决定是否删对象）。
+  // 每根消耗 3 个绑定参数（id + 区间），按 30 根/语句分片
+  const all: string[] = [];
+  const r2Keys = new Set<string>();
+  for (const part of chunk(roots, 30)) {
+    const clause = subtreeTerms(part);
+    const { results } = await env.DB.prepare(
+      `SELECT id, r2_key FROM nodes WHERE owner_id = ?1 AND (${clause})`
+    ).bind(ownerId, ...subtreeBinds(part)).all<{ id: string; r2_key: string | null }>();
+    for (const r of results) {
+      all.push(r.id);
+      if (r.r2_key) r2Keys.add(r.r2_key);
+    }
+  }
   // 删行：shares + nodes 分片 batch，行删除后未删的秒传副本仍在引用计数里
   for (const part of chunk(all, 90)) {
     const ph = part.map((_, i) => `?${i + 1}`).join(",");
@@ -78,55 +92,52 @@ export async function permanentDeleteMany(env: Env, ownerId: string, ids: string
     ]);
   }
   // R2 并行清理：每个 key 查一次剩余引用，零引用才删对象（并行把 20+ 次 R2 往返压到一次往返时间）
-  await Promise.all([...new Set(r2Keys)].map(async (key) => {
+  await Promise.all([...r2Keys].map(async (key) => {
     const ref = await env.DB.prepare("SELECT 1 FROM nodes WHERE r2_key = ?1 LIMIT 1").bind(key).first();
     if (!ref) await env.BUCKET.delete(key);
   }));
-  return rootIds.length;
+  return roots.length;
 }
 
-/** 多根集合式软删除：一条递归 CTE + 一条 UPDATE 原子标记（排除根目录哨兵行） */
+/** 多根集合式软删除：物化路径范围扫描 + 一条 UPDATE 原子标记（排除根目录哨兵行），
+ * 每根消耗 3 个绑定参数，按 30 根/语句分片 */
 export async function softDeleteMany(db: D1Database, ownerId: string, ids: string[]): Promise<number> {
   if (!ids.length) return 0;
-  const idPh = ids.map((_, i) => `?${i + 2}`).join(",");
-  const { results: roots } = await db.prepare(
-    `SELECT id, parent_id, name FROM nodes WHERE owner_id = ?1 AND deleted_at IS NULL AND id IN (${idPh})`
-  ).bind(ownerId, ...ids).all<{ id: string; parent_id: string; name: string }>();
+  const { results: sel } = await db.prepare(
+    `SELECT * FROM nodes WHERE owner_id = ?1 AND deleted_at IS NULL AND id IN (${ids.map((_, i) => `?${i + 2}`).join(",")})`
+  ).bind(ownerId, ...ids).all<NodeRow>();
   // 根目录哨兵行特征 parent_id='' 且 name=''，不可删除
-  const valid = roots.filter((r) => !(r.parent_id === "" && r.name === ""));
+  const valid = sel.filter((r) => !(r.parent_id === "" && r.name === ""));
   if (!valid.length) return 0;
-  const validIds = valid.map((r) => r.id);
-  const validPh = validIds.map((_, i) => `?${i + 3}`).join(",");
-  // 软删扣减配额占用：先统计（行未标记前），与 UPDATE 同 batch 原子生效
-  const freedStmt = db.prepare(`
-    WITH RECURSIVE
-    roots AS (SELECT id FROM nodes WHERE owner_id = ?1 AND id IN (${validIds.map((_, i) => `?${i + 2}`).join(",")})),
-    sub AS (SELECT id FROM roots UNION ALL SELECT n.id FROM nodes n JOIN sub s ON n.parent_id = s.id)
-    SELECT COALESCE(SUM(size), 0) AS total FROM nodes
-    WHERE id IN (SELECT id FROM sub) AND is_dir = 0 AND size IS NOT NULL AND deleted_at IS NULL
-  `).bind(ownerId, ...validIds);
-  const freedRow = await freedStmt.first<{ total: number }>();
-  await db.prepare(`
-    WITH RECURSIVE
-    roots AS (SELECT id FROM nodes WHERE owner_id = ?1 AND id IN (${validPh})),
-    sub AS (SELECT id FROM roots UNION ALL SELECT n.id FROM nodes n JOIN sub s ON n.parent_id = s.id)
-    UPDATE nodes SET deleted_at = ?2 WHERE deleted_at IS NULL AND id IN (SELECT id FROM sub)
-  `).bind(ownerId, Date.now(), ...validIds).run();
-  await adjustUsedBytes(db, ownerId, -(freedRow?.total ?? 0));
+  const now = Date.now();
+  let freed = 0;
+  for (const part of chunk(valid, 30)) {
+    const clause = subtreeTerms(part);
+    const binds = subtreeBinds(part);
+    // 软删扣减配额占用：先统计（行未标记前），UPDATE 原子标记
+    const sumRow = await db.prepare(`
+      SELECT COALESCE(SUM(size), 0) AS total FROM nodes
+      WHERE owner_id = ?1 AND is_dir = 0 AND size IS NOT NULL AND deleted_at IS NULL AND (${clause})
+    `).bind(ownerId, ...binds).first<{ total: number }>();
+    freed += sumRow?.total ?? 0;
+    await db.prepare(`UPDATE nodes SET deleted_at = ?1 WHERE owner_id = ?2 AND deleted_at IS NULL AND (${clause})`)
+      .bind(now, ownerId, ...binds).run();
+  }
+  await adjustUsedBytes(db, ownerId, -freed);
   return valid.length;
 }
 
-/** 多项集合式移动：目标校验一次、同名冲突一次查、单条 UPDATE 批量改父目录 */
+/** 多项集合式移动：目标校验一次、同名冲突一次查、分片 UPDATE 批量改父目录；
+ * 所选目录的子树路径用一条前缀 UPDATE 平移 */
 export async function moveMany(db: D1Database, ownerId: string, ids: string[], newParentId: string): Promise<number> {
   if (!ids.length) return 0;
   const parent = newParentId === "" ? await ensureRootDir(db, ownerId) : await getNode(db, ownerId, newParentId);
   if (!parent || !parent.is_dir) throw errors.notFound();
-  const ph = (start: number) => ids.map((_, i) => `?${start + i}`).join(",");
   const { results: sel } = await db.prepare(
-    `SELECT id, name, is_dir FROM nodes WHERE owner_id = ?1 AND deleted_at IS NULL AND id IN (${ph(2)})`
-  ).bind(ownerId, ...ids).all<{ id: string; name: string; is_dir: number }>();
+    `SELECT * FROM nodes WHERE owner_id = ?1 AND deleted_at IS NULL AND id IN (${ids.map((_, i) => `?${i + 2}`).join(",")})`
+  ).bind(ownerId, ...ids).all<NodeRow>();
   if (!sel.length) return 0;
-  // 目录不能移入自身子树：对所选目录逐个做祖先检查（目录数通常极少）
+  // 目录不能移入自身子树：对所选目录做祖先检查（目录数通常极少）
   for (const dir of sel.filter((s) => s.is_dir)) {
     if (await isDescendant(db, ownerId, dir.id, newParentId)) throw errors.badRequest("不能移动到自身子目录");
   }
@@ -138,10 +149,25 @@ export async function moveMany(db: D1Database, ownerId: string, ids: string[], n
     `SELECT 1 FROM nodes WHERE owner_id = ? AND parent_id = ? AND deleted_at IS NULL AND name IN (${namePh}) AND id NOT IN (${idQ}) LIMIT 1`
   ).bind(ownerId, newParentId, ...names, ...ids).first();
   if (conflict) throw errors.conflict();
-  const { meta } = await db.prepare(
-    `UPDATE nodes SET parent_id = ?, updated_at = ? WHERE owner_id = ? AND id IN (${idQ})`
-  ).bind(newParentId, Date.now(), ownerId, ...ids).run();
-  return meta.changes ?? 0;
+  const now = Date.now();
+  const parentPath = childPath(parent);
+  // 每个被移动节点自身的 path = 目标父路径（祖先链，不含自身），逐节点 UPDATE
+  const stmts = sel.map((s) =>
+    db.prepare("UPDATE nodes SET parent_id = ?1, updated_at = ?2, path = ?3 WHERE owner_id = ?4 AND id = ?5")
+      .bind(newParentId, now, parentPath, ownerId, s.id),
+  );
+  // 目录子树路径前缀平移（一条 UPDATE 搞定整个子树）
+  for (const dir of sel.filter((s) => s.is_dir)) {
+    const oldPrefix = subtreePrefix(dir);
+    const newPrefix = `${parentPath}${dir.id}/`;
+    if (oldPrefix !== newPrefix) {
+      const { lo, hi } = subtreeRange(oldPrefix);
+      stmts.push(db.prepare("UPDATE nodes SET path = ?1 || substr(path, ?2) WHERE owner_id = ?3 AND path >= ?4 AND path < ?5")
+        .bind(newPrefix, oldPrefix.length + 1, ownerId, lo, hi));
+    }
+  }
+  await db.batch(stmts);
+  return sel.length;
 }
 
 export async function purgeExpiredTrash(env: Env): Promise<void> {
@@ -177,19 +203,29 @@ export async function restoreTrashNode(db: D1Database, ownerId: string, id: stri
   const node = await getNode(db, ownerId, id);
   if (!node || !node.deleted_at) throw errors.notFound();
   const parent = node.parent_id === "" ? null : await getNode(db, ownerId, node.parent_id);
-  const targetParent = parent && !parent.deleted_at ? node.parent_id : "";
+  const targetParentId = parent && !parent.deleted_at ? node.parent_id : "";
   // 排除自身：节点仍在表内（软删除态），否则 childByName 命中自己导致恢复后变成 "f (2).txt"
-  const name = await uniqueName(db, ownerId, targetParent, node.name, node.id);
-  const ids = await subtreeIds(db, ownerId, node.id);
-  const restored = await subtreeFileSizeSum(db, ownerId, node.id, "restore");
+  const name = await uniqueName(db, ownerId, targetParentId, node.name, node.id);
+  // 父目录已被删时还原到根：物化路径需重算，子树前缀随之平移
+  let newPath = node.path;
+  if (targetParentId !== node.parent_id) {
+    const targetParent = targetParentId === "" ? await ensureRootDir(db, ownerId) : await getNode(db, ownerId, targetParentId);
+    if (!targetParent || !targetParent.is_dir) throw errors.notFound();
+    newPath = childPath(targetParent);
+  }
+  const oldPrefix = subtreePrefix(node);
+  const newPrefix = `${newPath}${node.id}/`;
+  const restored = await subtreeFileSizeSum(db, ownerId, node, "restore");
+  const { lo, hi } = subtreeRange(oldPrefix);
   const statements = [
-    ...chunk(ids, 99).map((part) => {
-      const ph = part.map((_, i) => `?${i + 2}`).join(",");
-      return db.prepare(`UPDATE nodes SET deleted_at = NULL WHERE owner_id = ?1 AND id IN (${ph})`)
-        .bind(ownerId, ...part);
-    }),
-    db.prepare("UPDATE nodes SET parent_id = ?1, name = ?2 WHERE id = ?3")
-      .bind(targetParent, name, node.id),
+    db.prepare("UPDATE nodes SET deleted_at = NULL WHERE owner_id = ?1 AND (id = ?2 OR (path >= ?3 AND path < ?4))")
+      .bind(ownerId, node.id, lo, hi),
+    db.prepare("UPDATE nodes SET parent_id = ?1, name = ?2, path = ?3, updated_at = ?4 WHERE id = ?5")
+      .bind(targetParentId, name, newPath, Date.now(), node.id),
+    ...(node.is_dir && oldPrefix !== newPrefix
+      ? [db.prepare("UPDATE nodes SET path = ?1 || substr(path, ?2) WHERE owner_id = ?3 AND path >= ?4 AND path < ?5")
+          .bind(newPrefix, oldPrefix.length + 1, ownerId, lo, hi)]
+      : []),
     db.prepare("UPDATE users SET used_bytes = MAX(0, used_bytes + ?1) WHERE id = ?2").bind(restored, ownerId),
   ];
   try {

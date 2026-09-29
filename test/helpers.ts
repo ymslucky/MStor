@@ -40,6 +40,7 @@ export async function seedNode(overrides: Partial<NodeRow> & { owner_id: string 
   const n: NodeRow = {
     id: randomId(),
     parent_id: "",
+    path: "/",
     name: `n-${randomId()}`,
     is_dir: 0,
     r2_key: null,
@@ -50,8 +51,13 @@ export async function seedNode(overrides: Partial<NodeRow> & { owner_id: string 
     deleted_at: null,
     ...overrides,
   };
+  // 物化路径：有父节点时按父行计算（缺省 '/' 仅供顶层测试种子使用）
+  if (n.parent_id) {
+    const p = await env.DB.prepare("SELECT id, path FROM nodes WHERE id = ?1").bind(n.parent_id).first<{ id: string; path: string }>();
+    if (p) n.path = `${p.path}${p.id}/`;
+  }
   await env.DB.prepare(
-    "INSERT INTO nodes (id, owner_id, parent_id, name, is_dir, r2_key, size, mime, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)"
-  ).bind(n.id, n.owner_id, n.parent_id, n.name, n.is_dir, n.r2_key, n.size, n.mime, n.created_at, n.updated_at, n.deleted_at).run();
+    "INSERT INTO nodes (id, owner_id, parent_id, path, name, is_dir, r2_key, size, mime, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)"
+  ).bind(n.id, n.owner_id, n.parent_id, n.path, n.name, n.is_dir, n.r2_key, n.size, n.mime, n.created_at, n.updated_at, n.deleted_at).run();
   return n;
 }

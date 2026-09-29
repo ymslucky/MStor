@@ -13,6 +13,7 @@ export interface NodeRow {
   id: string;
   owner_id: string;
   parent_id: string; // "" = 用户根目录哨兵值
+  path: string;      // 物化祖先 id 链（不含自身）：'/{rootId}/{dirId}/'；子树前缀 = path + id + '/'
   name: string;
   is_dir: 0 | 1;
   r2_key: string | null;
