@@ -13,7 +13,7 @@ search.get("/", async (c) => {
   let results;
   if ([...safe].length >= 3) {
     results = (await c.env.DB.prepare(
-      `SELECT n.* FROM nodes_fts f JOIN nodes n ON n.id = f.node_id
+      `SELECT n.* FROM nodes_fts f JOIN nodes n ON n.rowid = f.rowid
        WHERE nodes_fts MATCH ?1 AND n.owner_id = ?2 AND n.deleted_at IS NULL
        ORDER BY n.updated_at DESC LIMIT 50`
     ).bind(`"${safe}"`, c.get("user").id).all()).results;

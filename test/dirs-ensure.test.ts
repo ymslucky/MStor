@@ -40,16 +40,16 @@ test("ensure nests under an existing parent", async () => {
   expect(again.id).toBe(child.id);
 });
 
-test("ensure avoids UNIQUE clash with a trashed same-name dir", async () => {
+test("ensure reuses name freed by trash (trash does not occupy names)", async () => {
   const u = await seedUser();
   const dir = (await (await ensure(u, "", "d")).json()) as { id: string };
-  // 删除进回收站后原名列被软删行占用
+  // 删除进回收站后不再占名，可直接重建同名目录
   await SELF.fetch(`https://example.com/api/files/${dir.id}`, { method: "DELETE", headers: await sessionHeaders(u) });
   const res = await ensure(u, "", "d");
   expect(res.status).toBe(201);
   const created = (await res.json()) as { id: string; name: string };
   expect(created.id).not.toBe(dir.id);
-  expect(created.name).toBe("d (2)");
+  expect(created.name).toBe("d");
 });
 
 test("ensure validates parent and name", async () => {

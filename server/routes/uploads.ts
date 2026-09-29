@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv, Env } from "../env";
 import { randomId } from "../lib/crypto";
 import { errors } from "../lib/errors";
-import { assertQuota, adjustUsedBytes, childPath, ensureRootDir, getNode, uniqueName, validateNodeName } from "../lib/nodes";
+import { assertQuota, adjustUsedBytes, childPath, resolveParent, uniqueName, validateNodeName } from "../lib/nodes";
 import { abortMultipart, completeMultipart, createMultipart, presignPart } from "../lib/r2";
 
 export const PART_SIZE = 16 * 1048576; // R2 分片最小 5MB（末片除外）
@@ -17,7 +17,7 @@ uploads.post("/", async (c) => {
   const limit = Number(c.env.SMALL_FILE_LIMIT);
   if (!Number.isFinite(limit)) throw new Error("SMALL_FILE_LIMIT 未配置或非法");
   if (size <= limit) throw errors.badRequest("小文件请使用直传接口");
-  const parent = parentId === "" ? await ensureRootDir(c.env.DB, user.id) : await getNode(c.env.DB, user.id, parentId);
+  const parent = await resolveParent(c.env.DB, user.id, parentId);
   if (!parent || !parent.is_dir) throw errors.notFound();
   await assertQuota(c.env.DB, user.id, size, Number(c.env.DEFAULT_QUOTA_BYTES));
   const id = randomId();
@@ -25,7 +25,7 @@ uploads.post("/", async (c) => {
   const r2UploadId = await createMultipart(c.env, key);
   await c.env.DB.prepare(
     "INSERT INTO uploads (id, owner_id, parent_id, name, size, r2_key, r2_upload_id, status, created_at) VALUES (?1,?2,?3,?4,?5,?6,?7,'pending',?8)"
-  ).bind(id, user.id, parentId, safeName, size, key, r2UploadId, Date.now()).run();
+  ).bind(id, user.id, parent.id, safeName, size, key, r2UploadId, Date.now()).run();
   return c.json({ uploadId: id, partSize: PART_SIZE }, 201);
 });
 
@@ -55,25 +55,25 @@ uploads.post("/:id/complete", async (c) => {
   if (!row) throw errors.notFound();
   parts.sort((a, b) => a.partNumber - b.partNumber); // R2 要求 PartNumber 升序，避免 InvalidPartOrder
   await completeMultipart(c.env, row.r2_key, row.r2_upload_id, parts);
-  // 物化路径需要父行（uploads 表只存 parent_id）
-  const parent = row.parent_id === "" ? await ensureRootDir(c.env.DB, user.id) : await getNode(c.env.DB, user.id, row.parent_id);
+  // 物化路径需要父行（uploads 表只存 parent_id；'' 为历史遗留边界 → 根哨兵行）
+  const parent = await resolveParent(c.env.DB, user.id, row.parent_id);
   if (!parent || !parent.is_dir) throw errors.notFound();
   const parentPath = childPath(parent);
-  let finalName = await uniqueName(c.env.DB, user.id, row.parent_id, row.name);
+  let finalName = await uniqueName(c.env.DB, user.id, parent.id, row.name);
   const now = Date.now();
   const buildBatch = (n: string) => [
     c.env.DB.prepare("UPDATE uploads SET status = 'done' WHERE id = ?1").bind(row.id),
     c.env.DB.prepare(
       "INSERT INTO nodes (id, owner_id, parent_id, path, name, is_dir, r2_key, size, mime, sha256, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,?5,0,?6,?7,?8,?9,?10,?10,NULL)"
-    ).bind(row.id, user.id, row.parent_id, parentPath, n, row.r2_key, row.size, mime ?? "application/octet-stream",
+    ).bind(row.id, user.id, parent.id, parentPath, n, row.r2_key, row.size, mime ?? "application/octet-stream",
       sha256 ? sha256.toLowerCase() : null, now),
   ];
   try {
     await c.env.DB.batch(buildBatch(finalName));
   } catch (e) {
-    // uniqueName 与 batch 之间并发同名撞 UNIQUE：换名重试一次（R2 上传已完成，无需重传）
+    // uniqueName 与 batch 之间并发同名撞唯一索引：换名重试一次（R2 上传已完成，无需重传）
     if (!(e instanceof Error && e.message.includes("UNIQUE constraint failed"))) throw e;
-    finalName = await uniqueName(c.env.DB, user.id, row.parent_id, row.name);
+    finalName = await uniqueName(c.env.DB, user.id, parent.id, row.name);
     await c.env.DB.batch(buildBatch(finalName));
   }
   await adjustUsedBytes(c.env.DB, user.id, row.size);

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { AppEnv, Env } from "../env";
 import { errors, HttpError } from "../lib/errors";
-import { childPath, ensureRootDir, getNode, isDescendant, subtreePrefix, subtreeRange, uniqueName, adjustUsedBytes } from "../lib/nodes";
+import { childPath, ensureRootDir, getNode, isDescendant, resolveParent, subtreePrefix, subtreeRange, uniqueName, adjustUsedBytes } from "../lib/nodes";
 import type { NodeRow } from "../types";
 import { getSetting } from "../lib/settings";
 
@@ -38,8 +38,8 @@ function subtreeBinds(roots: NodeRow[]): string[] {
 export async function softDeleteNode(db: D1Database, ownerId: string, id: string): Promise<void> {
   const node = await getNode(db, ownerId, id);
   if (!node || node.deleted_at) throw errors.notFound();
-  // 根目录哨兵行的特征是 parent_id='' 且 name=''；顶层节点 parent_id 同为 ''，只判 parent_id 会误伤
-  if (node.parent_id === "" && node.name === "") throw errors.badRequest("不能删除根目录");
+  // 根目录哨兵行是唯一 name='' 的行（真实节点名经 validateNodeName 非空）
+  if (node.name === "") throw errors.badRequest("不能删除根目录");
   const now = Date.now();
   // 物化路径：子树（含自身）一条 UPDATE + 配额扣减收进一次 batch，软删除原子生效
   const { lo, hi } = subtreeRange(subtreePrefix(node));
@@ -109,8 +109,8 @@ export async function softDeleteMany(db: D1Database, ownerId: string, ids: strin
     `SELECT * FROM nodes WHERE deleted_at IS NULL AND id IN (${ids.map(() => "?").join(",")})`
   ).bind(...ids).all<NodeRow>();
   const sel = selRows.filter((r) => r.owner_id === ownerId);
-  // 根目录哨兵行特征 parent_id='' 且 name=''，不可删除
-  const valid = sel.filter((r) => !(r.parent_id === "" && r.name === ""));
+  // 根目录哨兵行（name=''）不可删除
+  const valid = sel.filter((r) => r.name !== "");
   if (!valid.length) return 0;
   const now = Date.now();
   let freed = 0;
@@ -134,8 +134,10 @@ export async function softDeleteMany(db: D1Database, ownerId: string, ids: strin
  * 所选目录的子树路径用一条前缀 UPDATE 平移 */
 export async function moveMany(db: D1Database, ownerId: string, ids: string[], newParentId: string): Promise<number> {
   if (!ids.length) return 0;
-  const parent = newParentId === "" ? await ensureRootDir(db, ownerId) : await getNode(db, ownerId, newParentId);
+  // '' 表示根 → 根哨兵行，DB parent_id 用哨兵行 id
+  const parent = await resolveParent(db, ownerId, newParentId);
   if (!parent || !parent.is_dir) throw errors.notFound();
+  const targetParentId = parent.id;
   // 纯 PK 查找（避免 owner 索引全扫），JS 侧过滤 owner
   const { results: selRows } = await db.prepare(
     `SELECT * FROM nodes WHERE deleted_at IS NULL AND id IN (${ids.map(() => "?").join(",")})`
@@ -144,7 +146,7 @@ export async function moveMany(db: D1Database, ownerId: string, ids: string[], n
   if (!sel.length) return 0;
   // 目录不能移入自身子树：对所选目录做祖先检查（目录数通常极少）
   for (const dir of sel.filter((s) => s.is_dir)) {
-    if (await isDescendant(db, ownerId, dir.id, newParentId)) throw errors.badRequest("不能移动到自身子目录");
+    if (await isDescendant(db, ownerId, dir.id, targetParentId)) throw errors.badRequest("不能移动到自身子目录");
   }
   // 同名冲突：目标下与所选同名的活跃节点（排除所选自身），任一冲突整批 409
   const names = sel.map((s) => s.name);
@@ -152,14 +154,14 @@ export async function moveMany(db: D1Database, ownerId: string, ids: string[], n
   const idQ = ids.map(() => "?").join(",");
   const conflict = await db.prepare(
     `SELECT 1 FROM nodes WHERE owner_id = ? AND parent_id = ? AND deleted_at IS NULL AND name IN (${namePh}) AND id NOT IN (${idQ}) LIMIT 1`
-  ).bind(ownerId, newParentId, ...names, ...ids).first();
+  ).bind(ownerId, targetParentId, ...names, ...ids).first();
   if (conflict) throw errors.conflict();
   const now = Date.now();
   const parentPath = childPath(parent);
   // 每个被移动节点自身的 path = 目标父路径（祖先链，不含自身），逐节点 UPDATE
   const stmts = sel.map((s) =>
     db.prepare("UPDATE nodes SET parent_id = ?1, updated_at = ?2, path = ?3 WHERE owner_id = ?4 AND id = ?5")
-      .bind(newParentId, now, parentPath, ownerId, s.id),
+      .bind(targetParentId, now, parentPath, ownerId, s.id),
   );
   // 目录子树路径前缀平移（一条 UPDATE 搞定整个子树）
   for (const dir of sel.filter((s) => s.is_dir)) {
@@ -207,15 +209,15 @@ trash.get("/", async (c) => {
 export async function restoreTrashNode(db: D1Database, ownerId: string, id: string): Promise<void> {
   const node = await getNode(db, ownerId, id);
   if (!node || !node.deleted_at) throw errors.notFound();
-  const parent = node.parent_id === "" ? null : await getNode(db, ownerId, node.parent_id);
-  const targetParentId = parent && !parent.deleted_at ? node.parent_id : "";
+  // 目标父目录：原父仍活跃则原地还原，否则还原到根（parent_id 统一为哨兵行 id）
+  let targetParent = await getNode(db, ownerId, node.parent_id);
+  if (!targetParent || targetParent.deleted_at) targetParent = await ensureRootDir(db, ownerId);
+  const targetParentId = targetParent.id;
   // 排除自身：节点仍在表内（软删除态），否则 childByName 命中自己导致恢复后变成 "f (2).txt"
   const name = await uniqueName(db, ownerId, targetParentId, node.name, node.id);
   // 父目录已被删时还原到根：物化路径需重算，子树前缀随之平移
   let newPath = node.path;
   if (targetParentId !== node.parent_id) {
-    const targetParent = targetParentId === "" ? await ensureRootDir(db, ownerId) : await getNode(db, ownerId, targetParentId);
-    if (!targetParent || !targetParent.is_dir) throw errors.notFound();
     newPath = childPath(targetParent);
   }
   const oldPrefix = subtreePrefix(node);

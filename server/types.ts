@@ -12,7 +12,7 @@ export interface UserRow {
 export interface NodeRow {
   id: string;
   owner_id: string;
-  parent_id: string; // "" = 用户根目录哨兵值
+  parent_id: string; // 根哨兵行 id（哨兵行自身为 ''）
   path: string;      // 物化祖先 id 链（不含自身）：'/{rootId}/{dirId}/'；子树前缀 = path + id + '/'
   name: string;
   is_dir: 0 | 1;

@@ -19,16 +19,10 @@ dav.use("*", davAuth);
 interface Resolved {
   node: NodeRow | null;   // 最深命中节点（可能为 null = 不存在）
   parent: NodeRow;        // 已存在的最深父目录
-  parentId: string;       // DB 里的 parent_id：根约定为 ''（根哨兵行仅是标记行，其 id 不是顶级节点的父）
+  parentId: string;       // DB 里的 parent_id：根为哨兵行 id，其余为父行 id
   segments: string[];
   walked: number;         // 实际命中层数：walked === segments.length 表示目标存在
   path: string;           // 已命中部分："." 表示根
-}
-
-// WebDAV 视角只可见未删除节点：childByName 有意不过滤 deleted_at（保持 UNIQUE 占名语义），这里包一层
-async function liveChild(db: D1Database, ownerId: string, parentId: string, name: string): Promise<NodeRow | null> {
-  const n = await childByName(db, ownerId, parentId, name);
-  return n?.deleted_at === null ? n : null;
 }
 
 async function resolvePath(c: Context<AppEnv>): Promise<Resolved> {
@@ -43,13 +37,13 @@ async function resolvePath(c: Context<AppEnv>): Promise<Resolved> {
   const segments = rel.split("/").filter(Boolean);
   const root = await ensureRootDir(c.env.DB, user.id);
   let parent = root;
-  let parentId = "";
+  let parentId = root.id; // 顶层节点 parent_id = 根哨兵行 id
   let node: NodeRow | null = root;
   let walked = 0;
   for (const seg of segments) {
     if (!node || !node.is_dir) break;
     parent = node;
-    node = await liveChild(c.env.DB, user.id, parentId, seg);
+    node = await childByName(c.env.DB, user.id, parentId, seg); // 只匹配活跃行，回收站不可见
     if (node) {
       walked++;
       parentId = node.id;
@@ -70,9 +64,8 @@ async function propfind(c: Context<AppEnv>): Promise<Response> {
   const responses = [propResponse(selfHref, r.node)];
   if (depth === "1" && r.node.is_dir) {
     const base = r.path === "." ? "" : r.path;
-    // 根目录的子节点 parent_id 约定为 ''，子目录才是自身 id
-    const listParentId = r.path === "." ? "" : r.node.id;
-    for (const child of await listChildren(c.env.DB, c.get("user").id, listParentId)) {
+    // 顶层节点 parent_id = 根哨兵行 id，子目录 = 自身 id：r.node.id 通吃两种情况
+    for (const child of await listChildren(c.env.DB, c.get("user").id, r.node.id)) {
       responses.push(propResponse(`/dav${base}/${child.name}`, child));
     }
   }
@@ -130,8 +123,8 @@ async function davPut(c: Context<AppEnv>): Promise<Response> {
   try {
     await insert.run();
   } catch (e) {
-    // 同名软删除节点仍占 UNIQUE(owner_id,parent_id,name)：DAV PUT 不能改名，映射为 409
-    if (e instanceof Error && e.message.includes("UNIQUE constraint failed")) throw errors.conflict("目标名称被回收站占用");
+    // 并发同名撞活跃行唯一索引：DAV PUT 不能改名，映射为 409
+    if (e instanceof Error && e.message.includes("UNIQUE constraint failed")) throw errors.conflict("同名文件已存在");
     throw e;
   }
   await adjustUsedBytes(c.env.DB, user.id, obj.size);
@@ -161,24 +154,19 @@ function destinationSegments(c: Context<AppEnv>): string[] | null {
   }
 }
 
-// 逐段解析目标父路径：与 resolvePath 同语义（liveChild 过滤回收站、每段必须是目录），
-// 返回该父目录的节点行（物化路径需要父行）——Destination 在根时为根哨兵行（其 id 不是顶级节点的父）
+// 逐段解析目标父路径：与 resolvePath 同语义（childByName 只匹配活跃行、每段必须是目录），
+// 返回该父目录的节点行（物化路径需要父行）——Destination 在根时为根哨兵行
 async function walkToDir(c: Context<AppEnv>, segments: string[]): Promise<NodeRow | null> {
   const user = c.get("user");
   let parent = await ensureRootDir(c.env.DB, user.id);
-  let parentId = "";
+  let parentId = parent.id;
   for (const seg of segments) {
-    const next = await liveChild(c.env.DB, user.id, parentId, seg);
+    const next = await childByName(c.env.DB, user.id, parentId, seg);
     if (!next || !next.is_dir) return null;
     parent = next;
     parentId = next.id;
   }
   return parent;
-}
-
-/** DB parent_id 约定：根哨兵行（name=''）的子节点 parent_id 为 ''，其余为父行 id */
-function parentIdOf(row: NodeRow): string {
-  return row.name === "" ? "" : row.id;
 }
 
 async function davMkcol(c: Context<AppEnv>): Promise<Response> {
@@ -189,7 +177,7 @@ async function davMkcol(c: Context<AppEnv>): Promise<Response> {
   if (r.segments.length === 0 || r.walked !== r.segments.length - 1 || !r.parent.is_dir)
     return new Response(null, { status: 409 });
   validateNodeName(r.segments[r.segments.length - 1]);
-  // 顶级目录挂根：parentId 是 ''（根哨兵行仅是标记行），与 PUT 新建分支同款
+  // 顶级目录挂根：parentId 是根哨兵行 id，与 PUT 新建分支同款
   await createDir(c.env.DB, c.get("user").id, r.parentId, r.segments[r.segments.length - 1]);
   return new Response(null, { status: 201 });
 }
@@ -210,7 +198,7 @@ async function davMove(c: Context<AppEnv>): Promise<Response> {
   const destName = validateNodeName(destSegs[destSegs.length - 1]);
   const destParent = await walkToDir(c, destSegs.slice(0, -1));
   if (destParent === null) return new Response(null, { status: 409 });
-  const destParentId = parentIdOf(destParent);
+  const destParentId = destParent.id;
   const existing = await childByName(c.env.DB, user.id, destParentId, destName);
   if (existing && existing.id === r.node.id) return new Response(null, { status: 403 }); // 原地 MOVE 会先毁源
   if (existing && c.req.header("overwrite")?.toLowerCase() === "f") return new Response(null, { status: 412 });
@@ -225,7 +213,7 @@ async function davMove(c: Context<AppEnv>): Promise<Response> {
 
 async function copyInto(c: Context<AppEnv>, src: NodeRow, destParent: NodeRow, name: string): Promise<void> {
   const user = c.get("user");
-  const destParentId = parentIdOf(destParent);
+  const destParentId = destParent.id;
   if (src.is_dir) {
     // 传入父行 parentHint：createDir 免去重复查询
     const dir = await createDir(c.env.DB, user.id, destParentId, name, destParent);
@@ -263,7 +251,7 @@ async function davCopy(c: Context<AppEnv>): Promise<Response> {
   const destName = validateNodeName(destSegs[destSegs.length - 1]);
   const destParent = await walkToDir(c, destSegs.slice(0, -1));
   if (destParent === null) return new Response(null, { status: 409 });
-  const destParentId = parentIdOf(destParent);
+  const destParentId = destParent.id;
   // 目录不能复制进自身子树：copyInto 会无限递归
   if (r.node.is_dir && await isDescendant(c.env.DB, user.id, r.node.id, destParentId))
     return new Response(null, { status: 409 });

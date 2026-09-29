@@ -26,6 +26,7 @@ test("createDir writes materialized path (root child / nested)", async () => {
   const photos = await createDir(env.DB, u.id, root.id, "相册");
   const y2024 = await createDir(env.DB, u.id, photos.id, "2024");
   expect(photos.path).toBe(`/${root.id}/`);
+  expect(photos.parent_id).toBe(root.id); // 顶层节点 parent_id = 根哨兵行 id
   expect(y2024.path).toBe(`/${root.id}/${photos.id}/`);
 });
 
@@ -97,7 +98,7 @@ test("restore to root when parent deleted recomputes subtree path", async () => 
   await softDeleteMany(env.DB, u.id, [dir.id, sub.id]);
   await restoreTrashNode(env.DB, u.id, sub.id); // 父 dir 已删 → 还原到根
   const restoredSub = (await getNode(env.DB, u.id, sub.id))!;
-  expect(restoredSub.parent_id).toBe("");
+  expect(restoredSub.parent_id).toBe(root.id);
   expect(restoredSub.path).toBe(`/${root.id}/`);
   const restoredFile = (await getNode(env.DB, u.id, file.id))!;
   expect(restoredFile.deleted_at).toBeNull();

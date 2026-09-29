@@ -77,7 +77,7 @@ test("PUT into missing directory returns 409", async () => {
   expect(res.status).toBe(409);
 });
 
-test("trashed node is invisible to dav and its name stays occupied", async () => {
+test("trashed node is invisible to dav and its name is free for PUT", async () => {
   const u = await seedUser();
   const id = await upload(u, "gone.txt", "bye");
   await SELF.fetch(`https://example.com/api/files/${id}`, { method: "DELETE", headers: await sessionHeaders(u) });
@@ -85,7 +85,8 @@ test("trashed node is invisible to dav and its name stays occupied", async () =>
   const pf = await SELF.fetch("https://example.com/dav/", { method: "PROPFIND", headers: { ...h, depth: "1" } });
   expect(await pf.text()).not.toContain("gone.txt");
   expect((await SELF.fetch("https://example.com/dav/gone.txt", { headers: h })).status).toBe(404);
-  expect((await SELF.fetch("https://example.com/dav/gone.txt", { method: "PUT", headers: h, body: "x" })).status).toBe(409);
+  // 回收站不占名：DAV PUT 可直接重建同名文件
+  expect((await SELF.fetch("https://example.com/dav/gone.txt", { method: "PUT", headers: h, body: "x" })).status).toBe(201);
 });
 
 test("dav PUT enforces quota", async () => {

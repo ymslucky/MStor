@@ -52,20 +52,22 @@ test("search returns breadcrumb paths", async () => {
   expect(data.paths[top.id]).toBe("随笔.txt");
 });
 
-test("fts rowid mapping: rename/delete stay in sync without duplicates", async () => {
+test("fts external content: rename/delete stay in sync without duplicates", async () => {
   const u = await seedUser();
   const f = await seedNode({ owner_id: u.id, name: "报告-v1.pdf", size: 1 });
 
-  // INSERT 触发器回写 fts_rowid，且 FTS 恰好 1 行
-  const row = await env.DB.prepare("SELECT fts_rowid FROM nodes WHERE id = ?1").bind(f.id).first<{ fts_rowid: number }>();
-  expect(row!.fts_rowid).toBeGreaterThan(0);
+  // FTS 行 rowid 即 nodes.rowid，INSERT 触发器同步，恰好 1 行
+  const ftsCount = async (nid: string) => {
+    const r = (await env.DB.prepare("SELECT rowid FROM nodes WHERE id = ?1").bind(nid).first<{ rowid: number }>())!;
+    if (!r) return 0; // 行已删除
+    return (await env.DB.prepare("SELECT COUNT(*) AS n FROM nodes_fts WHERE rowid = ?1").bind(r.rowid).first<{ n: number }>())!.n;
+  };
+  expect(await ftsCount(f.id)).toBe(1);
 
   // 重命名：旧名搜不到、新名搜得到，FTS 仍是 1 行（rowid 复用，不累积重复行）
   await env.DB.prepare("UPDATE nodes SET name = ?1, updated_at = ?2 WHERE id = ?3")
     .bind("报告-v2.pdf", Date.now(), f.id).run();
-  const ftsCount = async () =>
-    (await env.DB.prepare("SELECT COUNT(*) AS n FROM nodes_fts WHERE node_id = ?1").bind(f.id).first<{ n: number }>())!.n;
-  expect(await ftsCount()).toBe(1);
+  expect(await ftsCount(f.id)).toBe(1);
 
   const res = await SELF.fetch(`https://example.com/api/search?q=${encodeURIComponent("报告-v2")}`, {
     headers: await sessionHeaders(u),
@@ -78,5 +80,5 @@ test("fts rowid mapping: rename/delete stay in sync without duplicates", async (
 
   // 彻底删除：FTS 行随之清除
   await env.DB.prepare("DELETE FROM nodes WHERE id = ?1").bind(f.id).run();
-  expect(await ftsCount()).toBe(0);
+  expect(await ftsCount(f.id)).toBe(0);
 });

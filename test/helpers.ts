@@ -1,6 +1,7 @@
 import { env } from "cloudflare:test";
 import { sign } from "hono/jwt";
 import { pbkdf2Hash, randomId } from "../server/lib/crypto";
+import { childPath, ensureRootDir } from "../server/lib/nodes";
 import { SESSION_COOKIE } from "../server/middleware/session";
 import type { NodeRow, UserRow } from "../server/types";
 
@@ -51,10 +52,14 @@ export async function seedNode(overrides: Partial<NodeRow> & { owner_id: string 
     deleted_at: null,
     ...overrides,
   };
-  // 物化路径：有父节点时按父行计算（缺省 '/' 仅供顶层测试种子使用）
+  // 物化路径：指定父节点时按父行计算；未指定父节点挂根哨兵行（顶层 parent_id = 哨兵行 id）
   if (n.parent_id) {
     const p = await env.DB.prepare("SELECT id, path FROM nodes WHERE id = ?1").bind(n.parent_id).first<{ id: string; path: string }>();
     if (p) n.path = `${p.path}${p.id}/`;
+  } else {
+    const root = await ensureRootDir(env.DB, n.owner_id);
+    n.parent_id = root.id;
+    n.path = childPath(root);
   }
   await env.DB.prepare(
     "INSERT INTO nodes (id, owner_id, parent_id, path, name, is_dir, r2_key, size, mime, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)"

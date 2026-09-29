@@ -42,17 +42,23 @@ export async function ensureRootDir(db: D1Database, ownerId: string): Promise<No
   return (await db.prepare("SELECT * FROM nodes WHERE id = ?1").bind(id).first<NodeRow>())!;
 }
 
+/** API 边界 parent_id 翻译：客户端传 '' 表示根目录 → 返回根哨兵行；否则按 id 查节点 */
+export async function resolveParent(db: D1Database, ownerId: string, parentId: string): Promise<NodeRow | null> {
+  return parentId === "" ? ensureRootDir(db, ownerId) : getNode(db, ownerId, parentId);
+}
+
 export async function getNode(db: D1Database, ownerId: string, id: string): Promise<NodeRow | null> {
   return db.prepare("SELECT * FROM nodes WHERE id = ?1 AND owner_id = ?2").bind(id, ownerId).first<NodeRow>();
 }
 
-// 有意不过滤 deleted_at：与 UNIQUE(owner_id,parent_id,name) 约束保持一致，软删除仍占用目录名称
+// 只匹配活跃行：回收站不占名（idx_nodes_name_active 部分唯一索引同语义）
 export async function childByName(db: D1Database, ownerId: string, parentId: string, name: string, excludeId?: string): Promise<NodeRow | null> {
   if (excludeId !== undefined) {
-    return db.prepare("SELECT * FROM nodes WHERE owner_id = ?1 AND parent_id = ?2 AND name = ?3 AND id != ?4")
+    return db.prepare("SELECT * FROM nodes WHERE owner_id = ?1 AND parent_id = ?2 AND name = ?3 AND deleted_at IS NULL AND id != ?4")
       .bind(ownerId, parentId, name, excludeId).first<NodeRow>();
   }
-  return db.prepare("SELECT * FROM nodes WHERE owner_id = ?1 AND parent_id = ?2 AND name = ?3").bind(ownerId, parentId, name).first<NodeRow>();
+  return db.prepare("SELECT * FROM nodes WHERE owner_id = ?1 AND parent_id = ?2 AND name = ?3 AND deleted_at IS NULL")
+    .bind(ownerId, parentId, name).first<NodeRow>();
 }
 
 // 目录/文件名统一校验：非空、长度、保留名与非法字符，返回 trim 后的名称
@@ -64,17 +70,17 @@ export function validateNodeName(name: unknown): string {
 }
 
 export async function createDir(db: D1Database, ownerId: string, parentId: string, name: string, parentHint?: NodeRow): Promise<NodeRow> {
-  if (await childByName(db, ownerId, parentId, name)) throw errors.conflict();
   // 物化路径需要父行：调用方已持有父行时经 parentHint 传入，避免重复查询
   const parent = parentHint ?? (parentId === "" ? await ensureRootDir(db, ownerId) : await getNode(db, ownerId, parentId));
   if (!parent || !parent.is_dir) throw errors.badRequest("目标目录不存在");
+  if (await childByName(db, ownerId, parent.id, name)) throw errors.conflict();
   const id = randomId();
   try {
     await db.prepare(
       "INSERT INTO nodes (id, owner_id, parent_id, path, name, is_dir, r2_key, size, mime, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,?5,1,NULL,NULL,NULL,?6,?6,NULL)"
-    ).bind(id, ownerId, parentId, childPath(parent), name, now()).run();
+    ).bind(id, ownerId, parent.id, childPath(parent), name, now()).run();
   } catch (e) {
-    // check-then-insert 竞态：并发同名时 UNIQUE 约束兜底，映射为 409
+    // check-then-insert 竞态：并发同名时唯一索引兜底，映射为 409
     if (e instanceof Error && e.message.includes("UNIQUE constraint failed")) throw errors.conflict();
     throw e;
   }
@@ -82,9 +88,8 @@ export async function createDir(db: D1Database, ownerId: string, parentId: strin
 }
 
 export async function listChildren(db: D1Database, ownerId: string, parentId: string): Promise<NodeRow[]> {
-  // name != '' 排除根目录哨兵行（其 parent_id 与顶层节点相同）
   const { results } = await db.prepare(
-    "SELECT * FROM nodes WHERE owner_id = ?1 AND parent_id = ?2 AND deleted_at IS NULL AND name != '' ORDER BY is_dir DESC, name"
+    "SELECT * FROM nodes WHERE owner_id = ?1 AND parent_id = ?2 AND deleted_at IS NULL ORDER BY is_dir DESC, name"
   ).bind(ownerId, parentId).all<NodeRow>();
   return results;
 }
@@ -135,18 +140,20 @@ export async function isDescendant(db: D1Database, ownerId: string, ancestorId: 
 export async function moveNode(db: D1Database, ownerId: string, id: string, newParentId: string, newName: string): Promise<void> {
   const node = await getNode(db, ownerId, id);
   if (!node) throw errors.notFound();
+  // API 边界：newParentId '' 表示根 → 根哨兵行，DB parent_id 用哨兵行 id
   const parent = newParentId === "" ? await ensureRootDir(db, ownerId) : await getNode(db, ownerId, newParentId);
   if (!parent || !parent.is_dir) throw errors.badRequest("目标目录不存在");
-  if (node.is_dir && await isDescendant(db, ownerId, id, newParentId)) throw errors.badRequest("不能移动到自身子目录");
+  const targetParentId = parent.id;
+  if (node.is_dir && await isDescendant(db, ownerId, id, targetParentId)) throw errors.badRequest("不能移动到自身子目录");
   // 排除自身：改回原名 / no-op PATCH 时不能命中自己
-  if (await childByName(db, ownerId, newParentId, newName, id)) throw errors.conflict();
+  if (await childByName(db, ownerId, targetParentId, newName, id)) throw errors.conflict();
   // 物化路径维护：自身一条 UPDATE；目录子树一条前缀批量 UPDATE（替代逐个递归）
   const newSelfPath = childPath(parent);
   const oldPrefix = subtreePrefix(node);
   const newPrefix = `${newSelfPath}${node.id}/`;
   const stmts = [
     db.prepare("UPDATE nodes SET parent_id = ?1, name = ?2, updated_at = ?3, path = ?4 WHERE id = ?5 AND owner_id = ?6")
-      .bind(newParentId, newName, now(), newSelfPath, id, ownerId),
+      .bind(targetParentId, newName, now(), newSelfPath, id, ownerId),
   ];
   if (node.is_dir && oldPrefix !== newPrefix) {
     const { lo, hi } = subtreeRange(oldPrefix);
