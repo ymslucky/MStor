@@ -31,9 +31,11 @@ shares.post("/", async (c) => {
 });
 
 shares.get("/", async (c) => {
+  // CROSS JOIN 锁定 shares 驱动：idx_shares_active 有序扫描 + 每行 PK 回表，
+  // 读行数 = 分享数（普通 JOIN 会被 planner 改成 nodes 侧 owner 索引全扫）且免 TEMP B-TREE 排序
   const { results } = await c.env.DB.prepare(
     `SELECT s.*, n.name AS node_name, n.is_dir AS node_is_dir, n.size AS node_size
-     FROM shares s JOIN nodes n ON n.id = s.node_id
+     FROM shares s CROSS JOIN nodes n ON n.id = s.node_id
      WHERE n.owner_id = ?1 AND s.revoked_at IS NULL ORDER BY s.created_at DESC`
   ).bind(c.get("user").id).all();
   return c.json({ shares: results });
