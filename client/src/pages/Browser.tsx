@@ -419,7 +419,9 @@ export default function Browser() {
       return;
     }
     void window.showDirectoryPicker!()
-      .then((handle) => collectDirectory(handle))
+      // 根前缀带上传中文件夹自身名字：path 含 "名字/" 才会逐级 ensure 建出该文件夹
+      // （与 webkitdirectory 的 webkitRelativePath 语义一致；不带前缀会导致内容平铺、文件夹不创建）
+      .then((handle) => collectDirectory(handle, `${handle.name}/`))
       .then((items) => {
         if (items.length) queue.add(items, dir);
       })

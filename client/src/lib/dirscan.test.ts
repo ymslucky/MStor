@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { collectUploads } from "./dirscan";
+import { collectDirectory, collectUploads } from "./dirscan";
 
 // —— 测试用假 entry/dt（jsdom 无 DataTransfer 与 webkitGetAsEntry）——
 function fakeFile(name: string, content = "x"): File {
@@ -86,4 +86,25 @@ test("falls back to dt.files when entries are unavailable or null", async () => 
 
 test("empty drop yields empty list", async () => {
   expect(await collectUploads(fakeDt([], []))).toEqual([]);
+});
+
+// —— showDirectoryPicker 路径（File System Access API）——
+function fakeHandle(name: string, children: FileSystemHandle[]): FileSystemDirectoryHandle {
+  return {
+    kind: "directory", name,
+    values: async function* () { yield* children; },
+  } as unknown as FileSystemDirectoryHandle;
+}
+function handleFile(name: string, file: File): FileSystemHandle {
+  return { kind: "file", name, getFile: async () => file } as unknown as FileSystemHandle;
+}
+
+test("collectDirectory applies root prefix so the picked folder itself gets created", async () => {
+  const root = fakeHandle("photos", [
+    handleFile("a.jpg", fakeFile("a.jpg")),
+    fakeHandle("2024", [handleFile("b.jpg", fakeFile("b.jpg"))]),
+  ]);
+  // 根前缀必须带上文件夹名（与 webkitRelativePath 语义一致），否则上传内容平铺、文件夹不创建
+  const out = await collectDirectory(root, "photos/");
+  expect(out.map((u) => u.path)).toEqual(["photos/a.jpg", "photos/2024/b.jpg"]);
 });
