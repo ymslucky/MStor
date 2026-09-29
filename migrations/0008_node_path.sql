@@ -8,7 +8,11 @@ ALTER TABLE nodes ADD COLUMN path TEXT NOT NULL DEFAULT '/';
 
 -- 一次性回填：自根哨兵逐层展开（成本 = 全表一遍）；索引在回填后建，避免逐行维护
 WITH RECURSIVE down(id, path) AS (
-  SELECT id, '/' FROM nodes WHERE parent_id = '' AND name = ''
+  -- 顶层节点（parent_id=''）的父是同 owner 的根哨兵行：path = '/' || 哨兵id || '/'
+  SELECT n.id, '/' || s.id || '/'
+  FROM nodes n JOIN nodes s
+    ON s.owner_id = n.owner_id AND s.parent_id = '' AND s.name = ''
+  WHERE n.parent_id = '' AND n.name != ''
   UNION ALL
   SELECT n.id, d.path || d.id || '/' FROM nodes n JOIN down d ON n.parent_id = d.id
 )
