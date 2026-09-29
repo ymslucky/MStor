@@ -22,3 +22,15 @@ export function formatDate(ts: number): string {
     hour12: false,
   });
 }
+
+/** 长文件名中间省略：保留头部与扩展名，如「很长的文件…名.zip」 */
+export function truncateMiddle(name: string, max = 36): string {
+  if (name.length <= max) return name;
+  const dot = name.lastIndexOf(".");
+  const ext = dot > 0 && dot < name.length - 1 ? name.slice(dot) : "";
+  const stem = ext ? name.slice(0, dot) : name;
+  const budget = max - 1 - ext.length; // 1 = 省略号
+  const head = Math.ceil(budget * 0.6);
+  const tail = Math.floor(budget * 0.4);
+  return `${stem.slice(0, head)}…${tail > 0 ? stem.slice(-tail) : ""}${ext}`;
+}

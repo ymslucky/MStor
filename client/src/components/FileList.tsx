@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type * as React from "react";
 import type {
   CSSProperties,
@@ -9,13 +9,14 @@ import type {
   RefObject,
 } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { FolderOpen } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, Columns3, Copy, Download, EyeOff, FolderOpen, ListFilter, Search } from "lucide-react";
 import { contentUrl } from "../api/nodes";
 import type { Node } from "../api/types";
 import { hasNodeDrag, readNodeDrag, setNodeDrag } from "../lib/dnd";
-import { formatBytes, formatDate } from "../lib/format";
+import { formatBytes, formatDate, truncateMiddle } from "../lib/format";
 import { NodeIcon } from "./NodeIcon";
-import { Badge, EmptyState } from "./ui";
+import { Badge, Button, EmptyState } from "./ui";
+import { toast } from "./Toaster";
 
 /** 列表 ≥50 行启用虚拟滚动 */
 const VIRTUAL_THRESHOLD = 50;
@@ -25,6 +26,47 @@ const ROW_HEIGHT = 48;
 type DragHandlers = Pick<React.HTMLAttributes<HTMLElement>, "onDragStart" | "onDragEnd"> & { draggable?: boolean };
 type DropHandlers = Pick<React.HTMLAttributes<HTMLElement>, "onDragOver" | "onDragLeave" | "onDrop">;
 
+// —— 列偏好（localStorage，不入库）：名称列宽 / 列显示 / 排序 ——
+const COL_PREF_KEY = "mstor_files_table";
+type SortKey = "name" | "size" | "updated_at";
+interface ColPref {
+  nameW?: number;
+  showSize?: boolean;
+  showTime?: boolean;
+  sort?: { key: SortKey; dir: "asc" | "desc" } | null;
+}
+const DEFAULT_PREF: Required<Pick<ColPref, "showSize" | "showTime">> & { nameW?: number; sort?: ColPref["sort"] } = {
+  showSize: true,
+  showTime: true,
+};
+function loadPref(): ColPref {
+  try {
+    return { ...DEFAULT_PREF, ...(JSON.parse(localStorage.getItem(COL_PREF_KEY) ?? "{}") as ColPref) };
+  } catch {
+    return { ...DEFAULT_PREF };
+  }
+}
+function savePref(p: ColPref) {
+  try {
+    localStorage.setItem(COL_PREF_KEY, JSON.stringify(p));
+  } catch {
+    /* 隐私模式等场景忽略 */
+  }
+}
+
+// 排序：文件夹始终置顶（按名称），文件间按所选键 × 方向
+function compareNodes(a: Node, b: Node, key: SortKey, dir: 1 | -1): number {
+  if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1;
+  if (a.is_dir) return a.name.localeCompare(b.name, "zh-CN");
+  const v =
+    key === "name"
+      ? a.name.localeCompare(b.name, "zh-CN")
+      : key === "size"
+        ? (a.size ?? 0) - (b.size ?? 0)
+        : a.updated_at - b.updated_at;
+  return v * dir;
+}
+
 interface Props {
   nodes: Node[];
   onOpenDir: (id: string) => void;
@@ -33,7 +75,7 @@ interface Props {
   emptyText?: string;
   /** 空目录 CTA（上传/新建），与「加载失败/搜索无结果」区分 */
   emptyActions?: ReactNode;
-  /** 批量选择：显示行首 checkbox（点击不触发行打开） */
+  /** 批量选择：显示行首 checkbox；单击行=选中（双击打开） */
   selectable?: boolean;
   selected?: ReadonlySet<string>;
   onToggle?: (id: string) => void;
@@ -56,55 +98,28 @@ interface Props {
   onDropMove?: (id: string, toDirId: string) => void;
 }
 
-// 虚拟滚动列表壳：外层容器（键盘导航）+ 固定行高窗口化
-function VirtualizedList({
-  nodes,
-  focusIndex = -1,
-  containerRef,
-  onContainerKeyDown,
-  row,
-}: {
-  nodes: Node[];
-  focusIndex?: number;
-  containerRef?: RefObject<HTMLDivElement | null>;
-  onContainerKeyDown?: (e: ReactKeyboardEvent<HTMLElement>) => void;
-  row: (n: Node, index: number, top: number) => ReactNode;
-}) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const virtualizer = useVirtualizer({
-    count: nodes.length,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: () => ROW_HEIGHT,
-    overscan: 8,
-  });
-
-  // 键盘焦点行滚动进可视区（jsdom 无 Element.scrollTo，跳过）
-  useEffect(() => {
-    if (focusIndex < 0) return;
-    const el = scrollRef.current;
-    if (!el || typeof el.scrollTo !== "function") return;
-    virtualizer.scrollToIndex(focusIndex);
-  }, [focusIndex, virtualizer]);
-
+// 紧凑行内图标按钮（h-7 w-7）：操作列专用，颜色由调用方传入
+export function RowAction({
+  label,
+  tone = "neutral",
+  className = "",
+  ...rest
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { label: string; tone?: "neutral" | "blue" | "violet" | "amber" | "danger" }) {
+  const tones: Record<string, string> = {
+    neutral: "text-ink-2 hover:bg-gray-100 hover:text-ink",
+    blue: "text-blue-600 hover:bg-blue-50",
+    violet: "text-violet-600 hover:bg-violet-50",
+    amber: "text-amber-600 hover:bg-amber-50",
+    danger: "text-danger-text hover:bg-red-50",
+  };
   return (
-    <div ref={containerRef} data-testid="file-list-container" tabIndex={0} onKeyDown={onContainerKeyDown}>
-      <div aria-hidden className="hidden items-center gap-2 px-2 pb-1 text-xs text-ink-faint sm:flex">
-        <span className="w-6" />
-        <span className="w-5" />
-        <span className="min-w-0 flex-1">名称</span>
-        <span className="w-20 text-right">大小</span>
-        <span className="w-24">修改时间</span>
-        <span className="w-16" />
-      </div>
-      <div ref={scrollRef} data-testid="file-virtual" className="max-h-[30rem] overflow-y-auto">
-        <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
-          {virtualizer.getVirtualItems().map((vi) => {
-            const n = nodes[vi.index];
-            return <Fragment key={n.id}>{row(n, vi.index, vi.start)}</Fragment>;
-          })}
-        </div>
-      </div>
-    </div>
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors ${tones[tone]} ${className}`}
+      {...rest}
+    />
   );
 }
 
@@ -131,20 +146,67 @@ export default function FileList({
   // 拖拽移动状态：拖拽中禁用选择；文件夹行 dragover 高亮
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  // 列偏好：名称列宽 / 大小、时间列显隐 / 排序（localStorage 持久化）
+  const [pref, setPref] = useState<ColPref>(loadPref);
+  const [colMenuOpen, setColMenuOpen] = useState(false);
+  // 名称过滤（当前列表内即时过滤，会话级不持久化）
+  const [nameFilter, setNameFilter] = useState("");
+  const setPrefAndSave = (p: ColPref) => {
+    setPref(p);
+    savePref(p);
+  };
+  const updatePref = (fn: (p: ColPref) => ColPref) =>
+    setPref((prev) => {
+      const next = fn(prev);
+      savePref(next);
+      return next;
+    });
+
+  // 名称列拖拽调宽：mousedown 时挂载 window 监听（ref 变化不会触发 effect，故在事件内绑定）
+  // 移动端（<sm）压缩为 [选择][图标][名称][操作]，隐藏大小/时间列
+  const [isSmall, setIsSmall] = useState(() => (typeof window !== "undefined" && typeof window.matchMedia === "function" ? window.matchMedia("(max-width: 639px)").matches : false));
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(max-width: 639px)");
+    const onChange = (e: MediaQueryListEvent) => setIsSmall(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  // 过滤 + 排序（文件夹置顶）
+  const display = useMemo(() => {
+    const q = nameFilter.trim().toLowerCase();
+    const filtered = q ? nodes.filter((n) => n.name.toLowerCase().includes(q)) : nodes;
+    if (!pref.sort) return filtered;
+    const dir = pref.sort.dir === "asc" ? 1 : -1;
+    return [...filtered].sort((a, b) => compareNodes(a, b, pref.sort!.key, dir));
+  }, [nodes, nameFilter, pref.sort]);
+
+  // 网格模板：[选择][图标][名称(可调宽)][大小][时间][操作]；移动端折叠为紧凑四列
+  const showSize = pref.showSize && !isSmall;
+  const showTime = pref.showTime && !isSmall;
+  const gridTemplate = isSmall
+    ? [selectable ? "28px" : "", "26px", "minmax(0, 1fr)", "auto"].join(" ")
+    : [
+        selectable ? "28px" : "",
+        "26px",
+        `minmax(140px, ${pref.nameW ? `${pref.nameW}px` : "1fr"})`,
+        showSize ? "92px" : "",
+        showTime ? "170px" : "",
+        "auto",
+      ]
+        .filter(Boolean)
+        .join(" ");
+  const gridStyle: CSSProperties = { display: "grid", gridTemplateColumns: gridTemplate, alignItems: "center" };
 
   if (!nodes.length) return <EmptyState icon={FolderOpen} title={emptyText} action={emptyActions} />;
 
   const open = (n: Node) => (n.is_dir ? onOpenDir(n.id) : onOpenFile(n));
-  const virtual = view === "list" && nodes.length >= VIRTUAL_THRESHOLD;
+  const virtual = view === "list" && display.length >= VIRTUAL_THRESHOLD;
   // 入场动画仅小列表（≤10 项，stagger 20ms）
-  const animate = nodes.length <= 10 && !virtual;
+  const animate = display.length <= 10 && !virtual;
 
-  const openAndFocus = (n: Node, i: number) => {
-    onRowFocus?.(i);
-    open(n);
-  };
-
-  // 行点击：Shift=范围选 / Ctrl/Cmd=点选，普通点击打开
+  // 行单击：selectable 时切换选中（Shift=范围），双击打开；不可选时单击打开
   const rowClick = (n: Node, i: number) => (e: ReactMouseEvent) => {
     if (draggingId) return;
     onRowFocus?.(i);
@@ -154,16 +216,19 @@ export default function FileList({
         onSelectRange(n.id);
         return;
       }
-      if ((e.ctrlKey || e.metaKey) && !e.shiftKey) {
-        e.preventDefault();
-        onToggle(n.id);
-        return;
-      }
+      e.preventDefault();
+      onToggle(n.id);
+      return;
     }
     open(n);
   };
+  const rowDoubleClick = (n: Node, i: number) => (e: ReactMouseEvent) => {
+    e.preventDefault();
+    onRowFocus?.(i);
+    open(n);
+  };
 
-  // 行首 checkbox：行内独立控件，点击不冒泡触发行打开
+  // 行首 checkbox：行内独立控件，点击不冒泡触发行选择
   const checkbox = (n: Node, cls = "") =>
     selectable && onToggle ? (
       <input
@@ -172,6 +237,7 @@ export default function FileList({
         checked={selected.has(n.id)}
         disabled={!!draggingId}
         onChange={() => onToggle(n.id)}
+        onClick={(e) => e.stopPropagation()}
         className={`h-4 w-4 shrink-0 cursor-pointer accent-emerald-600 ${cls}`}
       />
     ) : null;
@@ -179,19 +245,23 @@ export default function FileList({
   // 表头全选：当前列表全选/清除（再次点击取反）
   const toggleAll = () => {
     if (!onToggle || draggingId) return;
-    const all = nodes.every((n) => selected.has(n.id));
-    for (const n of nodes) {
+    const all = display.every((n) => selected.has(n.id));
+    for (const n of display) {
       if (all ? selected.has(n.id) : !selected.has(n.id)) onToggle(n.id);
     }
   };
 
   // 键盘焦点行 / 拖拽悬停行高亮（2px 主色）
   const rowCls = (i: number, n: Node) =>
-    [focusIndex === i ? "ring-2 ring-primary" : "", dragOverId === n.id ? "ring-2 ring-primary" : ""]
+    [
+      focusIndex === i ? "ring-2 ring-primary" : "",
+      dragOverId === n.id ? "ring-2 ring-primary" : "",
+      selected.has(n.id) && selectable ? "bg-primary-soft/60" : "",
+    ]
       .filter(Boolean)
       .join(" ");
 
-  // drop 悬停底色（inline 样式避免与表格行响应式背景类冲突）
+  // drop 悬停底色（inline 样式避免与行响应式背景类冲突）
   const dropHoverStyle = (n: Node): CSSProperties =>
     dragOverId === n.id ? { backgroundColor: "var(--color-primary-soft)" } : {};
 
@@ -235,47 +305,222 @@ export default function FileList({
   const sharedBadge = (n: Node) => (sharedIds?.has(n.id) ? <Badge tone="accent">已分享</Badge> : null);
   const animStyle = (i: number): CSSProperties => (animate ? { animationDelay: `${i * 20}ms` } : {});
 
-  // 虚拟行内容（绝对定位 + translateY）
+  const copyName = (n: Node) => {
+    void navigator.clipboard?.writeText(n.name);
+    toast("文件名已复制", "info");
+  };
+
+  // 操作列：下载（蓝）/ 复制文件名（中性）/ 外部 actions（分享紫、重命名中性、移动琥珀、删除红）
+  // 点击/双击阻断冒泡：操作列不应触发行选择或行打开
+  const actionCell = (n: Node) => (
+    <span
+      className="flex shrink-0 items-center justify-end gap-0.5 pr-1 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+      onClick={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
+    >
+      {!n.is_dir && (
+        <a
+          href={contentUrl(n.id, true)}
+          aria-label={`下载 ${n.name}`}
+          title={`下载 ${n.name}`}
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-blue-600 transition-colors hover:bg-blue-50"
+        >
+          <Download size={14} aria-hidden />
+        </a>
+      )}
+      <RowAction label={`复制文件名 ${n.name}`} onClick={() => copyName(n)}>
+        <Copy size={14} aria-hidden />
+      </RowAction>
+      {actions?.(n)}
+    </span>
+  );
+
+  // 表头排序切换
+  const toggleSort = (key: SortKey) => {
+    const cur = pref.sort;
+    const next =
+      !cur || cur.key !== key
+        ? { key, dir: "asc" as const }
+        : cur.dir === "asc"
+          ? { key, dir: "desc" as const }
+          : null; // 第三次点击取消排序
+    setPrefAndSave({ ...pref, sort: next });
+  };
+  const sortIcon = (key: SortKey) => {
+    const s = pref.sort;
+    if (!s || s.key !== key) return null;
+    return s.dir === "asc" ? <ArrowUp size={12} aria-hidden /> : <ArrowDown size={12} aria-hidden />;
+  };
+  const thCls = "select-none px-2 py-2 text-center text-xs font-medium text-ink-faint";
+
+  // 工具栏：名称过滤 + 列显隐菜单
+  const toolbar = view === "list" && (
+    <div className="mb-2 flex items-center justify-between gap-2">
+      <div className="relative">
+        <Search size={14} aria-hidden className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-ink-faint" />
+        <input
+          type="search"
+          value={nameFilter}
+          onChange={(e) => setNameFilter(e.target.value)}
+          placeholder="按名称过滤当前列表…"
+          aria-label="按名称过滤当前列表"
+          className="h-8 w-56 rounded-lg border border-line bg-white pl-8 pr-2 text-xs text-ink placeholder:text-ink-faint focus:border-accent/50 focus:outline-none"
+        />
+      </div>
+      <div className="relative">
+        <Button size="sm" variant="ghost" aria-expanded={colMenuOpen} aria-haspopup="menu" onClick={() => setColMenuOpen((v) => !v)}>
+          <Columns3 size={14} aria-hidden className="mr-1" />
+          列显示
+        </Button>
+        {colMenuOpen && (
+          <div role="menu" className="absolute right-0 z-20 mt-1 w-40 rounded-xl border border-line bg-white p-1 shadow-card">
+            {(
+              [
+                { key: "showSize", label: "大小列" },
+                { key: "showTime", label: "修改时间列" },
+              ] as const
+            ).map((c) => (
+              <label
+                key={c.key}
+                role="menuitemcheckbox"
+                aria-checked={pref[c.key]}
+                className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-ink hover:bg-gray-50"
+              >
+                <input
+                  type="checkbox"
+                  checked={pref[c.key]}
+                  onChange={() => setPrefAndSave({ ...pref, [c.key]: !pref[c.key] })}
+                  className="h-3.5 w-3.5 accent-emerald-600"
+                />
+                {pref[c.key] ? <Check size={12} aria-hidden className="text-emerald-600" /> : <EyeOff size={12} aria-hidden className="text-ink-faint" />}
+                {c.label}
+              </label>
+            ))}
+            {pref.sort && (
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-ink hover:bg-gray-50"
+                onClick={() => {
+                  setPrefAndSave({ ...pref, sort: null });
+                  setColMenuOpen(false);
+                }}
+              >
+                <ListFilter size={12} aria-hidden />
+                恢复默认排序
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // 表头（grid 行）：标题居中，内容靠左；名称列带拖拽调宽手柄
+  const headerRow = view === "list" && (
+    <div className="hidden border-b border-line sm:grid" style={gridStyle} data-testid="file-list-header">
+      {selectable && (
+        <div className="px-1 py-2 text-center">
+          <input
+            type="checkbox"
+            aria-label="全选"
+            checked={display.length > 0 && display.every((n) => selected.has(n.id))}
+            onChange={toggleAll}
+            disabled={!!draggingId}
+            className="h-4 w-4 cursor-pointer accent-emerald-600"
+          />
+        </div>
+      )}
+      <div />
+      <div className={`relative ${thCls}`}>
+        <button type="button" className="mx-auto inline-flex items-center gap-1 hover:text-ink" onClick={() => toggleSort("name")}>
+          名称 {sortIcon("name")}
+        </button>
+        {/* 拖拽调宽手柄：名称列右缘 6px 热区 */}
+        <span
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="调整名称列宽"
+          className="absolute top-0 -right-1.5 h-full w-1.5 cursor-col-resize hover:bg-accent/30"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            const startX = e.clientX;
+            const startW = pref.nameW ?? 320;
+            document.body.style.cursor = "col-resize";
+            const onMove = (ev: MouseEvent) => {
+              const w = Math.min(960, Math.max(160, startW + ev.clientX - startX));
+              updatePref((p) => ({ ...p, nameW: w }));
+            };
+            const onUp = () => {
+              document.body.style.cursor = "";
+              window.removeEventListener("mousemove", onMove);
+              window.removeEventListener("mouseup", onUp);
+            };
+            window.addEventListener("mousemove", onMove);
+            window.addEventListener("mouseup", onUp);
+          }}
+          onDoubleClick={() => setPrefAndSave({ ...pref, nameW: undefined })}
+        />
+      </div>
+      {showSize && (
+        <div className={thCls}>
+          <button type="button" className="mx-auto inline-flex items-center gap-1 hover:text-ink" onClick={() => toggleSort("size")}>
+            大小 {sortIcon("size")}
+          </button>
+        </div>
+      )}
+      {showTime && (
+        <div className={thCls}>
+          <button type="button" className="mx-auto inline-flex items-center gap-1 hover:text-ink" onClick={() => toggleSort("updated_at")}>
+            修改时间 {sortIcon("updated_at")}
+          </button>
+        </div>
+      )}
+      <div className={thCls}>操作</div>
+    </div>
+  );
+
+  // 行内容（grid 子元素，与表头同模板对齐）
+  const rowCells = (n: Node, i: number) => (
+    <>
+      {selectable && <span className="px-1 text-center">{checkbox(n)}</span>}
+      <span className="flex justify-center">
+        <NodeIcon node={n} size={18} className="shrink-0" />
+      </span>
+      <span className="flex min-w-0 items-center gap-2">
+        {/* 点击事件由行容器统一处理（避免冒泡双重 toggle），按钮仅承担样式与 title */}
+        <button type="button" className="min-w-0 truncate text-left text-ink hover:underline" title={n.name} tabIndex={-1}>
+          {truncateMiddle(n.name)}
+        </button>
+        {sharedBadge(n)}
+      </span>
+      {showSize && <span className="truncate px-2 text-right tabular-nums text-ink-dim">{formatBytes(n.size)}</span>}
+      {showTime && <span className="truncate px-2 tabular-nums text-ink-dim">{formatDate(n.updated_at)}</span>}
+      {actionCell(n)}
+    </>
+  );
+
+  const rowEvents = (n: Node, i: number) => ({
+    onContextMenu: (e: ReactMouseEvent<HTMLElement>) => onNodeContextMenu?.(e, n),
+    ...dragProps(n),
+    ...folderDropProps(n),
+  });
+
+  // 虚拟行内容（绝对定位 + translateY，同 grid 模板）
   const virtualRow = (n: Node, i: number, top: number) => (
     <div
       data-file-row={i}
       tabIndex={-1}
-      className={`absolute inset-x-0 top-0 flex items-center gap-2 rounded-lg px-2 text-sm ${rowCls(i, n)}`}
-      style={{ height: ROW_HEIGHT, transform: `translateY(${top}px)`, ...dropHoverStyle(n) }}
-      onContextMenu={(e) => onNodeContextMenu?.(e, n)}
-      {...dragProps(n)}
-      {...folderDropProps(n)}
+      role="row"
+      className={`group absolute inset-x-0 top-0 rounded-lg px-2 text-sm hover:bg-gray-100/70 ${rowCls(i, n)}`}
+      style={{ height: ROW_HEIGHT, transform: `translateY(${top}px)`, ...gridStyle, ...dropHoverStyle(n) }}
+      onClick={rowClick(n, i)}
+      onDoubleClick={rowDoubleClick(n, i)}
+      {...rowEvents(n, i)}
     >
-      {checkbox(n)}
-      <NodeIcon node={n} size={18} className="shrink-0" />
-      <button type="button" className="min-w-0 flex-1 truncate text-left text-ink hover:underline" onClick={rowClick(n, i)}>
-        {n.name}
-      </button>
-      {sharedBadge(n)}
-      <span className="hidden w-20 shrink-0 text-right tabular-nums text-ink-dim sm:block">{formatBytes(n.size)}</span>
-      <span className="hidden w-24 shrink-0 tabular-nums text-ink-dim md:block">{formatDate(n.updated_at)}</span>
-      <span className="flex shrink-0 items-center gap-1">
-        {!n.is_dir && (
-          <a href={contentUrl(n.id, true)} className="text-accent hover:underline" aria-label={`下载 ${n.name}`}>
-            下载
-          </a>
-        )}
-        {actions?.(n)}
-      </span>
+      {rowCells(n, i)}
     </div>
   );
-
-  if (virtual) {
-    return (
-      <VirtualizedList
-        nodes={nodes}
-        focusIndex={focusIndex}
-        containerRef={containerRef}
-        onContainerKeyDown={onContainerKeyDown}
-        row={virtualRow}
-      />
-    );
-  }
 
   if (view === "grid") {
     return (
@@ -287,21 +532,23 @@ export default function FileList({
         onKeyDown={onContainerKeyDown}
         className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6"
       >
-        {nodes.map((n, i) => {
+        {display.map((n, i) => {
           const isImage = !n.is_dir && !!n.mime?.startsWith("image/");
           return (
             <div
               key={n.id}
               data-file-row={i}
               tabIndex={-1}
-              className={`relative overflow-hidden rounded-card border border-line bg-white shadow-card ${rowCls(i, n)} ${animate ? "anim-item-in" : ""}`}
+              className={`group relative overflow-hidden rounded-card border border-line bg-white shadow-card ${rowCls(i, n)} ${animate ? "anim-item-in" : ""}`}
               style={{ ...animStyle(i), ...dropHoverStyle(n) }}
+              onClick={rowClick(n, i)}
+              onDoubleClick={rowDoubleClick(n, i)}
               onContextMenu={(e) => onNodeContextMenu?.(e, n)}
               {...dragProps(n)}
               {...folderDropProps(n)}
             >
               {selectable && checkbox(n, "absolute top-2 left-2 z-10")}
-              <button type="button" className="block w-full text-left" onClick={rowClick(n, i)}>
+              <button type="button" className="block w-full text-left" title={n.name}>
                 <div className="flex h-28 items-center justify-center overflow-hidden bg-gray-50/70">
                   {isImage ? (
                     <img src={contentUrl(n.id)} alt={n.name} loading="lazy" className="h-full w-full object-cover" />
@@ -312,7 +559,7 @@ export default function FileList({
                 <div className="p-2">
                   <div className="flex items-center gap-1.5">
                     <NodeIcon node={n} size={14} className="shrink-0" />
-                    <span className="truncate text-sm text-ink">{n.name}</span>
+                    <span className="truncate text-sm text-ink">{truncateMiddle(n.name, 20)}</span>
                     {sharedBadge(n)}
                   </div>
                   <div className="text-xs tabular-nums text-ink-faint">{formatBytes(n.size)}</div>
@@ -325,71 +572,79 @@ export default function FileList({
     );
   }
 
+  const listBody = (
+    <div className="relative">
+      {display.map((n, i) => (
+        <div
+          key={n.id}
+          data-file-row={i}
+          tabIndex={-1}
+          role="row"
+          className={`group border-b border-line/70 text-sm hover:bg-gray-100/70 ${i % 2 === 1 ? "bg-gray-50/40" : ""} ${rowCls(i, n)} ${animate ? "anim-item-in" : ""}`}
+          style={{ ...gridStyle, height: ROW_HEIGHT, padding: "0 8px", ...animStyle(i), ...dropHoverStyle(n) }}
+          onClick={rowClick(n, i)}
+          onDoubleClick={rowDoubleClick(n, i)}
+          {...rowEvents(n, i)}
+        >
+          {rowCells(n, i)}
+        </div>
+      ))}
+    </div>
+  );
+
+  if (virtual) {
+    return (
+      <div ref={containerRef} data-testid="file-list-container" tabIndex={0} onKeyDown={onContainerKeyDown}>
+        {toolbar}
+        {headerRow}
+        <VirtualizedList nodes={display} focusIndex={focusIndex} row={virtualRow} />
+      </div>
+    );
+  }
+
   return (
     <div ref={containerRef} data-testid="file-list-container" tabIndex={0} onKeyDown={onContainerKeyDown}>
-      {/* 双形态同一 DOM：移动端卡片行（flex），sm+ 恢复表格行 */}
-      <table className="w-full text-sm">
-        <thead className="hidden text-left text-xs text-ink-faint sm:table-header-group">
-          <tr className="border-b border-line">
-            {selectable && (
-              <th className="w-8 py-2 pr-2">
-                <input
-                  type="checkbox"
-                  aria-label="全选"
-                  checked={nodes.every((n) => selected.has(n.id))}
-                  onChange={toggleAll}
-                  disabled={!!draggingId}
-                  className="h-4 w-4 cursor-pointer accent-emerald-600"
-                />
-              </th>
-            )}
-            <th className="py-2 font-medium">名称</th>
-            <th className="hidden py-2 font-medium sm:table-cell">大小</th>
-            <th className="hidden py-2 font-medium md:table-cell">修改时间</th>
-            <th className="py-2" />
-          </tr>
-        </thead>
-        <tbody>
-          {nodes.map((n, i) => (
-            <tr
-              key={n.id}
-              data-file-row={i}
-              tabIndex={-1}
-              className={`mb-2 flex items-center justify-between gap-2 rounded-xl border border-line bg-gray-50/50 p-3 sm:table-row sm:rounded-none sm:border-x-0 sm:border-t-0 sm:border-b sm:border-line sm:bg-transparent sm:p-0 sm:hover:bg-gray-50 ${rowCls(i, n)} ${animate ? "anim-item-in" : ""}`}
-              style={{ ...animStyle(i), ...dropHoverStyle(n) }}
-              onContextMenu={(e) => onNodeContextMenu?.(e, n)}
-              {...dragProps(n)}
-              {...folderDropProps(n)}
-            >
-              {selectable && <td className="py-2 pr-1 sm:w-8 sm:pr-2">{checkbox(n)}</td>}
-              <td className="min-w-0 max-w-[12rem] py-2 sm:max-w-xs">
-                <span className="flex items-center gap-2">
-                  <NodeIcon node={n} size={18} className="shrink-0" />
-                  <button
-                    className="line-clamp-2 break-all text-left text-ink hover:underline sm:truncate"
-                    onClick={rowClick(n, i)}
-                  >
-                    {n.name}
-                  </button>
-                  {sharedBadge(n)}
-                </span>
-              </td>
-              <td className="hidden py-2 tabular-nums text-ink-dim sm:table-cell">{formatBytes(n.size)}</td>
-              <td className="hidden py-2 tabular-nums text-ink-dim md:table-cell">{formatDate(n.updated_at)}</td>
-              <td className="py-2 text-right">
-                <span className="flex shrink-0 items-center justify-end gap-1">
-                  {!n.is_dir && (
-                    <a href={contentUrl(n.id, true)} className="text-accent hover:underline" aria-label={`下载 ${n.name}`}>
-                      下载
-                    </a>
-                  )}
-                  {actions?.(n)}
-                </span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {toolbar}
+      {headerRow}
+      {listBody}
+    </div>
+  );
+}
+
+// 虚拟滚动窗口：固定行高 + 绝对定位行（grid 模板由行自身携带）
+function VirtualizedList({
+  nodes,
+  focusIndex = -1,
+  row,
+}: {
+  nodes: Node[];
+  focusIndex?: number;
+  row: (n: Node, index: number, top: number) => ReactNode;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const virtualizer = useVirtualizer({
+    count: nodes.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 8,
+  });
+
+  // 键盘焦点行滚动进可视区（jsdom 无 Element.scrollTo，跳过）
+  useEffect(() => {
+    if (focusIndex < 0) return;
+    const el = scrollRef.current;
+    if (!el || typeof el.scrollTo !== "function") return;
+    virtualizer.scrollToIndex(focusIndex);
+  }, [focusIndex, virtualizer]);
+
+  return (
+    <div ref={scrollRef} data-testid="file-virtual" className="max-h-[30rem] overflow-y-auto">
+      <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
+        {virtualizer.getVirtualItems().map((vi) => {
+          const n = nodes[vi.index];
+          return <Fragment key={n.id}>{row(n, vi.index, vi.start)}</Fragment>;
+        })}
+      </div>
     </div>
   );
 }

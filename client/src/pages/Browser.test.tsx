@@ -84,7 +84,8 @@ test("lists files and navigates into folder", async () => {
   expect(stats).toHaveTextContent("1 个文件");
   expect(stats).toHaveTextContent("1 个文件夹");
   expect(screen.getByText("合计 12 B")).toBeInTheDocument();
-  await user.click(screen.getByText("相册"));
+  // 新交互：单击行=选中，双击行=打开目录
+  await user.dblClick(screen.getByText("相册"));
   await waitFor(() => expect(screen.getByText(/该目录为空/)).toBeInTheDocument());
 });
 
@@ -223,7 +224,7 @@ test("keyboard: arrows move focus ring, Enter opens focused row", async () => {
   await screen.findByText("hello.txt");
   const container = screen.getByTestId("file-list-container");
   fireEvent.keyDown(container, { key: "ArrowDown" });
-  expect(screen.getByText("hello.txt").closest("tr")).toHaveClass("ring-2", "ring-primary");
+  expect(screen.getByText("hello.txt").closest('[role="row"]')).toHaveClass("ring-2", "ring-primary");
   // Enter 打开文件 → 预览弹层（含关闭按钮）
   fireEvent.keyDown(container, { key: "Enter" });
   expect(await screen.findByRole("button", { name: "关闭" })).toBeInTheDocument();
@@ -271,15 +272,16 @@ test("view toggle switches grid container classes and persists preference", asyn
   vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
   const { user } = renderWith(<Browser />);
   await screen.findByText("hello.txt");
-  expect(screen.getByRole("table")).toBeInTheDocument(); // 默认列表视图
+  expect(screen.getByTestId("file-list-container")).toBeInTheDocument(); // 默认列表视图
   await user.click(screen.getByRole("button", { name: "网格视图" }));
   const grid = screen.getByTestId("file-grid");
   expect(grid).toHaveClass("grid", "grid-cols-2", "sm:grid-cols-3", "lg:grid-cols-4", "xl:grid-cols-6", "gap-3");
-  expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  expect(screen.queryByTestId("file-grid")).not.toBeNull();
   expect(localStorage.getItem("mstor_view")).toBe("grid");
   // 切回列表并持久化偏好
   await user.click(screen.getByRole("button", { name: "列表视图" }));
-  expect(screen.getByRole("table")).toBeInTheDocument();
+  expect(screen.getByTestId("file-list-container")).toBeInTheDocument();
+  expect(screen.queryByTestId("file-grid")).toBeNull();
   expect(localStorage.getItem("mstor_view")).toBe("list");
 });
 
@@ -398,11 +400,11 @@ test("drag file row onto folder row highlights it and calls moveNode", async () 
   renderWithProviders(<Browser />);
   await screen.findByText("hello.txt");
   const dt = makeNodeDT();
-  fireEvent.dragStart(screen.getByText("hello.txt").closest("tr")!, { dataTransfer: dt });
-  fireEvent.dragOver(screen.getByText("相册").closest("tr")!, { dataTransfer: dt });
+  fireEvent.dragStart(screen.getByText("hello.txt").closest('[role="row"]')!, { dataTransfer: dt });
+  fireEvent.dragOver(screen.getByText("相册").closest('[role="row"]')!, { dataTransfer: dt });
   // dragover 高亮：2px 主色
-  expect(screen.getByText("相册").closest("tr")!).toHaveClass("ring-2", "ring-primary");
-  fireEvent.drop(screen.getByText("相册").closest("tr")!, { dataTransfer: dt });
+  expect(screen.getByText("相册").closest('[role="row"]')!).toHaveClass("ring-2", "ring-primary");
+  fireEvent.drop(screen.getByText("相册").closest('[role="row"]')!, { dataTransfer: dt });
   await waitFor(() => expect(moveNode).toHaveBeenCalledWith("f1", "d1"));
 });
 
@@ -412,7 +414,7 @@ test("dragging a folder onto the root breadcrumb moves it to root", async () => 
   renderWithProviders(<Browser />);
   await screen.findByText("hello.txt");
   const dt = makeNodeDT();
-  fireEvent.dragStart(screen.getByText("相册").closest("tr")!, { dataTransfer: dt });
+  fireEvent.dragStart(screen.getByText("相册").closest('[role="row"]')!, { dataTransfer: dt });
   fireEvent.drop(screen.getByRole("link", { name: "全部文件" }), { dataTransfer: dt });
   await waitFor(() => expect(moveNode).toHaveBeenCalledWith("d1", ""));
 });
@@ -422,7 +424,7 @@ test("drag disables selection until dragend", async () => {
   renderWithProviders(<Browser />);
   await screen.findByText("hello.txt");
   const dt = makeNodeDT();
-  const row = screen.getByText("hello.txt").closest("tr")!;
+  const row = screen.getByText("hello.txt").closest('[role="row"]')!;
   fireEvent.dragStart(row, { dataTransfer: dt });
   expect(screen.getByRole("checkbox", { name: "选择 hello.txt" })).toBeDisabled();
   fireEvent.dragEnd(row, { dataTransfer: dt });
@@ -561,7 +563,7 @@ test("breadcrumb uses chevron separator with root label and highlights current l
   );
   const { user } = renderWith(<Browser />);
   await screen.findByText("hello.txt");
-  await user.click(screen.getByText("相册"));
+  await user.dblClick(screen.getByText("相册"));
   await screen.findByText("层级1");
   const nav = screen.getByRole("navigation", { name: "面包屑" });
   expect(nav).toHaveTextContent("全部文件");

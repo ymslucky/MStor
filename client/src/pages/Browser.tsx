@@ -11,7 +11,7 @@ import { contentUrl, deleteNode, deleteNodePermanently, moveNode } from "../api/
 import Breadcrumb from "../components/Breadcrumb";
 import ContextMenu from "../components/ContextMenu";
 import type { ContextMenuItem } from "../components/ContextMenu";
-import FileList from "../components/FileList";
+import FileList, { RowAction } from "../components/FileList";
 import MoveDialog from "../components/MoveDialog";
 import NameDialog from "../components/NameDialog";
 import PreviewModal from "../components/PreviewModal";
@@ -608,18 +608,18 @@ export default function Browser() {
             emptyActions={filtered ? undefined : emptyDirActions}
             actions={(n) => (
               <>
-                <IconButton label={`分享 ${n.name}`} onClick={() => setSharing(n)}>
-                  <Link2 size={16} aria-hidden />
-                </IconButton>
-                <IconButton label={`重命名 ${n.name}`} onClick={() => setRenaming(n)}>
-                  <Pencil size={16} aria-hidden />
-                </IconButton>
-                <IconButton label={`移动 ${n.name}`} onClick={() => setMoving(n)}>
-                  <FolderInput size={16} aria-hidden />
-                </IconButton>
-                <IconButton label={`删除 ${n.name}`} onClick={() => setDeleting(n)}>
-                  <Trash2 size={16} aria-hidden />
-                </IconButton>
+                <RowAction label={`分享 ${n.name}`} tone="violet" onClick={() => setSharing(n)}>
+                  <Link2 size={14} aria-hidden />
+                </RowAction>
+                <RowAction label={`重命名 ${n.name}`} onClick={() => setRenaming(n)}>
+                  <Pencil size={14} aria-hidden />
+                </RowAction>
+                <RowAction label={`移动 ${n.name}`} tone="amber" onClick={() => setMoving(n)}>
+                  <FolderInput size={14} aria-hidden />
+                </RowAction>
+                <RowAction label={`删除 ${n.name}`} tone="danger" onClick={() => setDeleting(n)}>
+                  <Trash2 size={14} aria-hidden />
+                </RowAction>
               </>
             )}
           />

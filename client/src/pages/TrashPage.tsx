@@ -4,9 +4,9 @@ import { RotateCcw, Trash2 } from "lucide-react";
 import { batchPurge, batchRestore, listTrash, purgeNode, restoreNode } from "../api/trash";
 import { getMe } from "../api/me";
 import type { Node } from "../api/types";
-import FileList from "../components/FileList";
+import FileList, { RowAction } from "../components/FileList";
 import { toast } from "../components/Toaster";
-import { Button, ConfirmDialog, GlassCard, IconButton } from "../components/ui";
+import { Button, ConfirmDialog, GlassCard } from "../components/ui";
 import { useFileSelection } from "../hooks/useFileSelection";
 import { formatBytes, formatDate } from "../lib/format";
 
@@ -96,12 +96,12 @@ export default function TrashPage() {
                 <span className="hidden text-xs text-ink-faint lg:inline">
                   {formatBytes(n.size)} · 删除于 {n.deleted_at ? formatDate(n.deleted_at) : "-"}
                 </span>
-                <IconButton label="恢复" onClick={() => restore.mutate(n.id)}>
-                  <RotateCcw size={16} aria-hidden />
-                </IconButton>
-                <IconButton label="彻底删除" onClick={() => setPurging(n)}>
-                  <Trash2 size={16} aria-hidden />
-                </IconButton>
+                <RowAction label="恢复" tone="blue" onClick={() => restore.mutate(n.id)}>
+                  <RotateCcw size={14} aria-hidden />
+                </RowAction>
+                <RowAction label="彻底删除" tone="danger" onClick={() => setPurging(n)}>
+                  <Trash2 size={14} aria-hidden />
+                </RowAction>
               </>
             )}
           />
