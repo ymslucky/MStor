@@ -51,3 +51,31 @@ async function walk(entry: FileSystemEntry, prefix: string, out: PendingUpload[]
     for (const child of children) await walk(child, `${prefix}${entry.name}/`, out);
   }
 }
+
+/** File System Access API 的 TS lib 未收录部分，按需补充 */
+declare global {
+  interface Window {
+    showDirectoryPicker?: (options?: { id?: string; mode?: "read" | "readwrite" }) => Promise<FileSystemDirectoryHandle>;
+  }
+}
+
+type DirHandle = FileSystemDirectoryHandle & { values(): AsyncIterableIterator<FileSystemHandle> };
+
+/** 浏览器是否支持 File System Access 目录选择器（Chrome/Edge；无 webkitdirectory 的原生确认框） */
+export function supportsDirectoryPicker(): boolean {
+  return typeof window.showDirectoryPicker === "function";
+}
+
+/** showDirectoryPicker 递归采集整个目录树；用户取消抛 AbortError 由调用方忽略 */
+export async function collectDirectory(handle: FileSystemDirectoryHandle, prefix = ""): Promise<PendingUpload[]> {
+  const out: PendingUpload[] = [];
+  for await (const entry of (handle as DirHandle).values()) {
+    if (entry.kind === "file") {
+      const file = await (entry as FileSystemFileHandle).getFile();
+      out.push({ file, path: prefix + file.name });
+    } else if (entry.kind === "directory") {
+      out.push(...(await collectDirectory(entry as FileSystemDirectoryHandle, `${prefix}${entry.name}/`)));
+    }
+  }
+  return out;
+}

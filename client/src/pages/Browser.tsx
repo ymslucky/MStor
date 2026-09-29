@@ -23,7 +23,7 @@ import { useFiles } from "../hooks/useFiles";
 import { useFileSelection } from "../hooks/useFileSelection";
 import { useKeyboardNav } from "../hooks/useKeyboardNav";
 import { useUploadQueue } from "../hooks/useUploadQueue";
-import { collectUploads } from "../lib/dirscan";
+import { collectDirectory, collectUploads, supportsDirectoryPicker } from "../lib/dirscan";
 import { formatBytes, formatDate } from "../lib/format";
 
 // 存储圆环：底环 gray-100，进度环 accent，中心百分比
@@ -411,13 +411,43 @@ export default function Browser() {
     setMenu({ node, x: e.clientX, y: e.clientY });
   };
 
+  // 上传文件夹：优先 File System Access 选择器（Chrome/Edge，无浏览器原生确认框），
+  // 不支持或用户取消（AbortError）时静默返回；webkitdirectory input 仅作兜底入口
+  const pickFolder = () => {
+    if (!supportsDirectoryPicker()) {
+      folderInput.current?.click();
+      return;
+    }
+    void window.showDirectoryPicker!()
+      .then((handle) => collectDirectory(handle))
+      .then((items) => {
+        if (items.length) queue.add(items, dir);
+      })
+      .catch(() => {});
+  };
+
+  // 当前目录 KPI：文件数 / 文件夹数 / 文件总大小（前端过滤前全量统计）
+  const dirStats = useMemo(() => {
+    let files = 0;
+    let dirs = 0;
+    let size = 0;
+    for (const n of allNodes) {
+      if (n.is_dir) dirs++;
+      else {
+        files++;
+        size += n.size ?? 0;
+      }
+    }
+    return { files, dirs, size };
+  }, [allNodes]);
+
   // 空目录 CTA：复用上传入口与新建文件夹
   const emptyDirActions = (
     <div className="flex flex-wrap justify-center gap-2">
       <Button size="sm" onClick={() => fileInput.current?.click()}>
         上传文件
       </Button>
-      <Button size="sm" variant="ghost" onClick={() => folderInput.current?.click()}>
+      <Button size="sm" variant="ghost" onClick={pickFolder}>
         上传文件夹
       </Button>
       <Button size="sm" variant="ghost" onClick={() => setCreating(true)}>
@@ -453,16 +483,25 @@ export default function Browser() {
           .catch(() => toast("读取拖入内容失败"));
       }}
     >
-      {/* 存储用量卡：合并配额信息（used / quota）；分享/回收站入口走侧栏与底部 Tab */}
-      <GlassCard className="mb-4 flex w-full max-w-sm items-center gap-3 p-4">
-        <StorageRing pct={pct} />
-        <div className="min-w-0">
-          <div className="text-xs text-ink-faint">存储用量</div>
-          <div className="truncate text-sm font-semibold text-ink" title={`${formatBytes(used)} / ${formatBytes(quota)}`}>
-            {me ? `${formatBytes(used)} / ${formatBytes(quota)}` : "-"}
+      {/* KPI 行：存储用量 + 当前目录统计 */}
+      <div className="mb-4 grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <GlassCard className="flex items-center gap-3 p-4">
+          <StorageRing pct={pct} />
+          <div className="min-w-0">
+            <div className="text-xs text-ink-faint">存储用量</div>
+            <div className="truncate text-sm font-semibold text-ink" title={`${formatBytes(used)} / ${formatBytes(quota)}`}>
+              {me ? `${formatBytes(used)} / ${formatBytes(quota)}` : "-"}
+            </div>
           </div>
-        </div>
-      </GlassCard>
+        </GlassCard>
+        <GlassCard className="flex flex-col justify-center gap-1 p-4">
+          <div className="text-xs text-ink-faint">当前目录</div>
+          <div className="text-sm font-semibold text-ink" data-testid="dir-stats">
+            {query.data ? `${dirStats.files} 个文件 · ${dirStats.dirs} 个文件夹` : "-"}
+          </div>
+          <div className="text-xs text-ink-2">合计 {formatBytes(dirStats.size)}</div>
+        </GlassCard>
+      </div>
       <input
         ref={fileInput}
         type="file"
@@ -536,7 +575,7 @@ export default function Browser() {
               <IconButton label="上传文件" onClick={() => fileInput.current?.click()}>
                 <Upload size={18} aria-hidden />
               </IconButton>
-              <IconButton label="上传文件夹" onClick={() => folderInput.current?.click()}>
+              <IconButton label="上传文件夹" onClick={pickFolder}>
                 <FolderUp size={18} aria-hidden />
               </IconButton>
               <div role="group" aria-label="视图切换" className="inline-flex items-center gap-1 rounded-xl border border-line bg-gray-50 p-1">

@@ -11,5 +11,14 @@ export function formatBytes(n: number | null | undefined): string {
 }
 
 export function formatDate(ts: number): string {
-  return new Date(ts).toLocaleDateString("zh-CN");
+  // 精确到秒（24 小时制），文件列表/回收站/详情等处保持一致
+  return new Date(ts).toLocaleString("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
 }
