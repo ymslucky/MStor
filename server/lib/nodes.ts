@@ -98,10 +98,11 @@ export async function breadcrumb(db: D1Database, ownerId: string, dirId: string)
   const byId = new Map<string, NodeRow>();
   for (let i = 0; i < ids.length; i += 90) {
     const part = ids.slice(i, i + 90);
-    const ph = part.map((_, j) => `?${j + 2}`).join(",");
-    const { results } = await db.prepare(`SELECT * FROM nodes WHERE owner_id = ?1 AND id IN (${ph})`)
-      .bind(ownerId, ...part).all<NodeRow>();
-    for (const r of results) byId.set(r.id, r);
+    const ph = part.map(() => "?").join(",");
+    // 纯 PK 查找（owner_id 条件会让 planner 改走 owner 索引全扫该用户所有行），JS 侧过滤 owner
+    const { results } = await db.prepare(`SELECT * FROM nodes WHERE id IN (${ph})`)
+      .bind(...part).all<NodeRow>();
+    for (const r of results) if (r.owner_id === ownerId) byId.set(r.id, r);
   }
   // 按 path 顺序排列，剔除根哨兵行（name=''）
   return ids.map((id) => byId.get(id)).filter((n): n is NodeRow => !!n && n.name !== "");

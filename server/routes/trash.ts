@@ -62,11 +62,12 @@ export async function permanentDeleteMany(env: Env, ownerId: string, ids: string
   // 校验：只处理回收站内的根；返回实际存在的根数（不存在的 id 静默忽略）
   const roots: NodeRow[] = [];
   for (const part of chunk(ids, 90)) {
-    const ph = part.map((_, i) => `?${i + 2}`).join(",");
+    const ph = part.map((_, i) => `?${i + 1}`).join(",");
+    // 纯 PK 查找（避免 owner 索引全扫），JS 侧过滤 owner
     const { results } = await env.DB.prepare(
-      `SELECT * FROM nodes WHERE owner_id = ?1 AND deleted_at IS NOT NULL AND id IN (${ph})`
-    ).bind(ownerId, ...part).all<NodeRow>();
-    roots.push(...results);
+      `SELECT * FROM nodes WHERE deleted_at IS NOT NULL AND id IN (${ph})`
+    ).bind(...part).all<NodeRow>();
+    roots.push(...results.filter((r) => r.owner_id === ownerId));
   }
   if (!roots.length) return 0;
   // 多根子树闭包：范围扫描同时取 id 和 r2_key（秒传副本共享同一对象，删行后按引用计数决定是否删对象）。
@@ -103,9 +104,11 @@ export async function permanentDeleteMany(env: Env, ownerId: string, ids: string
  * 每根消耗 3 个绑定参数，按 30 根/语句分片 */
 export async function softDeleteMany(db: D1Database, ownerId: string, ids: string[]): Promise<number> {
   if (!ids.length) return 0;
-  const { results: sel } = await db.prepare(
-    `SELECT * FROM nodes WHERE owner_id = ?1 AND deleted_at IS NULL AND id IN (${ids.map((_, i) => `?${i + 2}`).join(",")})`
-  ).bind(ownerId, ...ids).all<NodeRow>();
+  // 纯 PK 查找（避免 owner 索引全扫），JS 侧过滤 owner
+  const { results: selRows } = await db.prepare(
+    `SELECT * FROM nodes WHERE deleted_at IS NULL AND id IN (${ids.map(() => "?").join(",")})`
+  ).bind(...ids).all<NodeRow>();
+  const sel = selRows.filter((r) => r.owner_id === ownerId);
   // 根目录哨兵行特征 parent_id='' 且 name=''，不可删除
   const valid = sel.filter((r) => !(r.parent_id === "" && r.name === ""));
   if (!valid.length) return 0;
@@ -133,9 +136,11 @@ export async function moveMany(db: D1Database, ownerId: string, ids: string[], n
   if (!ids.length) return 0;
   const parent = newParentId === "" ? await ensureRootDir(db, ownerId) : await getNode(db, ownerId, newParentId);
   if (!parent || !parent.is_dir) throw errors.notFound();
-  const { results: sel } = await db.prepare(
-    `SELECT * FROM nodes WHERE owner_id = ?1 AND deleted_at IS NULL AND id IN (${ids.map((_, i) => `?${i + 2}`).join(",")})`
-  ).bind(ownerId, ...ids).all<NodeRow>();
+  // 纯 PK 查找（避免 owner 索引全扫），JS 侧过滤 owner
+  const { results: selRows } = await db.prepare(
+    `SELECT * FROM nodes WHERE deleted_at IS NULL AND id IN (${ids.map(() => "?").join(",")})`
+  ).bind(...ids).all<NodeRow>();
+  const sel = selRows.filter((r) => r.owner_id === ownerId);
   if (!sel.length) return 0;
   // 目录不能移入自身子树：对所选目录做祖先检查（目录数通常极少）
   for (const dir of sel.filter((s) => s.is_dir)) {

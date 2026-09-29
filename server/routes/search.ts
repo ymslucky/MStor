@@ -32,11 +32,12 @@ search.get("/", async (c) => {
   }
   const nameById = new Map<string, string>();
   for (const part of chunk([...ancestorIds], 90)) {
-    const ph = part.map((_, i) => `?${i + 2}`).join(",");
+    const ph = part.map(() => "?").join(",");
+    // 纯 PK 查找（避免 owner 索引全扫），JS 侧过滤 owner
     const { results: rows } = await c.env.DB.prepare(
-      `SELECT id, name FROM nodes WHERE owner_id = ?1 AND id IN (${ph})`
-    ).bind(c.get("user").id, ...part).all<{ id: string; name: string }>();
-    for (const row of rows) nameById.set(row.id, row.name);
+      `SELECT id, owner_id, name FROM nodes WHERE id IN (${ph})`
+    ).bind(...part).all<{ id: string; owner_id: string; name: string }>();
+    for (const row of rows) if (row.owner_id === c.get("user").id) nameById.set(row.id, row.name);
   }
   for (const r of results) {
     // 路径含自身名、不含根哨兵：祖先名（root→parent）+ 自身

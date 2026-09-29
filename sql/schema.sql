@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS shares (
   revoked_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_shares_node ON shares(node_id);
+CREATE INDEX IF NOT EXISTS idx_shares_active ON shares(created_at DESC) WHERE revoked_at IS NULL; -- 分享列表有序扫描
 
 -- multipart 上传会话：init 落库（pending），complete 置 done
 CREATE TABLE IF NOT EXISTS uploads (
