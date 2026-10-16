@@ -65,6 +65,7 @@ export async function childByName(db: D1Database, ownerId: string, parentId: str
 export function validateNodeName(name: unknown): string {
   if (typeof name !== "string" || !name.trim()) throw errors.badRequest("名称不能为空");
   const n = name.trim();
+  // eslint-disable-next-line no-control-regex -- 有意拒绝文件名中的控制字符（\x00-\x1f）
   if (n.length > 255 || n === "." || n === ".." || /[\\/\x00-\x1f]/.test(n)) throw errors.badRequest("名称不合法");
   return n;
 }
