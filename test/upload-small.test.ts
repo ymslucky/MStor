@@ -32,13 +32,17 @@ test("duplicate name auto-renames to 'a (2).txt'", async () => {
   expect(name).toBe("a (2).txt");
 });
 
-test("quota exceeded returns 403 QUOTA_EXCEEDED", async () => {
+test("quota exceeded returns 403 QUOTA_EXCEEDED 且不残留 R2 对象", async () => {
   const u = await seedUser({ quota_bytes: 3 });
   const res = await SELF.fetch("https://example.com/api/files/upload?name=big.txt", {
     method: "PUT", headers: await sessionHeaders(u), body: "12345",
   });
   expect(res.status).toBe(403);
   expect(((await res.json()) as { error: { code: string } }).error.code).toBe("QUOTA_EXCEEDED");
+  // 回归：配额拒绝后对象必须回滚，否则可反复制造无人引用、也不在 orphan_objects 的永久孤儿
+  expect((await env.BUCKET.list()).objects).toHaveLength(0);
+  const files = (await (await SELF.fetch("https://example.com/api/files", { headers: await sessionHeaders(u) })).json()) as { nodes: unknown[] };
+  expect(files.nodes).toHaveLength(0);
 });
 
 test("oversize Content-Length rejected before reading body", async () => {

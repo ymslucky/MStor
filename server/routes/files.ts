@@ -91,17 +91,24 @@ files.put("/upload", async (c) => {
     await c.env.BUCKET.delete(key);
     throw errors.badRequest(limitMsg);
   }
-  await assertQuota(c.env.DB, user.id, obj.size, Number(c.env.DEFAULT_QUOTA_BYTES));
+  // 对象已写入但尚未登记 nodes：其后任何失败（配额拒绝 / 插入异常）都必须回滚对象，
+  // 否则 R2 里会留下无任何行引用、也不在 orphan_objects 里的永久孤儿（配额拒绝可反复触发）
   const insert = c.env.DB.prepare(
     "INSERT INTO nodes (id, owner_id, parent_id, path, name, is_dir, r2_key, size, mime, sha256, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,?5,0,?6,?7,?8,?9,?10,?10,NULL)"
   );
   try {
-    await insert.bind(id, user.id, parent.id, parentPath, finalName, key, obj.size, mime, normalizedSha, now).run();
+    await assertQuota(c.env.DB, user.id, obj.size, Number(c.env.DEFAULT_QUOTA_BYTES));
+    try {
+      await insert.bind(id, user.id, parent.id, parentPath, finalName, key, obj.size, mime, normalizedSha, now).run();
+    } catch (e) {
+      // uniqueName 与 INSERT 之间并发同名撞唯一索引：换名重试一次（R2 key 随机，无需重传）
+      if (!(e instanceof Error && e.message.includes("UNIQUE constraint failed"))) throw e;
+      finalName = await uniqueName(c.env.DB, user.id, parent.id, name);
+      await insert.bind(id, user.id, parent.id, parentPath, finalName, key, obj.size, mime, normalizedSha, now).run();
+    }
   } catch (e) {
-    // uniqueName 与 INSERT 之间并发同名撞唯一索引：换名重试一次（R2 key 随机，无需重传）
-    if (!(e instanceof Error && e.message.includes("UNIQUE constraint failed"))) throw e;
-    finalName = await uniqueName(c.env.DB, user.id, parent.id, name);
-    await insert.bind(id, user.id, parent.id, parentPath, finalName, key, obj.size, mime, normalizedSha, now).run();
+    await c.env.BUCKET.delete(key).catch(() => {});
+    throw e;
   }
   await adjustUsedBytes(c.env.DB, user.id, obj.size);
   return c.json({ id, name: finalName, size: obj.size }, 201);

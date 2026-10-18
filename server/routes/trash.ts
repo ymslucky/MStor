@@ -133,10 +133,15 @@ export async function sweepOrphanObjects(env: Env, graceMs: number = ORPHAN_GRAC
  * 每根消耗 3 个绑定参数，按 30 根/语句分片 */
 export async function softDeleteMany(db: D1Database, ownerId: string, ids: string[]): Promise<number> {
   if (!ids.length) return 0;
-  // 纯 PK 查找（避免 owner 索引全扫），JS 侧过滤 owner
-  const { results: selRows } = await db.prepare(
-    `SELECT * FROM nodes WHERE deleted_at IS NULL AND id IN (${ids.map(() => "?").join(",")})`
-  ).bind(...ids).all<NodeRow>();
+  // 纯 PK 查找（避免 owner 索引全扫），JS 侧过滤 owner；D1 单语句绑定参数上限 100，按 90 分片
+  const selRows: NodeRow[] = [];
+  for (const part of chunk(ids, 90)) {
+    const ph = part.map(() => "?").join(",");
+    const { results } = await db.prepare(
+      `SELECT * FROM nodes WHERE deleted_at IS NULL AND id IN (${ph})`
+    ).bind(...part).all<NodeRow>();
+    selRows.push(...results);
+  }
   const sel = selRows.filter((r) => r.owner_id === ownerId);
   // 根目录哨兵行（name=''）不可删除
   const valid = sel.filter((r) => r.name !== "");
@@ -167,24 +172,32 @@ export async function moveMany(db: D1Database, ownerId: string, ids: string[], n
   const parent = await resolveParent(db, ownerId, newParentId);
   if (!parent || !parent.is_dir) throw errors.notFound();
   const targetParentId = parent.id;
-  // 纯 PK 查找（避免 owner 索引全扫），JS 侧过滤 owner
-  const { results: selRows } = await db.prepare(
-    `SELECT * FROM nodes WHERE deleted_at IS NULL AND id IN (${ids.map(() => "?").join(",")})`
-  ).bind(...ids).all<NodeRow>();
+  // 纯 PK 查找（避免 owner 索引全扫），JS 侧过滤 owner；D1 单语句绑定参数上限 100，按 90 分片
+  const selRows: NodeRow[] = [];
+  for (const part of chunk(ids, 90)) {
+    const ph = part.map(() => "?").join(",");
+    const { results } = await db.prepare(
+      `SELECT * FROM nodes WHERE deleted_at IS NULL AND id IN (${ph})`
+    ).bind(...part).all<NodeRow>();
+    selRows.push(...results);
+  }
   const sel = selRows.filter((r) => r.owner_id === ownerId);
   if (!sel.length) return 0;
   // 目录不能移入自身子树：对所选目录做祖先检查（目录数通常极少）
   for (const dir of sel.filter((s) => s.is_dir)) {
     if (await isDescendant(db, ownerId, dir.id, targetParentId)) throw errors.badRequest("不能移动到自身子目录");
   }
-  // 同名冲突：目标下与所选同名的活跃节点（排除所选自身），任一冲突整批 409
-  const names = sel.map((s) => s.name);
-  const namePh = names.map(() => "?").join(",");
-  const idQ = ids.map(() => "?").join(",");
-  const conflict = await db.prepare(
-    `SELECT 1 FROM nodes WHERE owner_id = ? AND parent_id = ? AND deleted_at IS NULL AND name IN (${namePh}) AND id NOT IN (${idQ}) LIMIT 1`
-  ).bind(ownerId, targetParentId, ...names, ...ids).first();
-  if (conflict) throw errors.conflict();
+  // 同名冲突：目标下与所选同名的活跃节点，任一冲突整批 409。
+  // 只按 name 绑定（2 + 90/片），命中后用 JS 排除所选自身——原 `id NOT IN (…ids)` 写法把参数放大到
+  // 2 + names + ids，约 50 项批量移动即超 D1 上限（too many SQL variables）整体 500
+  const idSet = new Set(ids);
+  for (const part of chunk(sel, 90)) {
+    const namePh = part.map(() => "?").join(",");
+    const { results } = await db.prepare(
+      `SELECT id FROM nodes WHERE owner_id = ?1 AND parent_id = ?2 AND deleted_at IS NULL AND name IN (${namePh})`
+    ).bind(ownerId, targetParentId, ...part.map((s) => s.name)).all<{ id: string }>();
+    if (results.some((r) => !idSet.has(r.id))) throw errors.conflict();
+  }
   const now = Date.now();
   const parentPath = childPath(parent);
   // 每个被移动节点自身的 path = 目标父路径（祖先链，不含自身），逐节点 UPDATE

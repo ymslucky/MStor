@@ -1,6 +1,6 @@
 import { env, SELF } from "cloudflare:test";
 import { expect, test } from "vitest";
-import { seedUser, sessionHeaders } from "./helpers";
+import { seedNode, seedUser, sessionHeaders } from "./helpers";
 import { sweepOrphanObjects } from "../server/routes/trash";
 
 async function upload(u: Awaited<ReturnType<typeof seedUser>>, name: string, body: string) {
@@ -78,6 +78,48 @@ test("POST /api/files/batch-move 目标不是目录返回 404", async () => {
     body: JSON.stringify({ ids: [a], parentId: a }),
   });
   expect(res.status).toBe(404);
+});
+
+test("POST /api/files/batch-move 100 项：修复 D1 绑定参数上限（曾 ≥50 项整体 500）", async () => {
+  const u = await seedUser();
+  const dir = await seedNode({ owner_id: u.id, is_dir: 1, name: "docs" });
+  const ids: string[] = [];
+  for (let i = 0; i < 100; i++) ids.push((await seedNode({ owner_id: u.id, name: `f${i}.txt` })).id);
+  const res = await SELF.fetch("https://example.com/api/files/batch-move", {
+    method: "POST",
+    headers: { ...(await sessionHeaders(u)), "content-type": "application/json" },
+    body: JSON.stringify({ ids, parentId: dir.id }),
+  });
+  expect(res.status).toBe(200);
+  expect(((await res.json()) as { moved: number }).moved).toBe(100);
+  const inDir = (await (await SELF.fetch(`https://example.com/api/files?parentId=${dir.id}`, { headers: await sessionHeaders(u) })).json()) as { nodes: unknown[] };
+  expect(inDir.nodes).toHaveLength(100);
+});
+
+test("POST /api/files/batch-move 原地移动：所选自身不算同名冲突（idSet 排除回归）", async () => {
+  const u = await seedUser();
+  const a = await seedNode({ owner_id: u.id, name: "a.txt" });
+  const b = await seedNode({ owner_id: u.id, name: "b.txt" });
+  const res = await SELF.fetch("https://example.com/api/files/batch-move", {
+    method: "POST",
+    headers: { ...(await sessionHeaders(u)), "content-type": "application/json" },
+    body: JSON.stringify({ ids: [a.id, b.id], parentId: "" }),
+  });
+  expect(res.status).toBe(200);
+  expect(((await res.json()) as { moved: number }).moved).toBe(2);
+});
+
+test("POST /api/files/batch-move 目标同名仍整批 409", async () => {
+  const u = await seedUser();
+  const dir = await seedNode({ owner_id: u.id, is_dir: 1, name: "docs" });
+  await seedNode({ owner_id: u.id, parent_id: dir.id, name: "dup.txt" });
+  const src = await seedNode({ owner_id: u.id, name: "dup.txt" });
+  const res = await SELF.fetch("https://example.com/api/files/batch-move", {
+    method: "POST",
+    headers: { ...(await sessionHeaders(u)), "content-type": "application/json" },
+    body: JSON.stringify({ ids: [src.id], parentId: dir.id }),
+  });
+  expect(res.status).toBe(409);
 });
 
 test("POST /api/files/batch-delete ids 不合法返回 400", async () => {
