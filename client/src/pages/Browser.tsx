@@ -1,130 +1,36 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import { Copy, Download, ExternalLink, FolderInput, FolderPlus, FolderUp, Info, LayoutGrid, Link2, List, Pencil, Share2, Trash2, TriangleAlert, Upload } from "lucide-react";
-import { batchDeleteNodes, batchMoveNodes } from "../api/nodes";
-import { friendlyMessage } from "../api/client";
 import { listShares } from "../api/shares";
 import type { Me, Node } from "../api/types";
-import { contentUrl, deleteNode, deleteNodePermanently, moveNode } from "../api/nodes";
+import { contentUrl } from "../api/nodes";
 import Breadcrumb from "../components/Breadcrumb";
 import ContextMenu from "../components/ContextMenu";
 import type { ContextMenuItem } from "../components/ContextMenu";
 import FileList, { RowAction } from "../components/FileList";
+import { TimeFilterChips, TypeFilterChips } from "../components/FileFilters";
 import MoveDialog from "../components/MoveDialog";
 import NameDialog from "../components/NameDialog";
+import NodeDetailDialog from "../components/NodeDetailDialog";
 import PreviewModal from "../components/PreviewModal";
 import ShareDialog from "../components/ShareDialog";
+import StorageRing from "../components/StorageRing";
 import UploadPanel from "../components/UploadPanel";
 import { toast } from "../components/Toaster";
-import { Button, ConfirmDialog, Dialog, EmptyState, GlassCard, IconButton, Skeleton } from "../components/ui";
+import { Button, ConfirmDialog, EmptyState, GlassCard, IconButton, Skeleton } from "../components/ui";
+import { useBatchOps } from "../hooks/useBatchOps";
 import { useFiles } from "../hooks/useFiles";
 import { useFileSelection } from "../hooks/useFileSelection";
 import { useKeyboardNav } from "../hooks/useKeyboardNav";
 import { useUploadQueue } from "../hooks/useUploadQueue";
 import { collectDirectory, collectUploads, supportsDirectoryPicker } from "../lib/dirscan";
-import { formatBytes, formatDate } from "../lib/format";
-
-// 存储圆环：底环 gray-100，进度环 accent，中心百分比
-function StorageRing({ pct }: { pct: number }) {
-  const r = 26;
-  const c = 2 * Math.PI * r;
-  return (
-    <div className="relative h-16 w-16 shrink-0">
-      <svg viewBox="0 0 64 64" className="h-16 w-16 -rotate-90" aria-hidden>
-        <circle cx="32" cy="32" r={r} fill="none" strokeWidth="6" className="stroke-gray-100" />
-        <circle
-          cx="32"
-          cy="32"
-          r={r}
-          fill="none"
-          strokeWidth="6"
-          strokeLinecap="round"
-          className="stroke-accent"
-          strokeDasharray={c}
-          strokeDashoffset={c * (1 - pct / 100)}
-        />
-      </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-ink">{pct}%</span>
-    </div>
-  );
-}
-
-// —— 前端过滤 chips（类型/时间）：纯前端过滤当前目录列表，不新增后端调用 ——
-type TypeFilter = "all" | "image" | "video" | "doc";
-type TimeFilter = "all" | "today" | "7d" | "30d";
-
-const TYPE_CHIPS: { value: TypeFilter; label: string }[] = [
-  { value: "all", label: "全部" },
-  { value: "image", label: "图片" },
-  { value: "video", label: "视频" },
-  { value: "doc", label: "文档" },
-];
-// 时间组无「全部」项：点击已选 chip 再次取消
-const TIME_CHIPS: { value: TimeFilter; label: string }[] = [
-  { value: "today", label: "今天" },
-  { value: "7d", label: "7 天" },
-  { value: "30d", label: "30 天" },
-];
-
-function matchType(n: Node, f: TypeFilter): boolean {
-  if (f === "all") return true;
-  if (n.is_dir) return false;
-  const mime = n.mime ?? "";
-  if (f === "image") return mime.startsWith("image/");
-  if (f === "video") return mime.startsWith("video/");
-  return (
-    mime.startsWith("text/") ||
-    mime.startsWith("application/pdf") ||
-    mime.startsWith("application/json") ||
-    mime.startsWith("application/msword") ||
-    mime.startsWith("application/rtf") ||
-    mime.includes("officedocument") ||
-    mime.includes("spreadsheet") ||
-    mime.includes("presentation")
-  );
-}
-
-function matchTime(n: Node, f: TimeFilter): boolean {
-  if (f === "all") return true;
-  if (f === "today") {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return n.updated_at >= d.getTime();
-  }
-  return n.updated_at >= Date.now() - (f === "7d" ? 7 : 30) * 24 * 60 * 60 * 1000;
-}
-
-function FilterChips<T extends string>({
-  label,
-  options,
-  value,
-  onChange,
-}: {
-  label: string;
-  options: { value: T; label: string }[];
-  value: T;
-  onChange: (v: T) => void;
-}) {
-  const idle = "rounded-full border border-line bg-white px-2.5 py-1 text-xs text-ink-2 transition-colors hover:border-accent/40";
-  const active = "rounded-full border border-primary bg-primary-soft px-2.5 py-1 text-xs font-medium text-primary-text";
-  return (
-    <div role="group" aria-label={label} className="flex items-center gap-1">
-      {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          aria-pressed={value === o.value}
-          className={value === o.value ? active : idle}
-          onClick={() => onChange(value === o.value && !options.some((x) => x.value === "all") ? ("all" as T) : o.value)}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
+import { triggerDownload } from "../lib/download";
+import { filterNodes } from "../lib/fileFilters";
+import type { TimeFilter, TypeFilter } from "../lib/fileFilters";
+import { formatBytes } from "../lib/format";
+import { STORAGE_KEYS, getString, setString } from "../lib/storage";
 
 export default function Browser() {
   const [params, setParams] = useSearchParams();
@@ -143,15 +49,8 @@ export default function Browser() {
   const [sharing, setSharing] = useState<Node | null>(null);
   const [deleting, setDeleting] = useState<Node | null>(null);
   const [detail, setDetail] = useState<Node | null>(null);
-  // 批量操作状态
-  const [batchDeleting, setBatchDeleting] = useState(false);
-  const [batchMoving, setBatchMoving] = useState(false);
-  const [batchBusy, setBatchBusy] = useState(false);
-  const [deleteBusy, setDeleteBusy] = useState(false);
-  // 批量操作进度（done/total），完成或失败后置 null
-  const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
   // 视图偏好持久化，缺省 list
-  const [view, setView] = useState<"list" | "grid">(() => (localStorage.getItem("mstor_view") === "grid" ? "grid" : "list"));
+  const [view, setView] = useState<"list" | "grid">(() => (getString(STORAGE_KEYS.view) === "grid" ? "grid" : "list"));
   // 拖拽上传：dragenter/leave 计数法防子元素闪烁，>0 时显示全屏覆盖层
   const [dragDepth, setDragDepth] = useState(0);
   // 右键菜单：当前节点 + 指针位置
@@ -159,17 +58,13 @@ export default function Browser() {
   // 前端过滤 chips
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
-  const queryClient = useQueryClient();
 
   const openDir = (id: string) => setParams(id ? { dir: id } : {});
 
   // 过滤后的当前目录列表（键盘导航/选择/渲染都以可见列表为准）
   const allNodes = useMemo(() => query.data?.nodes ?? [], [query.data]);
   const filtered = typeFilter !== "all" || timeFilter !== "all";
-  const nodes = useMemo(
-    () => allNodes.filter((n) => matchType(n, typeFilter) && matchTime(n, timeFilter)),
-    [allNodes, typeFilter, timeFilter],
-  );
+  const nodes = useMemo(() => filterNodes(allNodes, typeFilter, timeFilter), [allNodes, typeFilter, timeFilter]);
 
   // 多选（受控 ids + Shift 范围锚点；换目录自动清空）
   const visibleIds = useMemo(() => nodes.map((n) => n.id), [nodes]);
@@ -204,114 +99,34 @@ export default function Browser() {
 
   const switchView = (v: "list" | "grid") => {
     setView(v);
-    localStorage.setItem("mstor_view", v);
+    setString(STORAGE_KEYS.view, v);
   };
 
-  // 批量请求分块并行：每块 100 个 id（服务端集合式处理，单请求毫秒级），2 路并发；进度按已处理条目推进
-  const runChunkedParallel = async (ids: string[], worker: (chunk: string[]) => Promise<number>) => {
-    const CHUNK = 100;
-    const CONCURRENCY = 2;
-    const chunks: string[][] = [];
-    for (let i = 0; i < ids.length; i += CHUNK) chunks.push(ids.slice(i, i + CHUNK));
-    let done = 0;
-    let failed = 0;
-    let idx = 0;
-    setBatchProgress({ done: 0, total: ids.length });
-    await Promise.all(
-      Array.from({ length: Math.min(CONCURRENCY, chunks.length) }, async () => {
-        for (;;) {
-          const i = idx++;
-          if (i >= chunks.length) break;
-          try {
-            done += await worker(chunks[i]);
-          } catch {
-            failed += chunks[i].length; // 整块请求失败（网络/4xx）计入失败
-          }
-          setBatchProgress({ done: Math.min(done + failed, ids.length), total: ids.length });
-        }
-      }),
-    );
-    return { done, failed };
-  };
-
-  // 批量删除：服务端 batch-delete 一次处理一块（无逐项 HTTP 往返），分块并行加速
-  const runBatchDelete = async (permanent = false) => {
-    setBatchBusy(true);
-    const ids = [...selection.selected];
-    const { done, failed } = await runChunkedParallel(ids, async (chunk) => {
-      const r = await batchDeleteNodes(chunk, permanent);
-      return r.deleted;
-    });
-    selection.clear();
-    setBatchBusy(false);
-    setBatchDeleting(false);
-    setBatchProgress(null);
-    if (failed > 0) toast(`部分项处理失败（${failed} 项），请重试`, "error");
-    else toast(permanent ? `已彻底删除 ${done} 项` : `已移入回收站 ${done} 项`, "info");
-    void queryClient.invalidateQueries({ queryKey: ["files"] });
-    void queryClient.invalidateQueries({ queryKey: ["trash"] });
-    if (permanent) void queryClient.invalidateQueries({ queryKey: ["me"] });
-  };
-
-  // 单项彻底删除：弹窗保持打开（busy），成功后关闭
-  const purgeNow = async (id: string) => {
-    setDeleteBusy(true);
-    try {
-      await deleteNodePermanently(id);
-      setDeleting(null);
-      toast("已彻底删除", "info");
-    } catch (e) {
-      toast(e instanceof Error ? e.message : "彻底删除失败", "error");
-    } finally {
-      setDeleteBusy(false);
-    }
-    void queryClient.invalidateQueries({ queryKey: ["files"] });
-    void queryClient.invalidateQueries({ queryKey: ["trash"] });
-    void queryClient.invalidateQueries({ queryKey: ["me"] });
-  };
-
-  // 批量移动：服务端 batch-move 一次处理一块，分块并行
-  const runBatchMove = async (to: string) => {
-    setBatchBusy(true);
-    const ids = [...selection.selected];
-    const { done, failed } = await runChunkedParallel(ids, async (chunk) => {
-      const r = await batchMoveNodes(chunk, to);
-      return r.moved;
-    });
-    selection.clear();
-    setBatchBusy(false);
-    setBatchMoving(false);
-    setBatchProgress(null);
-    if (failed > 0) toast(`部分项移动失败（${failed} 项），请重试`, "error");
-    else toast(`已移动 ${done} 项`, "info");
-    void queryClient.invalidateQueries({ queryKey: ["files"] });
-  };
+  // 批量操作（删除/移动/彻底删除）：逻辑见 hooks/useBatchOps
+  const {
+    batchDeleting,
+    setBatchDeleting,
+    batchMoving,
+    setBatchMoving,
+    batchBusy,
+    deleteBusy,
+    batchProgress,
+    runBatchDelete,
+    runBatchMove,
+    purgeNow,
+  } = useBatchOps({ selectedIds: selection.selected, onClear: selection.clear, onPurged: () => setDeleting(null) });
 
   // 批量下载：仅文件，300ms 间隔逐个触发（避免浏览器拦截）
   const batchDownload = () => {
     const files = allNodes.filter((n) => selection.selected.has(n.id) && !n.is_dir);
-    files.forEach((n, i) =>
-      window.setTimeout(() => {
-        const a = document.createElement("a");
-        a.href = contentUrl(n.id, true);
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-      }, i * 300),
-    );
+    files.forEach((n, i) => window.setTimeout(() => triggerDownload(n.id), i * 300));
   };
 
   const selectedNodes = allNodes.filter((n) => selection.selected.has(n.id));
   const hasFileSelected = selectedNodes.some((n) => !n.is_dir);
 
   // 单文件下载：临时 <a> 触发 content?dl=1
-  const downloadNode = (n: Node) => {
-    const a = document.createElement("a");
-    a.href = contentUrl(n.id, true);
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  };
+  const downloadNode = (n: Node) => triggerDownload(n.id);
 
   // 拖拽移动（文件夹行/面包屑 drop）：复用既有 moveNode
   const dropMove = (id: string, to: string) => {
@@ -567,8 +382,8 @@ export default function Browser() {
           {/* 工具栏：左侧类型/时间过滤 chips（纯前端过滤），右侧列表/网格分段控件 */}
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
-              <FilterChips label="类型过滤" options={TYPE_CHIPS} value={typeFilter} onChange={setTypeFilter} />
-              <FilterChips label="时间过滤" options={TIME_CHIPS} value={timeFilter} onChange={setTimeFilter} />
+              <TypeFilterChips value={typeFilter} onChange={setTypeFilter} />
+              <TimeFilterChips value={timeFilter} onChange={setTimeFilter} />
             </div>
             <div className="flex items-center gap-2">
               <IconButton label="新建文件夹" onClick={() => setCreating(true)}>
@@ -733,28 +548,7 @@ export default function Browser() {
         />
       )}
       {/* 详情只读弹窗：名称/大小/类型/修改时间 */}
-      {detail && (
-        <Dialog open onClose={() => setDetail(null)} title="详情">
-          <dl className="space-y-2 text-sm">
-            <div className="flex items-start justify-between gap-4">
-              <dt className="shrink-0 text-ink-dim">名称</dt>
-              <dd className="break-all text-right font-medium text-ink">{detail.name}</dd>
-            </div>
-            <div className="flex items-start justify-between gap-4">
-              <dt className="shrink-0 text-ink-dim">大小</dt>
-              <dd className="tabular-nums text-ink">{formatBytes(detail.is_dir ? null : detail.size)}</dd>
-            </div>
-            <div className="flex items-start justify-between gap-4">
-              <dt className="shrink-0 text-ink-dim">类型</dt>
-              <dd className="text-ink">{detail.is_dir ? "文件夹" : (detail.mime ?? "未知")}</dd>
-            </div>
-            <div className="flex items-start justify-between gap-4">
-              <dt className="shrink-0 text-ink-dim">修改时间</dt>
-              <dd className="tabular-nums text-ink">{formatDate(detail.updated_at)}</dd>
-            </div>
-          </dl>
-        </Dialog>
-      )}
+      {detail && <NodeDetailDialog node={detail} onClose={() => setDetail(null)} />}
       {/* 拖拽全屏覆盖层：白底 80% + 内嵌虚线框；drop/离开窗口后关闭（计数法归零） */}
       {dragDepth > 0 && (
         <div data-testid="drop-overlay" className="fixed inset-0 z-40 bg-white/80">

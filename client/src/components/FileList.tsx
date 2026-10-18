@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type * as React from "react";
 import type {
   CSSProperties,
@@ -8,64 +8,23 @@ import type {
   ReactNode,
   RefObject,
 } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
 import { ArrowDown, ArrowUp, Check, Columns3, Copy, Download, EyeOff, FolderOpen, ListFilter, Search } from "lucide-react";
 import { contentUrl } from "../api/nodes";
 import type { Node } from "../api/types";
+import { compareNodes, useColumnPrefs } from "../hooks/useColumnPrefs";
+import type { SortKey } from "../hooks/useColumnPrefs";
 import { hasNodeDrag, readNodeDrag, setNodeDrag } from "../lib/dnd";
 import { formatBytes, formatDate, truncateMiddle } from "../lib/format";
 import { NodeIcon } from "./NodeIcon";
 import { Badge, Button, EmptyState } from "./ui";
 import { toast } from "./Toaster";
+import VirtualizedList, { ROW_HEIGHT } from "./VirtualizedList";
 
 /** 列表 ≥50 行启用虚拟滚动 */
 const VIRTUAL_THRESHOLD = 50;
-/** 虚拟行高（设计规范：列表行高 48px） */
-const ROW_HEIGHT = 48;
 
 type DragHandlers = Pick<React.HTMLAttributes<HTMLElement>, "onDragStart" | "onDragEnd"> & { draggable?: boolean };
 type DropHandlers = Pick<React.HTMLAttributes<HTMLElement>, "onDragOver" | "onDragLeave" | "onDrop">;
-
-// —— 列偏好（localStorage，不入库）：名称列宽 / 列显示 / 排序 ——
-const COL_PREF_KEY = "mstor_files_table";
-type SortKey = "name" | "size" | "updated_at";
-interface ColPref {
-  nameW?: number;
-  showSize?: boolean;
-  showTime?: boolean;
-  sort?: { key: SortKey; dir: "asc" | "desc" } | null;
-}
-const DEFAULT_PREF: Required<Pick<ColPref, "showSize" | "showTime">> & { nameW?: number; sort?: ColPref["sort"] } = {
-  showSize: true,
-  showTime: true,
-};
-function loadPref(): ColPref {
-  try {
-    return { ...DEFAULT_PREF, ...(JSON.parse(localStorage.getItem(COL_PREF_KEY) ?? "{}") as ColPref) };
-  } catch {
-    return { ...DEFAULT_PREF };
-  }
-}
-function savePref(p: ColPref) {
-  try {
-    localStorage.setItem(COL_PREF_KEY, JSON.stringify(p));
-  } catch {
-    /* 隐私模式等场景忽略 */
-  }
-}
-
-// 排序：文件夹始终置顶（按名称），文件间按所选键 × 方向
-function compareNodes(a: Node, b: Node, key: SortKey, dir: 1 | -1): number {
-  if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1;
-  if (a.is_dir) return a.name.localeCompare(b.name, "zh-CN");
-  const v =
-    key === "name"
-      ? a.name.localeCompare(b.name, "zh-CN")
-      : key === "size"
-        ? (a.size ?? 0) - (b.size ?? 0)
-        : a.updated_at - b.updated_at;
-  return v * dir;
-}
 
 interface Props {
   nodes: Node[];
@@ -147,20 +106,10 @@ export default function FileList({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   // 列偏好：名称列宽 / 大小、时间列显隐 / 排序（localStorage 持久化）
-  const [pref, setPref] = useState<ColPref>(loadPref);
+  const { pref, setPrefAndSave, updatePref, toggleSort } = useColumnPrefs();
   const [colMenuOpen, setColMenuOpen] = useState(false);
   // 名称过滤（当前列表内即时过滤，会话级不持久化）
   const [nameFilter, setNameFilter] = useState("");
-  const setPrefAndSave = (p: ColPref) => {
-    setPref(p);
-    savePref(p);
-  };
-  const updatePref = (fn: (p: ColPref) => ColPref) =>
-    setPref((prev) => {
-      const next = fn(prev);
-      savePref(next);
-      return next;
-    });
 
   // 名称列拖拽调宽：mousedown 时挂载 window 监听（ref 变化不会触发 effect，故在事件内绑定）
   // 移动端（<sm）压缩为 [选择][图标][名称][操作]，隐藏大小/时间列
@@ -332,17 +281,7 @@ export default function FileList({
     </span>
   );
 
-  // 表头排序切换
-  const toggleSort = (key: SortKey) => {
-    const cur = pref.sort;
-    const next =
-      !cur || cur.key !== key
-        ? { key, dir: "asc" as const }
-        : cur.dir === "asc"
-          ? { key, dir: "desc" as const }
-          : null; // 第三次点击取消排序
-    setPrefAndSave({ ...pref, sort: next });
-  };
+  // 表头排序指示（切换逻辑见 useColumnPrefs.toggleSort）
   const sortIcon = (key: SortKey) => {
     const s = pref.sort;
     if (!s || s.key !== key) return null;
@@ -478,7 +417,7 @@ export default function FileList({
   );
 
   // 行内容（grid 子元素，与表头同模板对齐）
-  const rowCells = (n: Node, i: number) => (
+  const rowCells = (n: Node, _i: number) => (
     <>
       {selectable && <span className="px-1 text-center">{checkbox(n)}</span>}
       <span className="flex justify-center">
@@ -509,7 +448,7 @@ export default function FileList({
     </>
   );
 
-  const rowEvents = (n: Node, i: number) => ({
+  const rowEvents = (n: Node, _i: number) => ({
     onContextMenu: (e: ReactMouseEvent<HTMLElement>) => onNodeContextMenu?.(e, n),
     ...dragProps(n),
     ...folderDropProps(n),
@@ -616,44 +555,6 @@ export default function FileList({
       {toolbar}
       {headerRow}
       {listBody}
-    </div>
-  );
-}
-
-// 虚拟滚动窗口：固定行高 + 绝对定位行（grid 模板由行自身携带）
-function VirtualizedList({
-  nodes,
-  focusIndex = -1,
-  row,
-}: {
-  nodes: Node[];
-  focusIndex?: number;
-  row: (n: Node, index: number, top: number) => ReactNode;
-}) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const virtualizer = useVirtualizer({
-    count: nodes.length,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: () => ROW_HEIGHT,
-    overscan: 8,
-  });
-
-  // 键盘焦点行滚动进可视区（jsdom 无 Element.scrollTo，跳过）
-  useEffect(() => {
-    if (focusIndex < 0) return;
-    const el = scrollRef.current;
-    if (!el || typeof el.scrollTo !== "function") return;
-    virtualizer.scrollToIndex(focusIndex);
-  }, [focusIndex, virtualizer]);
-
-  return (
-    <div ref={scrollRef} data-testid="file-virtual" className="max-h-[30rem] overflow-y-auto">
-      <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
-        {virtualizer.getVirtualItems().map((vi) => {
-          const n = nodes[vi.index];
-          return <Fragment key={n.id}>{row(n, vi.index, vi.start)}</Fragment>;
-        })}
-      </div>
     </div>
   );
 }
