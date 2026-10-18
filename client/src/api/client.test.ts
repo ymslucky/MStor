@@ -41,13 +41,16 @@ test("unwraps error envelope into ApiError", async () => {
   expect(err.message).toBe("名称已存在");
 });
 
-// 位置桩：捕获整页刷新导航（handleSessionExpired 以 location.assign(当前 URL) 实现）
+// 位置桩：捕获续期导航（handleSessionExpired 经 /auth/renew 实现）
 function stubLocation(): { assigned: string[] } {
   const assigned: string[] = [];
   Object.defineProperty(window, "location", {
     configurable: true,
     value: {
+      replace: (url: string) => assigned.push(url),
       assign: (url: string) => assigned.push(url),
+      pathname: "/browse",
+      search: "",
       get href() {
         return "https://app.test/browse";
       },
@@ -82,14 +85,26 @@ test("handleSessionExpired: no flag → stays (false)", () => {
   expect(assigned).toEqual([]);
 });
 
-test("handleSessionExpired: marked session → one-shot full-page reload", () => {
+test("handleSessionExpired: marked session → 定向 /auth/renew 续期", () => {
   const { assigned } = stubLocation();
   markSessionActive();
   expect(handleSessionExpired()).toBe(true);
-  expect(assigned).toEqual(["https://app.test/browse"]); // 赋值当前 URL = 整页刷新触发 Access 重登
+  // 不能原地刷新：SW 导航回退会缓存返回同 URL（到不了边缘 → 打转空白页）
+  expect(assigned).toEqual(["/auth/renew?next=%2Fbrowse"]);
   // 一次性守卫：同轮生命周期内重复调用不再触发
   expect(handleSessionExpired()).toBe(true);
   expect(assigned).toHaveLength(1);
+  clearSessionFlag();
+});
+
+test("handleSessionExpired: 续期后短时间内仍 401 不再跳转（跨刷新防死循环）", async () => {
+  const { assigned } = stubLocation();
+  markSessionActive();
+  sessionStorage.setItem("mstor_renew_at", String(Date.now()));
+  vi.resetModules(); // 模拟整页刷新：内存守卫重置，仅剩时间守卫
+  const fresh = await import("./client");
+  expect(fresh.handleSessionExpired()).toBe(false);
+  expect(assigned).toEqual([]);
   clearSessionFlag();
 });
 

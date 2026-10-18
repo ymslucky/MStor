@@ -1,4 +1,5 @@
 import { SESSION_KEYS, STORAGE_KEYS, getSession, getString, removeSession, setSession } from "../lib/storage";
+import { renewSession } from "../lib/renew";
 
 export class ApiError extends Error {
   constructor(
@@ -28,28 +29,35 @@ export function friendlyMessage(e: unknown): string {
 }
 
 // —— 会话重登策略（Cloudflare Access）——
-// 「曾登录过」的会话中途过期才整页刷新触发边缘 Access 重登，
-// 且每轮页面生命周期只刷一次（redirecting 守卫），避免并发 401 造成刷新风暴。
+// 「曾登录过」的会话中途过期：定向导航到 SW 豁免路径 /auth/renew 触发边缘重登。
+// 不能原地整页刷新：SW 导航回退会用缓存直接返回同 URL，请求到不了边缘（Access 无从 302 去 IdP），
+// 页面一轮轮刷新打转 = 空白页。守卫：本轮生命周期只跳一次（redirecting），
+// 跨刷新 10s 内也只跳一次（renewAt）——续期后仍 401 属非会话问题，交给提示页而不是无限刷新。
 let redirecting = false;
+const RENEW_GUARD_MS = 10_000;
 
 export function markSessionActive(): void {
   setSession(SESSION_KEYS.authed, "1");
+  removeSession(SESSION_KEYS.renewAt); // 登录已恢复：清除续期守卫，下次过期可再续期
 }
 
 export function clearSessionFlag(): void {
   removeSession(SESSION_KEYS.authed);
+  removeSession(SESSION_KEYS.renewAt);
 }
 
-/** 会话过期时调用：曾登录过 → 整页刷新一次（一次性）并返回 true；否则返回 false（由调用方渲染未授权提示页） */
+/** 会话过期时调用：曾登录过 → 经 /auth/renew 续期一次并返回 true；否则返回 false（由调用方渲染未授权提示页） */
 export function handleSessionExpired(): boolean {
   if (redirecting) return true;
   const authed = getSession(SESSION_KEYS.authed) === "1";
-  if (authed) {
-    redirecting = true;
-    // 整页刷新：Access 检测到会话过期会 302 到 IdP，登录后回原页
-    window.location.assign(window.location.href);
-  }
-  return authed;
+  if (!authed) return false;
+  // 刚刚续期过仍 401（如边缘放行但后端验签失败）：不再跳转，避免整页重载死循环
+  const now = Date.now();
+  if (now - Number(getSession(SESSION_KEYS.renewAt) ?? 0) < RENEW_GUARD_MS) return false;
+  redirecting = true;
+  setSession(SESSION_KEYS.renewAt, String(now));
+  renewSession();
+  return true;
 }
 
 interface ApiInit extends Omit<RequestInit, "body"> {

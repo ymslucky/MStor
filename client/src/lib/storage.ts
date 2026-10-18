@@ -10,9 +10,10 @@ export const STORAGE_KEYS = {
   resume: "mstor_resume",
 } as const;
 
-/** sessionStorage 键：仅当前标签页生命周期有效（会话标记） */
+/** sessionStorage 键：仅当前标签页生命周期有效（会话标记与续期守卫） */
 export const SESSION_KEYS = {
   authed: "mstor_authed",
+  renewAt: "mstor_renew_at",
 } as const;
 
 function ls(): Storage | null {

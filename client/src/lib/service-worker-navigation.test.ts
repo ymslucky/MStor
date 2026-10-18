@@ -6,6 +6,10 @@ describe("PWA navigation fallback bypass", () => {
     expect(shouldBypassNavigateFallback("/cdn-cgi/access/authorized")).toBe(true);
   });
 
+  test("lets session renewal reach the network", () => {
+    expect(shouldBypassNavigateFallback("/auth/renew")).toBe(true);
+  });
+
   test("keeps API requests outside the SPA fallback", () => {
     expect(shouldBypassNavigateFallback("/api/me")).toBe(true);
   });
