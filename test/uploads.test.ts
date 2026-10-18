@@ -60,7 +60,7 @@ test("multipart init → part urls → complete creates node", async () => {
     body: JSON.stringify({ parts: [{ partNumber: 1, etag: `"${"a".repeat(32)}"` }, { partNumber: 2, etag: `"${"b".repeat(32)}"` }], mime: "video/mp4" }),
   });
   expect(done.status).toBe(201);
-  const { nodeId, name } = (await done.json()) as { nodeId: string; name: string };
+  const { name } = (await done.json()) as { nodeId: string; name: string };
   expect(name).toBe("movie.mp4");
   const node = (await (await SELF.fetch("https://example.com/api/files", { headers: await sessionHeaders(u) })).json()) as { nodes: { size: number; mime: string }[] };
   expect(node.nodes[0].size).toBe(200 * 1048576);
