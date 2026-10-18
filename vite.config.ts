@@ -2,6 +2,7 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
+import { navigateFallbackDenylist } from "./client/src/lib/service-worker-navigation";
 
 export default defineConfig({
   root: "client",
@@ -26,7 +27,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        navigateFallbackDenylist: [/^\/api\//],
+        navigateFallbackDenylist,
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.origin === location.origin && url.pathname.startsWith("/assets/"),
