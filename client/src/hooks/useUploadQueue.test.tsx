@@ -10,7 +10,7 @@ vi.mock("../api/uploads", () => ({
   abortUpload: vi.fn(),
   sha256Hex: vi.fn(),
   instantUpload: vi.fn(),
-  SMALL_FILE_LIMIT: 1024,
+  getSmallFileLimit: () => 1024,
 }));
 vi.mock("../api/nodes", () => ({
   ensureDir: vi.fn(),

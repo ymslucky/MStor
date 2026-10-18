@@ -1,9 +1,11 @@
-import { MutationCache, QueryCache, QueryClient, useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { MutationCache, QueryCache, QueryClient, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { Cloud, FolderOpen, LogOut, PanelLeftClose, PanelLeftOpen, Settings, Share2, Trash2 } from "lucide-react";
 import { ApiError, clearSessionFlag, handleSessionExpired } from "../api/client";
 import { getMe } from "../api/me";
+import { setUploadLimits } from "../api/uploads";
+import { STORAGE_KEYS, getString, removeItem, setString } from "../lib/storage";
 import type { Me } from "../api/types";
 import { Badge, ConfirmDialog, IconButton } from "../components/ui";
 import SearchBox from "../components/SearchBox";
@@ -34,11 +36,11 @@ function useMe(): Me | undefined {
 
 // 侧栏折叠状态持久化 localStorage("mstor_sidebar")
 function useSidebarCollapsed() {
-  const [collapsed, setCollapsed] = useState(() => localStorage.getItem("mstor_sidebar") === "collapsed");
+  const [collapsed, setCollapsed] = useState(() => getString(STORAGE_KEYS.sidebar) === "collapsed");
   const toggle = () =>
     setCollapsed((prev) => {
       const next = !prev;
-      localStorage.setItem("mstor_sidebar", next ? "collapsed" : "expanded");
+      setString(STORAGE_KEYS.sidebar, next ? "collapsed" : "expanded");
       return next;
     });
   return { collapsed, toggle };
@@ -56,11 +58,17 @@ const PAGE_TITLES: Record<string, string> = { "/": "文件", "/trash": "回收�
 
 export default function AppShell() {
   const me = useMe();
+  const queryClient = useQueryClient();
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [exitActOpen, setExitActOpen] = useState(false);
   const { collapsed, toggle } = useSidebarCollapsed();
   const { pathname } = useLocation();
+  // 上传上限由服务端下发（/api/me.limits），前端上传队列在此同步，避免前后端硬编码漂移
+  useEffect(() => {
+    setUploadLimits(me?.limits);
+  }, [me]);
   if (!me) return <div className="p-8 text-center text-ink-dim">加载中…</div>;
-  const actAs = typeof localStorage !== "undefined" ? localStorage.getItem("mstor_act_as") : null;
+  const actAs = getString(STORAGE_KEYS.actAs);
   // 侧栏档案行始终显示登录账号（self）：act-as 查看他人空间时当前空间用户会变化
   const account = me.self ?? me;
 
@@ -154,13 +162,7 @@ export default function AppShell() {
             {actAs && (
               <div className="mb-4 flex flex-wrap items-center gap-x-2 rounded-xl bg-amber-50 px-4 py-2 text-xs text-amber-800">
                 正在以管理员身份查看「{me.name}」的空间
-                <button
-                  className="font-medium underline"
-                  onClick={() => {
-                    localStorage.removeItem("mstor_act_as");
-                    window.location.reload();
-                  }}
-                >
+                <button className="font-medium underline" onClick={() => setExitActOpen(true)}>
                   退出该空间
                 </button>
               </div>
@@ -190,15 +192,29 @@ export default function AppShell() {
       <ConfirmDialog
         open={logoutOpen}
         title="退出登录"
-        description="确定要退出当前账号吗？"
+        description="退出后将结束 Cloudflare Access 会话（对所有 Access 应用生效），确定继续吗？"
         confirmText="退出"
         danger
-        onConfirm={() => {
+        onConfirm={async () => {
           setLogoutOpen(false);
           clearSessionFlag();
-          window.location.href = "/auth/logout";
+          queryClient.clear();
+          // Access 全局登出：清除 Cloudflare 授权 cookie，随后需重新走 IdP 登录
+          window.location.assign("/cdn-cgi/access/logout");
         }}
         onCancel={() => setLogoutOpen(false)}
+      />
+      <ConfirmDialog
+        open={exitActOpen}
+        title="退出该空间"
+        description="确定返回你自己的空间吗？"
+        confirmText="退出"
+        onConfirm={() => {
+          setExitActOpen(false);
+          removeItem(STORAGE_KEYS.actAs);
+          window.location.reload();
+        }}
+        onCancel={() => setExitActOpen(false)}
       />
       <OfflineBar />
       <Toaster />

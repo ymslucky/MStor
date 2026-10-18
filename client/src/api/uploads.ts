@@ -2,9 +2,20 @@ import { ApiError, api } from "./client";
 import { createSHA256 } from "hash-wasm";
 import type { InitUpload } from "./types";
 import { DEFAULT_UPLOAD_CONCURRENCY } from "../lib/settings";
+import { STORAGE_KEYS, getString } from "../lib/storage";
 
-// 与后端 wrangler.jsonc 的 SMALL_FILE_LIMIT 同步（60MB）
-export const SMALL_FILE_LIMIT = 60 * 1024 * 1024;
+// 上传限制由服务端 /api/me 下发（见 limits 字段），避免前后端硬编码漂移；未下发时回退默认
+export const DEFAULT_SMALL_FILE_LIMIT = 60 * 1024 * 1024;
+export const DEFAULT_PART_SIZE = 16 * 1024 * 1024;
+let smallFileLimit = DEFAULT_SMALL_FILE_LIMIT;
+
+/** 应用服务端下发的上传限制（AppShell 在 /api/me 返回后调用） */
+export function setUploadLimits(limits?: { smallFileLimit?: number; partSize?: number }): void {
+  if (limits?.smallFileLimit && limits.smallFileLimit > 0) smallFileLimit = limits.smallFileLimit;
+}
+export function getSmallFileLimit(): number {
+  return smallFileLimit;
+}
 
 export interface UploadSmallOpts {
   /** 取消上传：中止 XHR */
@@ -56,11 +67,11 @@ export const uploadSmall = (file: File, parentId: string, opts?: UploadSmallOpts
     const qs = new URLSearchParams({ name: file.name, parentId });
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", `/api/files/upload?${qs}`);
+    // 同 api()：Access 会话过期时对 AJAX 回 401 而非 302
+    xhr.setRequestHeader("x-requested-with", "XMLHttpRequest");
     xhr.setRequestHeader("content-type", file.type || "application/octet-stream");
-    if (typeof localStorage !== "undefined") {
-      const actAs = localStorage.getItem("mstor_act_as");
-      if (actAs) xhr.setRequestHeader("x-act-as", actAs);
-    }
+    const actAs = getString(STORAGE_KEYS.actAs);
+    if (actAs) xhr.setRequestHeader("x-act-as", actAs);
     if (opts?.sha256) xhr.setRequestHeader("x-file-sha256", opts.sha256);
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) opts?.onProgress?.(e.loaded / e.total);

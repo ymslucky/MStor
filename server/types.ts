@@ -1,9 +1,10 @@
 export interface UserRow {
   id: string;
-  oidc_sub: string;
+  access_sub: string; // Cloudflare Access JWT sub（0015 由 oidc_sub 更名）
+  email: string | null; // 跨身份绑定锚点：管理员回填后，Access 首登按 email 锚定存量账号
+  access_bound_at: number | null; // NULL 表示 access_sub 仍来自旧 OIDC，尚未被 Access 登录确认
   name: string;
   role: "admin" | "member";
-  webdav_password_hash: string | null;
   quota_bytes: number;
   created_at: number;
   disabled_at: number | null;
@@ -13,7 +14,7 @@ export interface NodeRow {
   id: string;
   owner_id: string;
   parent_id: string; // 根哨兵行 id（哨兵行自身为 ''）
-  path: string;      // 物化祖先 id 链（不含自身）：'/{rootId}/{dirId}/'；子树前缀 = path + id + '/'
+  path: string; // 物化祖先 id 链（不含自身）：'/{rootId}/{dirId}/'；子树前缀 = path + id + '/'
   name: string;
   is_dir: 0 | 1;
   r2_key: string | null;

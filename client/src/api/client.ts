@@ -1,3 +1,5 @@
+import { SESSION_KEYS, STORAGE_KEYS, getSession, getString, removeSession, setSession } from "../lib/storage";
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -25,40 +27,27 @@ export function friendlyMessage(e: unknown): string {
   return e instanceof Error ? e.message : "操作失败，请重试";
 }
 
-// —— 会话重登策略（防 IAM authorize 端点限流）——
-// 未登录的首次访问渲染登录落地页（不自动跳转）；「曾登录过」的会话中途过期才自动重登，
-// 且每轮页面生命周期只跳一次（redirecting 守卫），避免并发 401 造成 authorize 请求风暴。
-const AUTHED_FLAG = "mstor_authed";
+// —— 会话重登策略（Cloudflare Access）——
+// 「曾登录过」的会话中途过期才整页刷新触发边缘 Access 重登，
+// 且每轮页面生命周期只刷一次（redirecting 守卫），避免并发 401 造成刷新风暴。
 let redirecting = false;
 
 export function markSessionActive(): void {
-  try {
-    sessionStorage.setItem(AUTHED_FLAG, "1");
-  } catch {
-    // 存储不可用时忽略：仅影响自动重登，落地页仍可用
-  }
+  setSession(SESSION_KEYS.authed, "1");
 }
 
 export function clearSessionFlag(): void {
-  try {
-    sessionStorage.removeItem(AUTHED_FLAG);
-  } catch {
-    // 同上
-  }
+  removeSession(SESSION_KEYS.authed);
 }
 
-/** 会话过期时调用：曾登录过 → 跳登录页（一次性）并返回 true；否则返回 false（由调用方渲染落地页） */
+/** 会话过期时调用：曾登录过 → 整页刷新一次（一次性）并返回 true；否则返回 false（由调用方渲染未授权提示页） */
 export function handleSessionExpired(): boolean {
   if (redirecting) return true;
-  let authed = false;
-  try {
-    authed = sessionStorage.getItem(AUTHED_FLAG) === "1";
-  } catch {
-    authed = false;
-  }
+  const authed = getSession(SESSION_KEYS.authed) === "1";
   if (authed) {
     redirecting = true;
-    window.location.href = "/auth/login";
+    // 整页刷新：Access 检测到会话过期会 302 到 IdP，登录后回原页
+    window.location.assign(window.location.href);
   }
   return authed;
 }
@@ -75,8 +64,10 @@ export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
   const { skipActAs, ...rest } = init;
   const headers = new Headers(rest.headers);
   if (rest.json !== undefined) headers.set("content-type", "application/json");
-  if (!skipActAs && typeof localStorage !== "undefined") {
-    const actAs = localStorage.getItem("mstor_act_as");
+  // Access 会话过期时对带此头的 AJAX 回 401（而非 302 HTML），前端据此触发整页重登
+  headers.set("x-requested-with", "XMLHttpRequest");
+  if (!skipActAs) {
+    const actAs = getString(STORAGE_KEYS.actAs);
     if (actAs) headers.set("x-act-as", actAs);
   }
   const res = await fetch(path, {

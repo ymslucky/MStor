@@ -6,7 +6,17 @@ import type { Node } from "../api/types";
 import PreviewModal from "./PreviewModal";
 
 function node(over: Partial<Node> = {}): Node {
-  return { id: "f1", parent_id: "", name: "f", is_dir: 0, size: 10, mime: "image/png", created_at: 1, updated_at: 2, ...over };
+  return {
+    id: "f1",
+    parent_id: "",
+    name: "f",
+    is_dir: 0,
+    size: 10,
+    mime: "image/png",
+    created_at: 1,
+    updated_at: 2,
+    ...over,
+  };
 }
 
 test("renders image with inline content url and download link", async () => {
@@ -22,11 +32,14 @@ test("renders video with controls", () => {
 });
 
 test("text preview fetches first 1MB and shows content", async () => {
-  vi.stubGlobal("fetch", vi.fn(async () => new Response("hello mstor", { status: 206 })));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response("hello mstor", { status: 206 })),
+  );
   setup(<PreviewModal node={node({ mime: "text/plain", name: "a.txt" })} onClose={() => {}} />);
   expect(await screen.findByText("hello mstor")).toBeInTheDocument();
   const call = vi.mocked(fetch).mock.calls[0];
-  expect((call[1] as RequestInit).headers).toEqual({ range: "bytes=0-1048575" });
+  expect((call[1] as RequestInit).headers).toEqual({ range: "bytes=0-1048575", "x-requested-with": "XMLHttpRequest" });
   vi.unstubAllGlobals();
 });
 

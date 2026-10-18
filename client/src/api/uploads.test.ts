@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { SMALL_FILE_LIMIT, sha256Hex, uploadLarge, uploadSmall } from "./uploads";
+import { sha256Hex, uploadLarge, uploadSmall } from "./uploads";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -206,7 +206,7 @@ test("part PUT failure retries then throws after 3 attempts", async () => {
 
 test("resume 续传：跳过已传分片，不调 init，complete 合并 parts", async () => {
   vi.stubGlobal("XMLHttpRequest", FakePartXhr);
-  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
     const url = String(input);
     if (url.endsWith("/part-urls")) return jsonRes({ urls: ["https://r2.example/put"] });
     if (url.endsWith("/complete")) return jsonRes({ nodeId: "n5", name: "big.bin" }, 201);
@@ -230,7 +230,7 @@ test("resume 续传：跳过已传分片，不调 init，complete 合并 parts",
 
 test("resume 进度基数：已传 3/4 分片起步即 ≥75%", async () => {
   vi.stubGlobal("XMLHttpRequest", FakePartXhr);
-  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
     const url = String(input);
     if (url.endsWith("/part-urls")) return jsonRes({ urls: ["https://r2.example/put"] });
     if (url.endsWith("/complete")) return jsonRes({ nodeId: "n6", name: "big.bin" }, 201);
@@ -247,7 +247,7 @@ test("resume 进度基数：已传 3/4 分片起步即 ≥75%", async () => {
 
 test("并发数生效：concurrency 4 时 4 分片同时在途", async () => {
   vi.stubGlobal("XMLHttpRequest", FakePartXhr);
-  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
     const url = String(input);
     if (url === "/api/uploads") return jsonRes({ uploadId: "up3", partSize: 8 }, 201);
     if (url.endsWith("/part-urls")) return jsonRes({ urls: ["https://r2.example/put"] });
@@ -263,7 +263,7 @@ test("并发数生效：concurrency 4 时 4 分片同时在途", async () => {
 
 test("并发数默认 3：5 分片时峰值在途 3", async () => {
   vi.stubGlobal("XMLHttpRequest", FakePartXhr);
-  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
     const url = String(input);
     if (url === "/api/uploads") return jsonRes({ uploadId: "up4", partSize: 8 }, 201);
     if (url.endsWith("/part-urls")) return jsonRes({ urls: ["https://r2.example/put"] });

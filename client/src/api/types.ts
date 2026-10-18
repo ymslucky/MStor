@@ -26,6 +26,8 @@ export interface Me {
   trashRetentionDays: number;
   /** 会话原始用户（登录账号）：admin act-as 查看他人空间时，与上方字段（当前空间用户）不同 */
   self: { id: string; name: string; role: "admin" | "member" };
+  /** 服务端下发的上传限制（小文件直传上限 / 分片大小）；旧响应缺失时前端回退默认值 */
+  limits?: { smallFileLimit: number; partSize: number };
 }
 
 export interface AdminUser {
@@ -35,6 +37,8 @@ export interface AdminUser {
   quota_bytes: number;
   created_at: number;
   disabled_at: number | null;
+  /** Access 身份绑定锚点：首登按 email 锚定存量账号 */
+  email: string | null;
 }
 
 export interface Share {

@@ -2,8 +2,8 @@
 // 重试或刷新页面重传同文件时跳过已传分片（服务端 uploads 表 status='pending' 期间分片仍有效）。
 
 import type { Part } from "../api/uploads";
+import { STORAGE_KEYS, getJSON, removeItem, setJSON } from "./storage";
 
-const KEY = "mstor_resume";
 const MAX_ENTRIES = 20;
 
 export interface ResumeRecord {
@@ -20,13 +20,7 @@ export function fingerprint(file: File, parentId: string): string {
 }
 
 function readAll(): Map<string, ResumeRecord> {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return new Map();
-    return new Map(Object.entries(JSON.parse(raw) as Record<string, ResumeRecord>));
-  } catch {
-    return new Map();
-  }
+  return new Map(Object.entries(getJSON<Record<string, ResumeRecord>>(STORAGE_KEYS.resume, {})));
 }
 
 function writeAll(map: Map<string, ResumeRecord>) {
@@ -36,11 +30,11 @@ function writeAll(map: Map<string, ResumeRecord>) {
     if (oldest === undefined) break;
     map.delete(oldest);
   }
-  try {
-    localStorage.setItem(KEY, JSON.stringify(Object.fromEntries(map)));
-  } catch {
-    // 存储满/隐私模式：续传不可用但不影响上传
+  if (map.size === 0) {
+    removeItem(STORAGE_KEYS.resume);
+    return;
   }
+  setJSON(STORAGE_KEYS.resume, Object.fromEntries(map));
 }
 
 export function loadResume(fp: string): ResumeRecord | null {

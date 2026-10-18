@@ -1,4 +1,4 @@
-﻿import type { JSX } from "react";
+import type { JSX } from "react";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeAll, beforeEach, expect, test, vi } from "vitest";
@@ -7,19 +7,18 @@ import { renderWithProviders } from "../test/utils";
 import SettingsPage from "./SettingsPage";
 
 vi.mock("../api/me", () => ({
-  setWebdavPassword: vi.fn(),
   listAdminUsers: vi.fn(),
   patchAdminUser: vi.fn(),
   getAdminSettings: vi.fn(),
   patchAdminSettings: vi.fn(),
 }));
 
-import { getAdminSettings, listAdminUsers, patchAdminSettings, patchAdminUser, setWebdavPassword } from "../api/me";
+import { getAdminSettings, listAdminUsers, patchAdminSettings, patchAdminUser } from "../api/me";
 
 const ME: Me = { id: "u-admin", name: "Alice", role: "admin", quotaBytes: 100, usedBytes: 10, trashRetentionDays: 30, self: { id: "u-admin", name: "Alice", role: "admin" } };
 
 function mkUser(over: Partial<AdminUser> = {}): AdminUser {
-  return { id: "u1", name: "Bob", role: "member", quota_bytes: 10737418240, created_at: 1, disabled_at: null, ...over };
+  return { id: "u1", name: "Bob", role: "member", quota_bytes: 10737418240, created_at: 1, disabled_at: null, email: null, ...over };
 }
 
 function renderWith(ui: JSX.Element) {
@@ -35,16 +34,11 @@ beforeEach(() => {
   vi.clearAllMocks(); // 首个用例断言「未调用」，调用记录不能跨用例残留
 });
 
-test("saves webdav password (min 8 chars enforced client-side)", async () => {
-  vi.mocked(setWebdavPassword).mockResolvedValue({ ok: true });
-  const { user } = renderWith(<SettingsPage me={ME} />);
-  await screen.findByText("WebDAV");
-  await user.type(screen.getByLabelText("WebDAV 应用密码"), "short");
-  await user.click(screen.getByRole("button", { name: "保存密码" }));
-  expect(setWebdavPassword).not.toHaveBeenCalled();
-  await user.type(screen.getByLabelText("WebDAV 应用密码"), "123456789");
-  await user.click(screen.getByRole("button", { name: "保存密码" }));
-  await waitFor(() => expect(setWebdavPassword).toHaveBeenCalledWith("short123456789"));
+test("account tab shows login account info", async () => {
+  renderWith(<SettingsPage me={ME} />);
+  expect(await screen.findByText("账户信息")).toBeInTheDocument();
+  expect(screen.getByText("Alice")).toBeInTheDocument();
+  expect(screen.getByText("管理员")).toBeInTheDocument();
 });
 
 test("admin edits quota via PATCH", async () => {

@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { CloudUpload, HardDrive, UserRound, Users } from "lucide-react";
+import { CloudUpload, UserRound, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { getAdminSettings, listAdminUsers, patchAdminSettings, patchAdminUser, setWebdavPassword } from "../api/me";
+import { getAdminSettings, listAdminUsers, patchAdminSettings, patchAdminUser } from "../api/me";
 import type { AdminUser, Me } from "../api/types";
-import { DEFAULT_UPLOAD_CONCURRENCY, MAX_UPLOAD_CONCURRENCY, MIN_UPLOAD_CONCURRENCY, getUploadConcurrency, setUploadConcurrency } from "../lib/settings";
-import { formatDate } from "../lib/format";
+import { MAX_UPLOAD_CONCURRENCY, MIN_UPLOAD_CONCURRENCY, getUploadConcurrency, setUploadConcurrency } from "../lib/settings";
+import { STORAGE_KEYS, setString } from "../lib/storage";
+import { formatBytes, formatDate } from "../lib/format";
 import { toast } from "../components/Toaster";
 import { Button, GlassCard, Input } from "../components/ui";
 
@@ -43,41 +44,29 @@ function TabBar({ tabs, active, onChange }: { tabs: typeof TABS; active: TabKey;
   );
 }
 
-function WebdavSection() {
-  const [password, setPassword] = useState("");
-  const save = useMutation({
-    mutationFn: (password: string) => setWebdavPassword(password),
-    onSuccess: () => {
-      toast("WebDAV 密码已更新", "info");
-      setPassword("");
-    },
-  });
+function AccountSection({ me }: { me: Me }) {
+  // 展示登录账号（self）：act-as 查看他人空间时当前空间用户与登录账号不同
+  const account = me.self ?? me;
+  const rows: { label: string; value: string }[] = [
+    { label: "登录名", value: account.name },
+    { label: "角色", value: account.role === "admin" ? "管理员" : "成员" },
+    { label: "存储用量", value: `${formatBytes(me.usedBytes)} / ${formatBytes(me.quotaBytes)}` },
+    { label: "回收站保留", value: `${me.trashRetentionDays} 天` },
+  ];
   return (
     <GlassCard className="p-4">
-      <h2 className="mb-1 flex items-center gap-1.5 font-semibold text-ink">
-        <HardDrive size={16} aria-hidden className="text-primary-text" />
-        WebDAV
+      <h2 className="mb-3 flex items-center gap-1.5 font-semibold text-ink">
+        <UserRound size={16} aria-hidden className="text-primary-text" />
+        账户信息
       </h2>
-      <p className="mb-3 text-xs text-ink-dim">
-        地址 <code>/dav/</code>，用户名同登录名；在 Windows 映射驱动器 / iOS 文件 App 中使用。
-      </p>
-      <div className="flex flex-wrap items-center gap-2">
-        <Input
-          aria-label="WebDAV 应用密码"
-          type="password"
-          placeholder="至少 8 位"
-          className="sm:w-56"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-        <Button
-          disabled={password.length < 8 || save.isPending}
-          onClick={() => save.mutate(password)}
-        >
-          保存密码
-        </Button>
-        {password.length > 0 && password.length < 8 && <span className="text-xs text-danger">密码至少 8 位</span>}
-      </div>
+      <dl className="space-y-2 text-sm">
+        {rows.map((r) => (
+          <div key={r.label} className="flex items-start justify-between gap-4">
+            <dt className="shrink-0 text-ink-dim">{r.label}</dt>
+            <dd className="break-all text-right font-medium text-ink">{r.value}</dd>
+          </div>
+        ))}
+      </dl>
     </GlassCard>
   );
 }
@@ -165,6 +154,7 @@ function TrashRetentionSection() {
 function AdminRow({ u, selfId }: { u: AdminUser; selfId: string }) {
   const queryClient = useQueryClient();
   const [gb, setGb] = useState(String(Math.round(u.quota_bytes / 1024 ** 3)));
+  const [email, setEmail] = useState(u.email ?? "");
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["admin-users"] });
   const patch = useMutation({
     mutationFn: (body: Parameters<typeof patchAdminUser>[1]) => patchAdminUser(u.id, body),
@@ -194,6 +184,24 @@ function AdminRow({ u, selfId }: { u: AdminUser; selfId: string }) {
           保存配额（{u.name}）
         </button>
       </td>
+      <td className="py-2">
+        <Input
+          aria-label={`绑定邮箱（${u.name}）`}
+          type="email"
+          className="w-44!"
+          value={email}
+          placeholder="未绑定"
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <button
+          className="ml-2 text-xs text-accent hover:underline disabled:text-ink-faint"
+          disabled={email.trim() === (u.email ?? "")}
+          onClick={() => patch.mutate({ email: email.trim() === "" ? null : email.trim() })}
+        >
+          保存邮箱（{u.name}）
+        </button>
+        {email.trim() === "" && !!u.email && <span className="ml-1 text-xs text-ink-faint">留空保存 = 解绑</span>}
+      </td>
       <td className="hidden py-2 text-xs text-ink-faint md:table-cell">{formatDate(u.created_at)}</td>
       <td className="py-2 text-right">
         <Button
@@ -201,7 +209,7 @@ function AdminRow({ u, selfId }: { u: AdminUser; selfId: string }) {
           size="sm"
           className="mr-2"
           onClick={() => {
-            localStorage.setItem("mstor_act_as", u.id);
+            setString(STORAGE_KEYS.actAs, u.id);
             window.location.assign("/");
           }}
         >
@@ -222,10 +230,11 @@ function AdminUsersSection({ selfId }: { selfId: string }) {
   const users = useQuery({ queryKey: ["admin-users"], queryFn: listAdminUsers });
   return (
     <GlassCard className="p-4">
-      <h2 className="mb-3 flex items-center gap-1.5 font-semibold text-ink">
+      <h2 className="mb-1 flex items-center gap-1.5 font-semibold text-ink">
         <Users size={16} aria-hidden className="text-primary-text" />
         用户管理
       </h2>
+      <p className="mb-3 text-xs text-ink-faint">Cloudflare Access 首登按「绑定邮箱」锚定存量账号；关闭自动建号期间，未绑定的新身份会被拒绝。</p>
       <table className="w-full text-sm">
         <thead className="text-left text-xs text-ink-faint">
           <tr className="border-b border-line">
@@ -233,6 +242,7 @@ function AdminUsersSection({ selfId }: { selfId: string }) {
             {/* 次要列（角色/注册）移动端隐藏 */}
             <th className="hidden py-2 font-medium sm:table-cell">角色</th>
             <th className="py-2 font-medium">配额</th>
+            <th className="py-2 font-medium">绑定邮箱</th>
             <th className="hidden py-2 font-medium md:table-cell">注册</th>
             <th className="py-2" />
           </tr>
@@ -255,7 +265,7 @@ export default function SettingsPage({ me }: { me: Me }) {
       <h1 className="mb-3 text-lg font-semibold text-ink">设置</h1>
       <TabBar tabs={tabs} active={tab} onChange={setTab} />
       <div className="space-y-4">
-        {tab === "account" && <WebdavSection />}
+        {tab === "account" && <AccountSection me={me} />}
         {tab === "upload" && <UploadSection />}
         {tab === "admin" && account.role === "admin" && (
           <>

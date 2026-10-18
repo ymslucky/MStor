@@ -1,9 +1,6 @@
 import { env, SELF } from "cloudflare:test";
-import { sign } from "hono/jwt";
 import { expect, test } from "vitest";
-import { pbkdf2Verify } from "../server/lib/crypto";
 import { ensureRootDir } from "../server/lib/nodes";
-import { SESSION_COOKIE } from "../server/middleware/session";
 import { seedNode, seedUser, sessionHeaders } from "./helpers";
 
 test("GET /api/me returns profile with usage", async () => {
@@ -23,43 +20,31 @@ test("GET /api/me without session is 401", async () => {
   expect(((await res.json()) as { error: { code: string } }).error.code).toBe("UNAUTHORIZED");
 });
 
-test("invalid token is 401", async () => {
-  const u = await seedUser();
-  const token = await sign({ sub: u.id, role: u.role, exp: Math.floor(Date.now() / 1000) + 3600 }, "wrong-secret");
-  const res = await SELF.fetch("https://example.com/api/me", { headers: { cookie: `${SESSION_COOKIE}=${token}` } });
+test("forged assertion token is 401", async () => {
+  await seedUser();
+  const res = await SELF.fetch("https://example.com/api/me", {
+    headers: { "cf-access-jwt-assertion": "not.a.jwt" },
+  });
   expect(res.status).toBe(401);
   expect(((await res.json()) as { error: { code: string } }).error.code).toBe("UNAUTHORIZED");
 });
 
-test("PUT /api/me/webdav-password stores pbkdf2 hash", async () => {
+test("PUT /api/me/webdav-password is removed", async () => {
   const u = await seedUser();
   const res = await SELF.fetch("https://example.com/api/me/webdav-password", {
     method: "PUT",
     headers: { ...(await sessionHeaders(u)), "content-type": "application/json" },
     body: JSON.stringify({ password: "davpass123" }),
   });
-  expect(res.status).toBe(200);
-  const row = await env.DB.prepare("SELECT webdav_password_hash FROM users WHERE id = ?1").bind(u.id).first<{ webdav_password_hash: string }>();
-  const hash = row!.webdav_password_hash!;
-  expect(hash.startsWith("pbkdf2$")).toBe(true);
-  expect(await pbkdf2Verify("davpass123", hash)).toBe(true);
-});
-
-test("PUT /api/me/webdav-password rejects short password", async () => {
-  const u = await seedUser();
-  const res = await SELF.fetch("https://example.com/api/me/webdav-password", {
-    method: "PUT",
-    headers: { ...(await sessionHeaders(u)), "content-type": "application/json" },
-    body: JSON.stringify({ password: "short" }),
-  });
-  expect(res.status).toBe(400);
-  expect(((await res.json()) as { error: { code: string } }).error.code).toBe("BAD_REQUEST");
+  expect(res.status).toBe(404);
 });
 
 test("admin endpoints enforce role", async () => {
   const member = await seedUser();
   const admin = await seedUser({ role: "admin" });
-  const forbidden = await SELF.fetch("https://example.com/api/me/admin/users", { headers: await sessionHeaders(member) });
+  const forbidden = await SELF.fetch("https://example.com/api/me/admin/users", {
+    headers: await sessionHeaders(member),
+  });
   expect(forbidden.status).toBe(403);
   const patchForbidden = await SELF.fetch(`https://example.com/api/me/admin/users/${admin.id}`, {
     method: "PATCH",
@@ -77,7 +62,9 @@ test("admin endpoints enforce role", async () => {
     body: JSON.stringify({ quota_bytes: 2048 }),
   });
   expect(patched.status).toBe(200);
-  const row = await env.DB.prepare("SELECT quota_bytes FROM users WHERE id = ?1").bind(member.id).first<{ quota_bytes: number }>();
+  const row = await env.DB.prepare("SELECT quota_bytes FROM users WHERE id = ?1")
+    .bind(member.id)
+    .first<{ quota_bytes: number }>();
   expect(row!.quota_bytes).toBe(2048);
 });
 
@@ -90,7 +77,9 @@ test("admin can disable and re-enable a user via PATCH", async () => {
     body: JSON.stringify({ disabled: true }),
   });
   expect(disable.status).toBe(200);
-  const row = await env.DB.prepare("SELECT disabled_at FROM users WHERE id = ?1").bind(member.id).first<{ disabled_at: number | null }>();
+  const row = await env.DB.prepare("SELECT disabled_at FROM users WHERE id = ?1")
+    .bind(member.id)
+    .first<{ disabled_at: number | null }>();
   expect(row!.disabled_at).not.toBeNull();
   const enable = await SELF.fetch(`https://example.com/api/me/admin/users/${member.id}`, {
     method: "PATCH",
@@ -98,7 +87,9 @@ test("admin can disable and re-enable a user via PATCH", async () => {
     body: JSON.stringify({ disabled: false }),
   });
   expect(enable.status).toBe(200);
-  const reenabled = await env.DB.prepare("SELECT disabled_at FROM users WHERE id = ?1").bind(member.id).first<{ disabled_at: number | null }>();
+  const reenabled = await env.DB.prepare("SELECT disabled_at FROM users WHERE id = ?1")
+    .bind(member.id)
+    .first<{ disabled_at: number | null }>();
   expect(reenabled!.disabled_at).toBeNull();
 });
 
@@ -132,7 +123,9 @@ test("admin can still update own quota", async () => {
     body: JSON.stringify({ quota_bytes: 4096 }),
   });
   expect(res.status).toBe(200);
-  const row = await env.DB.prepare("SELECT quota_bytes FROM users WHERE id = ?1").bind(admin.id).first<{ quota_bytes: number }>();
+  const row = await env.DB.prepare("SELECT quota_bytes FROM users WHERE id = ?1")
+    .bind(admin.id)
+    .first<{ quota_bytes: number }>();
   expect(row!.quota_bytes).toBe(4096);
 });
 
@@ -241,7 +234,9 @@ test("GET /api/me when acting as returns target user plus self", async () => {
   });
   expect(res.status).toBe(200);
   const body = (await res.json()) as {
-    id: string; name: string; role: string;
+    id: string;
+    name: string;
+    role: string;
     self: { id: string; name: string; role: string };
   };
   // 空间信息 = 目标用户
@@ -256,7 +251,12 @@ test("GET /api/me self mirrors user when not acting as", async () => {
   const u = await seedUser();
   const res = await SELF.fetch("https://example.com/api/me", { headers: await sessionHeaders(u) });
   expect(res.status).toBe(200);
-  const body = (await res.json()) as { id: string; name: string; role: string; self: { id: string; name: string; role: string } };
+  const body = (await res.json()) as {
+    id: string;
+    name: string;
+    role: string;
+    self: { id: string; name: string; role: string };
+  };
   expect(body.self).toEqual({ id: body.id, name: body.name, role: body.role });
 });
 
@@ -279,7 +279,9 @@ test("admin settings: GET 返回默认（env 回退），PATCH 后生效", async
   const body3 = (await res3.json()) as { trash_retention_days: number };
   expect(body3.trash_retention_days).toBe(7);
   // settings 表确有落库
-  const row = await env.DB.prepare("SELECT value FROM settings WHERE key = 'trash_retention_days'").first<{ value: string }>();
+  const row = await env.DB.prepare("SELECT value FROM settings WHERE key = 'trash_retention_days'").first<{
+    value: string;
+  }>();
   expect(row?.value).toBe("7");
 });
 
@@ -301,4 +303,19 @@ test("admin settings: 非法天数 400，member 403", async () => {
     body: JSON.stringify({ trash_retention_days: 7 }),
   });
   expect(res.status).toBe(403);
+});
+
+test("admin email binding is normalized to lowercase like Access JWT email", async () => {
+  const admin = await seedUser({ role: "admin" });
+  const member = await seedUser();
+  const res = await SELF.fetch(`https://example.com/api/me/admin/users/${member.id}`, {
+    method: "PATCH",
+    headers: { ...(await sessionHeaders(admin)), "content-type": "application/json" },
+    body: JSON.stringify({ email: "  Alice@Example.COM  " }),
+  });
+  expect(res.status).toBe(200);
+  const row = await env.DB.prepare("SELECT email FROM users WHERE id = ?1")
+    .bind(member.id)
+    .first<{ email: string | null }>();
+  expect(row!.email).toBe("alice@example.com");
 });

@@ -11,7 +11,7 @@ export const uploads = new Hono<AppEnv>();
 
 uploads.post("/", async (c) => {
   const user = c.get("user");
-  const { parentId = "", name, size, mime } = await c.req.json<{ parentId?: string; name: string; size: number; mime?: string }>();
+  const { parentId = "", name, size } = await c.req.json<{ parentId?: string; name: string; size: number; mime?: string }>();
   const safeName = validateNodeName(name);
   if (!Number.isFinite(size) || size <= 0) throw errors.badRequest("参数不合法");
   const limit = Number(c.env.SMALL_FILE_LIMIT);

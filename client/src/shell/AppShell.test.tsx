@@ -1,8 +1,8 @@
-﻿import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
-import { beforeAll, beforeEach, expect, test, vi } from "vitest";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
+import { beforeEach, expect, test, vi } from "vitest";
 import AppShell from "./AppShell";
 
 vi.mock("../api/me", () => ({
@@ -18,23 +18,28 @@ vi.mock("../api/client", async (importOriginal) => ({
 import { clearSessionFlag } from "../api/client";
 import { getMe } from "../api/me";
 
-beforeAll(() => {
-  // 退出确认后 window.location.href 跳转，jsdom 无真实导航，替换为可断言对象
-  Object.defineProperty(window, "location", { value: { href: "" }, configurable: true });
-});
-
 beforeEach(() => {
   vi.clearAllMocks();
-  window.location.href = "";
+  vi.restoreAllMocks();
   localStorage.clear();
 });
 
-function renderShell() {
+// 位置探针：断言退出后客户端导航回首页 "/"
+function LocationProbe() {
+  const { pathname } = useLocation();
+  return <span data-testid="loc">{pathname}</span>;
+}
+
+function renderShell(initial = "/") {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const utils = render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={["/"]}>
-        <AppShell />
+      <MemoryRouter initialEntries={[initial]}>
+        <Routes>
+          <Route element={<AppShell />}>
+            <Route path="*" element={<LocationProbe />} />
+          </Route>
+        </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -68,26 +73,40 @@ test("sidebar toggle collapses, expands and persists to localStorage", async () 
 });
 
 test("logout opens confirm dialog; cancel keeps session", async () => {
-  const { user } = renderShell();
+  const fetchMock = vi.fn();
+  vi.stubGlobal("fetch", fetchMock);
+  const { user } = renderShell("/settings");
   await screen.findByText("Alice");
   await user.click(screen.getAllByRole("button", { name: "退出" })[0]);
   expect(await screen.findByText("退出登录")).toBeInTheDocument();
-  expect(screen.getByText("确定要退出当前账号吗？")).toBeInTheDocument();
+  expect(screen.getByText("退出后将结束 Cloudflare Access 会话（对所有 Access 应用生效），确定继续吗？")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "取消" }));
   expect(screen.queryByText("退出登录")).not.toBeInTheDocument();
   expect(clearSessionFlag).not.toHaveBeenCalled();
-  expect(window.location.href).toBe("");
+  // 取消不发起登出请求，也不导航
+  expect(fetchMock).not.toHaveBeenCalled();
+  expect(screen.getByTestId("loc")).toHaveTextContent("/settings");
 });
 
-test("logout confirm clears session flag and redirects", async () => {
-  const { user } = renderShell();
+test("logout confirm clears session and redirects to Access logout", async () => {
+  // jsdom 的 location.assign 不可 spyOn，整体替换 location 对象（与 SettingsPage.test 同款）
+  const assignMock = vi.fn();
+  Object.defineProperty(window, "location", {
+    value: { assign: assignMock, href: "https://app.test/settings" },
+    configurable: true,
+  });
+  const fetchMock = vi.fn();
+  vi.stubGlobal("fetch", fetchMock);
+  const { user } = renderShell("/settings");
   await screen.findByText("Alice");
   await user.click(screen.getAllByRole("button", { name: "退出" })[1]);
   await screen.findByText("退出登录");
   // 弹窗内确认按钮同为「退出」，需限定在弹窗面板内点击
   await user.click(within(screen.getByTestId("dialog-panel")).getByRole("button", { name: "退出" }));
   expect(clearSessionFlag).toHaveBeenCalledTimes(1);
-  expect(window.location.href).toBe("/auth/logout");
+  // 不再调用本地登出接口：直接跳 Access 全局登出端点
+  expect(fetchMock).not.toHaveBeenCalled();
+  expect(assignMock).toHaveBeenCalledWith("/cdn-cgi/access/logout");
 });
 
 test("sidebar shows login account (self) while acting as another user", async () => {

@@ -13,7 +13,9 @@ interface Props {
 
 // spec §7.2：文本截断前 1MB（后端支持 Range）
 async function fetchTextHead(id: string): Promise<string> {
-  const res = await fetch(contentUrl(id), { headers: { range: "bytes=0-1048575" } });
+  const res = await fetch(contentUrl(id), {
+    headers: { range: "bytes=0-1048575", "x-requested-with": "XMLHttpRequest" },
+  });
   if (!res.ok && res.status !== 206) throw new Error("加载失败");
   return res.text();
 }
@@ -31,7 +33,9 @@ export default function PreviewModal({ node, onClose }: Props) {
 
   useEffect(() => {
     if (kind !== "text") return;
-    fetchTextHead(node.id).then(setText).catch((e: Error) => setError(e.message));
+    fetchTextHead(node.id)
+      .then(setText)
+      .catch((e: Error) => setError(e.message));
   }, [kind, node.id]);
 
   useEffect(() => {
@@ -81,12 +85,18 @@ export default function PreviewModal({ node, onClose }: Props) {
         {/* 媒体区：移动端 padding 减半 */}
         <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-2 sm:p-4">
           <div className="max-h-full max-w-full" onClick={(e) => e.stopPropagation()}>
-            {kind === "image" && <img src={contentUrl(node.id)} alt={node.name} className="max-h-[80vh] max-w-full object-contain" />}
+            {kind === "image" && (
+              <img src={contentUrl(node.id)} alt={node.name} className="max-h-[80vh] max-w-full object-contain" />
+            )}
             {kind === "video" && <video src={contentUrl(node.id)} controls className="max-h-[80vh] w-full" />}
             {kind === "audio" && <audio src={contentUrl(node.id)} controls className="w-80" />}
-            {kind === "pdf" && <iframe src={contentUrl(node.id)} title={node.name} className="h-[80vh] w-[80vw] rounded bg-white" />}
+            {kind === "pdf" && (
+              <iframe src={contentUrl(node.id)} title={node.name} className="h-[80vh] w-[80vw] rounded bg-white" />
+            )}
             {kind === "text" && (
-              <pre className="max-h-[80vh] w-[80vw] overflow-auto rounded-xl border border-line bg-gray-50 p-4 text-sm text-ink">{error ? `加载失败：${error}` : (text ?? "加载中…")}</pre>
+              <pre className="max-h-[80vh] w-[80vw] overflow-auto rounded-xl border border-line bg-gray-50 p-4 text-sm text-ink">
+                {error ? `加载失败：${error}` : (text ?? "加载中…")}
+              </pre>
             )}
             {kind === "none" && (
               <div className="rounded-xl border border-line bg-gray-50 px-8 py-12 text-center text-sm text-ink-dim">

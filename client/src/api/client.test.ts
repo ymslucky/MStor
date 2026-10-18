@@ -41,43 +41,55 @@ test("unwraps error envelope into ApiError", async () => {
   expect(err.message).toBe("名称已存在");
 });
 
-test("401 throws ApiError without navigating (landing page decides)", async () => {
-  const loc = { href: "" };
-  Object.defineProperty(window, "location", { value: loc, configurable: true });
+// 位置桩：捕获整页刷新导航（handleSessionExpired 以 location.assign(当前 URL) 实现）
+function stubLocation(): { assigned: string[] } {
+  const assigned: string[] = [];
+  Object.defineProperty(window, "location", {
+    configurable: true,
+    value: {
+      assign: (url: string) => assigned.push(url),
+      get href() {
+        return "https://app.test/browse";
+      },
+      set href(v: string) {
+        assigned.push(v);
+      },
+    },
+  });
+  return { assigned };
+}
+
+test("401 throws ApiError without navigating (hint page decides)", async () => {
+  const { assigned } = stubLocation();
   vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 401 })));
   await expect(api("/api/files")).rejects.toMatchObject({ status: 401, code: "UNAUTHORIZED" });
-  expect(loc.href).toBe("");
+  expect(assigned).toEqual([]);
 });
 
 test("401 on public share endpoint throws SHARE_PASSWORD", async () => {
-  const loc = { href: "" };
-  Object.defineProperty(window, "location", { value: loc, configurable: true });
+  const { assigned } = stubLocation();
   vi.stubGlobal("fetch", vi.fn(async () =>
     new Response(JSON.stringify({ error: { code: "SHARE_PASSWORD", message: "需要提取码" } }), { status: 401 }),
   ));
   const err: ApiError = await api("/api/s/tok").then(() => { throw new Error("should reject"); }, (e: ApiError) => e);
   expect(err.code).toBe("SHARE_PASSWORD");
-  expect(loc.href).toBe("");
+  expect(assigned).toEqual([]);
 });
 
 test("handleSessionExpired: no flag → stays (false)", () => {
-  const loc = { href: "" };
-  Object.defineProperty(window, "location", { value: loc, configurable: true });
+  const { assigned } = stubLocation();
   expect(handleSessionExpired()).toBe(false);
-  expect(loc.href).toBe("");
+  expect(assigned).toEqual([]);
 });
 
-test("handleSessionExpired: marked session → one-shot redirect", () => {
-  const loc = { href: "" };
-  Object.defineProperty(window, "location", { value: loc, configurable: true });
+test("handleSessionExpired: marked session → one-shot full-page reload", () => {
+  const { assigned } = stubLocation();
   markSessionActive();
   expect(handleSessionExpired()).toBe(true);
-  expect(loc.href).toBe("/auth/login");
+  expect(assigned).toEqual(["https://app.test/browse"]); // 赋值当前 URL = 整页刷新触发 Access 重登
   // 一次性守卫：同轮生命周期内重复调用不再触发
-  const loc2 = { href: "" };
-  Object.defineProperty(window, "location", { value: loc2, configurable: true });
   expect(handleSessionExpired()).toBe(true);
-  expect(loc2.href).toBe("");
+  expect(assigned).toHaveLength(1);
   clearSessionFlag();
 });
 

@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useRef, useState } from "react";
 import { ensureDir } from "../api/nodes";
-import { SMALL_FILE_LIMIT, abortUpload, instantUpload, sha256Hex, uploadLarge, uploadSmall } from "../api/uploads";
+import { abortUpload, getSmallFileLimit, instantUpload, sha256Hex, uploadLarge, uploadSmall } from "../api/uploads";
 import type { Part } from "../api/uploads";
 import type { PendingUpload } from "../lib/dirscan";
 import { clearResume, fingerprint, loadResume, saveResume } from "../lib/resume";
@@ -122,7 +122,7 @@ export function useUploadQueue() {
         try {
           // 嵌套上传：先逐级 ensure 中间目录，得到最终父目录
           const parentId = next.path ? await ensureDirs(next.parentId, next.path) : next.parentId;
-          const isLarge = next.file.size > SMALL_FILE_LIMIT;
+          const isLarge = next.file.size > getSmallFileLimit();
           // 大文件才维护续传记录（fingerprint）；有续传记录说明此前已查过秒传未命中，跳过避免重复 hash
           const resume = isLarge && next.fingerprint ? loadResume(next.fingerprint) : null;
           // 秒传（先查后传）：流式算 SHA-256（大文件安全）后查询，命中直接建 node 零文件体传输
@@ -196,7 +196,7 @@ export function useUploadQueue() {
           key: ++seq.current, name: file.name, path, size: file.size,
           parentId, file, status: "pending" as QueueStatus, progress: 0,
           // 大文件才计算指纹（续传只对 multipart 有意义）
-          fingerprint: file.size > SMALL_FILE_LIMIT ? fingerprint(file, parentId) : undefined,
+          fingerprint: file.size > getSmallFileLimit() ? fingerprint(file, parentId) : undefined,
         };
       });
       itemsRef.current = [...itemsRef.current, ...normalized];

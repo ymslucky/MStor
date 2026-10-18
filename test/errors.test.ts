@@ -2,10 +2,11 @@ import { SELF } from "cloudflare:test";
 import { expect, test } from "vitest";
 import { Hono } from "hono";
 import { errors, errorHandler } from "../server/lib/errors";
+import type { AppEnv } from "../server/env";
 import { seedUser, sessionHeaders } from "./helpers";
 
 test("errorHandler formats HttpError", async () => {
-  const app = new Hono();
+  const app = new Hono<AppEnv>();
   app.onError(errorHandler);
   app.get("/boom", () => { throw errors.conflict("名称已存在"); });
   const res = await app.request("/boom");
@@ -14,7 +15,7 @@ test("errorHandler formats HttpError", async () => {
 });
 
 test("unknown errors become 500 envelope", async () => {
-  const app = new Hono();
+  const app = new Hono<AppEnv>();
   app.onError(errorHandler);
   app.get("/boom", () => { throw new Error("x"); });
   const res = await app.request("/boom");
@@ -37,8 +38,8 @@ test("unmatched route returns 404 envelope via SELF", async () => {
 
 test("invalid JSON body maps to 400 BAD_REQUEST", async () => {
   const u = await seedUser();
-  const res = await SELF.fetch("https://example.com/api/me/webdav-password", {
-    method: "PUT",
+  const res = await SELF.fetch("https://example.com/api/dirs", {
+    method: "POST",
     headers: { ...(await sessionHeaders(u)), "content-type": "application/json" },
     body: "not-json",
   });

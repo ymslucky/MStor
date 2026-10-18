@@ -1,24 +1,27 @@
 -- ============================================================
 -- MStor 数据库 Schema（DDL 全量版）
--- 由 migrations/0001-0011 合并而成，用于全新环境一次性建库：
+-- 由 migrations/0001-0015 合并而成，用于全新环境一次性建库：
 --   npx wrangler d1 execute mstor --remote --file=sql/schema.sql
 -- 既有环境请继续使用 migrations 增量迁移（wrangler d1 migrations apply），
 -- 两者表结构等价，勿混用导致重复执行。
 -- ============================================================
 
--- 用户：OIDC 登录账号；admin 可停用（disabled_at）
+-- 用户：Cloudflare Access 身份（access_sub = JWT sub）；email 为跨身份绑定锚点；
+-- admin 可停用（disabled_at）
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
-  oidc_sub TEXT NOT NULL UNIQUE,
+  access_sub TEXT NOT NULL UNIQUE,
+  email TEXT,                                    -- 管理员回填，Access 首登按 email 锚定存量账号
+  access_bound_at INTEGER,                       -- 首次完成 Access 身份绑定时间；NULL 表示仍是旧 OIDC sub 待承接
   name TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('admin','member')),
-  webdav_password_hash TEXT,
   quota_bytes INTEGER NOT NULL,
   used_bytes INTEGER NOT NULL DEFAULT 0,         -- 冗余配额统计（写入点同步增减，cron 每日校准），避免每次 SUM 全表扫描
   disabled_at INTEGER,
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_users_name ON users(name);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE email IS NOT NULL;
 
 -- 文件树节点：根目录为哨兵行（parent_id='' AND name=''），所有顶层节点 parent_id = 哨兵行 id
 -- path = 物化祖先 id 链（不含自身）：根 '/'，根子节点 '/{rootId}/'，更深 '{父path}{父id}/'；

@@ -26,7 +26,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        navigateFallbackDenylist: [/^\/api\//, /^\/dav\//, /^\/auth\//],
+        navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.origin === location.origin && url.pathname.startsWith("/assets/"),
@@ -42,8 +42,6 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": "http://127.0.0.1:8787",
-      "/auth": "http://127.0.0.1:8787",
-      "/dav": "http://127.0.0.1:8787",
     },
   },
 });
