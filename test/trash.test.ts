@@ -1,6 +1,6 @@
 import { env, SELF } from "cloudflare:test";
 import { expect, test } from "vitest";
-import { purgeExpiredTrash } from "../server/routes/trash";
+import { purgeExpiredTrash, sweepOrphanObjects } from "../server/routes/trash";
 import { ensureRootDir } from "../server/lib/nodes";
 import { seedUser, sessionHeaders } from "./helpers";
 
@@ -39,6 +39,8 @@ test("delete → trash list → restore → permanent", async () => {
   expect((await SELF.fetch(`https://example.com/api/trash/${fid}`, {
     method: "DELETE", headers: await sessionHeaders(u),
   })).status).toBe(200);
+  // 彻底删除仅出队登记；cron 宽限期后复查引用清零才删对象（测试以 grace=0 立即清扫）
+  await sweepOrphanObjects(env, 0);
   expect(await env.BUCKET.get(`${u.id}/${fid}`)).toBeNull();
   expect(await env.DB.prepare("SELECT * FROM nodes WHERE id = ?1").bind(fid).first()).toBeNull();
 });

@@ -1,6 +1,7 @@
 import { env, SELF } from "cloudflare:test";
 import { expect, test } from "vitest";
 import { seedUser, sessionHeaders } from "./helpers";
+import { sweepOrphanObjects } from "../server/routes/trash";
 
 const SHA = "a".repeat(64);
 
@@ -137,5 +138,6 @@ test("删除秒传副本后原文件仍可下载；两份都删后 R2 对象被�
   // 第二份也彻底删 → 对象清理
   await SELF.fetch(`https://example.com/api/files/${n2}`, { method: "DELETE", headers: await sessionHeaders(u) });
   await SELF.fetch(`https://example.com/api/trash/${n2}`, { method: "DELETE", headers: await sessionHeaders(u) });
+  await sweepOrphanObjects(env, 0);
   expect((await env.BUCKET.list()).objects).toHaveLength(0);
 });

@@ -92,12 +92,41 @@ export async function permanentDeleteMany(env: Env, ownerId: string, ids: string
       env.DB.prepare(`DELETE FROM nodes WHERE id IN (${ph})`).bind(...part),
     ]);
   }
-  // R2 并行清理：每个 key 查一次剩余引用，零引用才删对象（并行把 20+ 次 R2 往返压到一次往返时间）
-  await Promise.all([...r2Keys].map(async (key) => {
-    const ref = await env.DB.prepare("SELECT 1 FROM nodes WHERE r2_key = ?1 LIMIT 1").bind(key).first();
-    if (!ref) await env.BUCKET.delete(key);
-  }));
+  // R2 清理改由定时任务「延迟 + 二次引用检查」完成：删行后立即删对象存在 TOCTOU——
+  // 并发秒传可能已按 sha256 查到该 key、但尚未插入新行，此刻删对象会留下悬空引用。
+  // 这里只登记候选 key，cron 在宽限期后复查引用为零才真正删除（见 sweepOrphanObjects）。
+  if (r2Keys.size) {
+    const now = Date.now();
+    const stmts = [...r2Keys].map((key) =>
+      env.DB.prepare("INSERT OR REPLACE INTO orphan_objects (r2_key, queued_at) VALUES (?1, ?2)").bind(key, now),
+    );
+    for (const part of chunk(stmts, 90)) await env.DB.batch(part);
+  }
   return roots.length;
+}
+
+/** 孤儿对象清扫宽限期：登记后延迟复查引用，避开并发秒传「查到 key 后才插行」的 TOCTOU 窗口 */
+export const ORPHAN_GRACE_MS = 60 * 60 * 1000;
+
+/** 定时清扫孤儿 R2 对象：宽限期后复查仍无任何节点引用才删除，有引用的仅出队。
+ * 返回实际删除的对象数；graceMs 可注入（测试传 0 立即清扫）。 */
+export async function sweepOrphanObjects(env: Env, graceMs: number = ORPHAN_GRACE_MS): Promise<number> {
+  const cutoff = Date.now() - graceMs;
+  const { results } = await env.DB.prepare(
+    "SELECT r2_key FROM orphan_objects WHERE queued_at < ?1 LIMIT 500",
+  ).bind(cutoff).all<{ r2_key: string }>();
+  if (!results.length) return 0;
+  let deleted = 0;
+  // 并行复查引用：零引用删对象，随后一律出队（有引用的说明已被复用，无需再跟踪）
+  await Promise.all(results.map(async ({ r2_key }) => {
+    const ref = await env.DB.prepare("SELECT 1 FROM nodes WHERE r2_key = ?1 LIMIT 1").bind(r2_key).first();
+    if (!ref) {
+      await env.BUCKET.delete(r2_key);
+      deleted++;
+    }
+    await env.DB.prepare("DELETE FROM orphan_objects WHERE r2_key = ?1").bind(r2_key).run();
+  }));
+  return deleted;
 }
 
 /** 多根集合式软删除：物化路径范围扫描 + 一条 UPDATE 原子标记（排除根目录哨兵行），

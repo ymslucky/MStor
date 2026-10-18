@@ -1,6 +1,7 @@
 import { env, SELF } from "cloudflare:test";
 import { expect, test } from "vitest";
 import { seedUser, sessionHeaders } from "./helpers";
+import { sweepOrphanObjects } from "../server/routes/trash";
 
 async function upload(u: Awaited<ReturnType<typeof seedUser>>, name: string, body: string) {
   const res = await SELF.fetch(`https://example.com/api/files/upload?name=${name}`, {
@@ -41,6 +42,7 @@ test("POST /api/files/batch-delete permanent：对象清理、不存在的 id �
   const body = (await res.json()) as { deleted: number; failed: unknown[] };
   expect(body.deleted).toBe(1); // 集合式删除：实际存在的根计数，不存在的 id 静默忽略
   expect(body.failed).toHaveLength(0);
+  await sweepOrphanObjects(env, 0);
   expect((await env.BUCKET.list()).objects).toHaveLength(0);
 });
 

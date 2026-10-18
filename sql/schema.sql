@@ -47,6 +47,9 @@ CREATE INDEX IF NOT EXISTS idx_nodes_sha256 ON nodes(sha256);
 CREATE INDEX IF NOT EXISTS idx_nodes_path ON nodes(owner_id, path);          -- 物化路径：子树 LIKE 前缀扫描
 CREATE INDEX IF NOT EXISTS idx_nodes_r2key ON nodes(r2_key);          -- R2 引用计数（purge 零引用判断）
 CREATE INDEX IF NOT EXISTS idx_nodes_trash ON nodes(deleted_at) WHERE deleted_at IS NOT NULL; -- 回收站过期 cron
+-- 短查询（<3 字符）LIKE 子串搜索：等值过滤 + ORDER BY updated_at DESC 全覆盖
+CREATE INDEX IF NOT EXISTS idx_nodes_owner_updated
+  ON nodes(owner_id, updated_at DESC) WHERE deleted_at IS NULL;
 -- 名称唯一：仅活跃行（回收站不占名）
 CREATE UNIQUE INDEX IF NOT EXISTS idx_nodes_name_active
   ON nodes(owner_id, parent_id, name) WHERE deleted_at IS NULL;
@@ -82,6 +85,13 @@ CREATE TABLE IF NOT EXISTS uploads (
 CREATE TABLE IF NOT EXISTS settings (
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL
+);
+
+-- 孤儿 R2 对象登记表：彻底删除节点时登记候选 key，由定时任务延迟复查引用后清扫，
+-- 规避「删行后立即删对象」与并发秒传「查到 key 后才插行」之间的 TOCTOU 悬空引用。
+CREATE TABLE IF NOT EXISTS orphan_objects (
+  r2_key TEXT PRIMARY KEY,
+  queued_at INTEGER NOT NULL
 );
 
 -- 文件名全文检索（trigram 分词，支持子串匹配）

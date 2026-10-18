@@ -1,6 +1,7 @@
 import { env, SELF } from "cloudflare:test";
 import { expect, test } from "vitest";
 import { seedUser, sessionHeaders } from "./helpers";
+import { sweepOrphanObjects } from "../server/routes/trash";
 
 const json = { "content-type": "application/json" };
 
@@ -70,7 +71,8 @@ test("batch purge removes nodes and R2 blobs, tolerates subtree repeats", async 
   });
   expect(res.status).toBe(200);
   expect(await res.json()).toEqual({ ok: true, purged: 2, failed: [] });
-  // R2 对象与节点行一并清除
+  // R2 对象经 cron 清扫（grace=0）；节点行立即清除
+  await sweepOrphanObjects(env, 0);
   expect(await env.BUCKET.get(`${u.id}/${fid}`)).toBeNull();
   expect(await env.DB.prepare("SELECT * FROM nodes WHERE id = ?1").bind(fid).first()).toBeNull();
   expect(await env.DB.prepare("SELECT * FROM nodes WHERE id = ?1").bind(dir.id).first()).toBeNull();
