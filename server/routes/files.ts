@@ -44,11 +44,13 @@ files.put("/upload", async (c) => {
   const len = Number(c.req.header("content-length") ?? "0");
   const limit = Number(c.env.SMALL_FILE_LIMIT);
   if (!Number.isFinite(limit)) throw new Error("SMALL_FILE_LIMIT 未配置或非法");
-  if (!Number.isFinite(len) || len < 0 || len > limit) throw errors.badRequest(`文件大小非法或超过小文件直传上限（${Math.floor(limit / 1048576)}MB），请使用网页端上传大文件`);
+  const limitMsg = `文件大小非法或超过小文件直传上限（${Math.floor(limit / 1048576)}MB），请使用网页端上传大文件`;
+  // 预检：仅当 Content-Length 存在且非法/超限时快速拒绝；缺失时不信任该值（写入后按 R2 实际大小判定）
+  const lenHeader = c.req.header("content-length");
+  if (lenHeader !== undefined && (!Number.isFinite(len) || len < 0 || len > limit)) throw errors.badRequest(limitMsg);
   const parent = await resolveParent(c.env.DB, user.id, parentId);
   if (!parent || !parent.is_dir) throw errors.notFound();
   let finalName = await uniqueName(c.env.DB, user.id, parent.id, name);
-  await assertQuota(c.env.DB, user.id, len, Number(c.env.DEFAULT_QUOTA_BYTES));
   const now = Date.now();
   const mime = c.req.header("content-type") ?? "application/octet-stream";
   // 秒传：客户端对 ≤60MB 文件预计算 SHA-256，命中同 hash 同 size 的现有节点直接复用 R2 对象（不重复存储）
@@ -61,6 +63,8 @@ files.put("/upload", async (c) => {
       "SELECT r2_key FROM nodes WHERE owner_id = ?1 AND sha256 = ?2 AND size = ?3 AND deleted_at IS NULL AND is_dir = 0 LIMIT 1"
     ).bind(user.id, normalizedSha, len).first<{ r2_key: string }>();
     if (hit) {
+      // 秒传命中：size 由既有节点保证真实（非客户端声明），据此校验配额
+      await assertQuota(c.env.DB, user.id, len, Number(c.env.DEFAULT_QUOTA_BYTES));
       const id = randomId();
       const insertDup = c.env.DB.prepare(
         "INSERT INTO nodes (id, owner_id, parent_id, path, name, is_dir, r2_key, size, mime, sha256, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,?5,0,?6,?7,?8,?9,?10,?10,NULL)"
@@ -81,6 +85,13 @@ files.put("/upload", async (c) => {
   const body = c.req.raw.body;
   if (!body) throw errors.badRequest("缺少请求体");
   const obj = await c.env.BUCKET.put(key, body, { httpMetadata: { contentType: mime } });
+  // 硬校验：以 R2 实际对象大小为准（Content-Length 可被客户端伪造/省略，仅作预检）
+  if (obj.size > limit) {
+    // 超限回滚：删对象 + 回收随机 key（不占目录名），避免绕过上限
+    await c.env.BUCKET.delete(key);
+    throw errors.badRequest(limitMsg);
+  }
+  await assertQuota(c.env.DB, user.id, obj.size, Number(c.env.DEFAULT_QUOTA_BYTES));
   const insert = c.env.DB.prepare(
     "INSERT INTO nodes (id, owner_id, parent_id, path, name, is_dir, r2_key, size, mime, sha256, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,?5,0,?6,?7,?8,?9,?10,?10,NULL)"
   );
