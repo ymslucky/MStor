@@ -3,6 +3,7 @@ import type { DragEvent as ReactDragEvent } from "react";
 import { Link } from "react-router-dom";
 import type { Node } from "../api/types";
 import { hasNodeDrag, readNodeDrag } from "../lib/dnd";
+import { Panel } from "./ui";
 
 interface Props {
   crumbs: Node[];
@@ -84,7 +85,7 @@ export default function Breadcrumb({ crumbs, onDropNode }: Props) {
             …
           </button>
           {open && (
-            <div className="absolute top-full left-0 z-overlay mt-1 min-w-[8rem] rounded-xl border border-line bg-white py-1 shadow-card">
+            <Panel level="e2" className="absolute top-full left-0 z-overlay mt-1 min-w-[8rem] py-1">
               {hidden.map((c) => (
                 <Link
                   key={c.id}
@@ -95,7 +96,7 @@ export default function Breadcrumb({ crumbs, onDropNode }: Props) {
                   {c.name}
                 </Link>
               ))}
-            </div>
+            </Panel>
           )}
         </span>
       )}
