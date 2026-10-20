@@ -8,6 +8,8 @@ export interface Node {
   created_at: number;
   updated_at: number;
   deleted_at?: number | null;
+  /** 缩略图 key（客户端生成 WebP 后上传；为 null 表示没有缩略图） */
+  thumb_key?: string | null;
 }
 
 export interface ListFilesResult {

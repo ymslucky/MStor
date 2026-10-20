@@ -1,7 +1,7 @@
 import { api } from "./client";
 import type { PublicNode, Share, ShareInfo } from "./types";
 
-export const createShare = (body: { nodeId: string; expiresInDays?: number; password?: string }) =>
+export const createShare = (body: { nodeId: string; expiresInDays?: number; password?: string; maxDownloads?: number; oneTime?: boolean }) =>
   api<{ token: string; url: string }>("/api/shares", { method: "POST", json: body });
 
 export const listShares = () => api<{ shares: Share[] }>("/api/shares");

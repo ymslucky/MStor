@@ -15,6 +15,9 @@ export default function ShareDialog({ node, onClose }: Props) {
   // 默认 7 天有效期；清空为永久
   const [days, setDays] = useState("7");
   const [password, setPassword] = useState("");
+  // 下载次数：不限 / 一次性（1 次）/ 自定义上限
+  const [limitMode, setLimitMode] = useState<"none" | "once" | "custom">("none");
+  const [maxDownloads, setMaxDownloads] = useState("10");
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -23,12 +26,18 @@ export default function ShareDialog({ node, onClose }: Props) {
       toast("有效天数须为正数");
       return;
     }
+    if (limitMode === "custom" && !(Number(maxDownloads) > 0)) {
+      toast("下载次数须为正整数");
+      return;
+    }
     setBusy(true);
     try {
       const res = await createShare({
         nodeId: node.id,
         expiresInDays: days ? Number(days) : undefined,
         password: password || undefined,
+        oneTime: limitMode === "once" || undefined,
+        maxDownloads: limitMode === "custom" ? Number(maxDownloads) || undefined : undefined,
       });
       setUrl(res.url);
     } catch (e) {
@@ -83,6 +92,37 @@ export default function ShareDialog({ node, onClose }: Props) {
               onChange={(e) => setDays(e.target.value)}
             />
           </label>
+          <fieldset className="mt-3">
+            <legend className="text-xs text-ink-2">下载次数</legend>
+            <div className="mt-1 flex flex-wrap gap-2 text-xs">
+              {([
+                ["none", "不限"],
+                ["once", "一次性"],
+                ["custom", "自定义上限"],
+              ] as const).map(([value, label]) => (
+                <label key={value} className="flex items-center gap-1 rounded-lg border border-line px-2 py-1">
+                  <input
+                    type="radio"
+                    name="share-limit"
+                    value={value}
+                    checked={limitMode === value}
+                    onChange={() => setLimitMode(value)}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+            {limitMode === "custom" && (
+              <Input
+                aria-label="最大下载次数"
+                type="number"
+                min="1"
+                className="mt-1"
+                value={maxDownloads}
+                onChange={(e) => setMaxDownloads(e.target.value)}
+              />
+            )}
+          </fieldset>
           <label className="mt-2 block text-xs text-ink-2">
             <span className="flex items-center gap-1">
               <KeyRound size={14} aria-hidden className="text-ink-3" />

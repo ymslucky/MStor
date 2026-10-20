@@ -10,6 +10,8 @@ import type {
 } from "react";
 import { ArrowDown, ArrowUp, Check, Columns3, Copy, Download, EyeOff, FolderOpen, ListFilter, Search } from "lucide-react";
 import { contentUrl } from "../api/nodes";
+import { thumbUrl } from "../api/thumbs";
+import { FileCard } from "./FileCard";
 import type { Node } from "../api/types";
 import { compareNodes, useColumnPrefs } from "../hooks/useColumnPrefs";
 import type { SortKey } from "../hooks/useColumnPrefs";
@@ -496,23 +498,11 @@ export default function FileList({
               {...folderDropProps(n)}
             >
               {selectable && checkbox(n, "absolute top-2 left-2 z-10")}
-              <button type="button" className="block w-full text-left" title={n.name}>
-                <div className="flex h-28 items-center justify-center overflow-hidden bg-gray-50/70">
-                  {isImage ? (
-                    <img src={contentUrl(n.id)} alt={n.name} loading="lazy" className="h-full w-full object-cover" />
-                  ) : (
-                    <NodeIcon node={n} size={44} className="text-ink-3" />
-                  )}
-                </div>
-                <div className="p-2">
-                  <div className="flex items-center gap-1.5">
-                    <NodeIcon node={n} size={14} className="shrink-0" />
-                    <span className="truncate text-sm text-ink">{truncateMiddle(n.name, 20)}</span>
-                    {sharedBadge(n)}
-                  </div>
-                  <div className="text-xs tabular-nums text-ink-faint">{formatBytes(n.size)}</div>
-                </div>
-              </button>
+              <FileCard
+                node={n}
+                thumbSrc={n.is_dir ? null : n.thumb_key ? thumbUrl(n.id) : isImage ? contentUrl(n.id) : null}
+                badge={sharedBadge(n)}
+              />
             </div>
           );
         })}
