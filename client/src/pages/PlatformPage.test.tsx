@@ -21,6 +21,8 @@ function mkUser(over: Partial<AdminUser> = {}): AdminUser {
   return { id: "u1", name: "Bob", role: "member", quota_bytes: 10737418240, created_at: 1, disabled_at: null, email: null, ...over };
 }
 
+const TWO_USERS = { users: [mkUser(), mkUser({ id: "u2", name: "Carol", email: "carol@example.com", role: "admin", disabled_at: 5 })] };
+
 function renderWith(ui: JSX.Element) {
   return { ...renderWithProviders(ui), user: userEvent.setup() };
 }
@@ -34,26 +36,61 @@ beforeEach(() => {
   vi.clearAllMocks(); // 首个用例断言「未调用」，调用记录不能跨用例残留
 });
 
-test("admin edits quota via PATCH", async () => {
+test("admin edits quota through the dialog", async () => {
   vi.mocked(listAdminUsers).mockResolvedValue({ users: [mkUser()] });
   vi.mocked(patchAdminUser).mockResolvedValue({ ok: true });
   const { user } = renderWith(<PlatformPage me={ME} kind="users" />);
   await screen.findByText("Bob");
-  const input = screen.getByLabelText("配额 GB（Bob）");
+  await user.click(screen.getByRole("button", { name: "编辑配额（Bob）" }));
+  const input = screen.getByLabelText("配额（GB）");
+  expect(input).toHaveValue(10);
   await user.clear(input);
   await user.type(input, "20");
-  await user.click(screen.getByRole("button", { name: /保存配额.*Bob/ }));
+  await user.click(screen.getByRole("button", { name: "保存" }));
   await waitFor(() => expect(patchAdminUser).toHaveBeenCalledWith("u1", { quota_bytes: 20 * 1024 ** 3 }));
 });
 
-test("admin toggles disable and enters user space", async () => {
+test("admin disables a user only after confirmation, then enters the space", async () => {
   vi.mocked(listAdminUsers).mockResolvedValue({ users: [mkUser()] });
   vi.mocked(patchAdminUser).mockResolvedValue({ ok: true });
   const { user } = renderWith(<PlatformPage me={ME} kind="users" />);
   await screen.findByText("Bob");
+  await user.click(screen.getByRole("button", { name: "停用（Bob）" }));
+  // 危险操作先二次确认：确认前不得发请求
+  expect(await screen.findByText(/停用后该账号将立即无法登录/)).toBeInTheDocument();
+  expect(patchAdminUser).not.toHaveBeenCalled();
   await user.click(screen.getByRole("button", { name: "停用" }));
   await waitFor(() => expect(patchAdminUser).toHaveBeenCalledWith("u1", { disabled: true }));
-  await user.click(screen.getByRole("button", { name: /进入空间/ }));
+  await user.click(screen.getByRole("button", { name: "进入空间（Bob）" }));
   expect(localStorage.getItem("mstor_act_as")).toBe("u1");
   localStorage.removeItem("mstor_act_as");
+});
+
+test("admin binds an email through the dialog with validation", async () => {
+  vi.mocked(listAdminUsers).mockResolvedValue({ users: [mkUser()] });
+  vi.mocked(patchAdminUser).mockResolvedValue({ ok: true });
+  const { user } = renderWith(<PlatformPage me={ME} kind="users" />);
+  await screen.findByText("Bob");
+  await user.click(screen.getByRole("button", { name: "绑定邮箱（Bob）" }));
+  const input = screen.getByLabelText("绑定邮箱");
+  await user.type(input, "not-an-email");
+  expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
+  await user.clear(input);
+  await user.type(input, "bob@example.com");
+  await user.click(screen.getByRole("button", { name: "保存" }));
+  await waitFor(() => expect(patchAdminUser).toHaveBeenCalledWith("u1", { email: "bob@example.com" }));
+});
+
+test("admin filters users by keyword and status", async () => {
+  vi.mocked(listAdminUsers).mockResolvedValue(TWO_USERS);
+  const { user } = renderWith(<PlatformPage me={ME} kind="users" />);
+  await screen.findByText("Bob");
+  await user.type(screen.getByLabelText("搜索用户"), "carol");
+  expect(screen.queryByText("Bob")).not.toBeInTheDocument();
+  expect(screen.getByText("Carol")).toBeInTheDocument();
+  await user.clear(screen.getByLabelText("搜索用户"));
+  await user.selectOptions(screen.getByLabelText("状态筛选"), "disabled");
+  expect(screen.queryByText("Bob")).not.toBeInTheDocument();
+  // 「已停用」同时出现在筛选下拉的选项里，这里只校验行内状态
+  expect(screen.getByText("Carol").closest("tr")).toHaveTextContent("已停用");
 });

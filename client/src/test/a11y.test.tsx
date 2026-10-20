@@ -1,6 +1,6 @@
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { renderWithProviders } from "./utils";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { axe } from "vitest-axe";
 import { Badge, Button, Field, IconButton, Input, ListRow, NavItem, Panel, SettingRow } from "../components/ui";
 import { Dialog } from "../components/ui/Dialog";
@@ -8,6 +8,7 @@ import { ConflictDialog } from "../components/ConflictDialog";
 import { BatchBar } from "../components/BatchBar";
 import { UndoSnackbar } from "../components/UndoSnackbar";
 import { StatusBar } from "../components/StatusBar";
+import { AdminUsersSection } from "../components/AdminUsersSection";
 import type { Me } from "../api/types";
 import { Cloud } from "lucide-react";
 
@@ -32,6 +33,16 @@ const ME = {
 } as unknown as Me;
 
 const wrap = (ui: React.ReactElement) => renderWithProviders(ui);
+
+vi.mock("../api/me", () => ({
+  listAdminUsers: vi.fn(async () => ({
+    users: [
+      { id: "u1", name: "张三", role: "admin", quota_bytes: 10737418240, created_at: 1, disabled_at: null, email: "a@b.c" },
+      { id: "u2", name: "李四", role: "member", quota_bytes: 5368709120, created_at: 1, disabled_at: 2, email: null },
+    ],
+  })),
+  patchAdminUser: vi.fn(),
+}));
 
 describe("无障碍闸门", () => {
   test("原语（Button/Badge/Input/IconButton）", async () => {
@@ -90,6 +101,12 @@ describe("无障碍闸门", () => {
         </SettingRow>
       </div>,
     );
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  test("平台用户管理表格", async () => {
+    const { container } = wrap(<AdminUsersSection selfId="u1" />);
+    await screen.findByText("张三");
     expect(await axe(container)).toHaveNoViolations();
   });
 
