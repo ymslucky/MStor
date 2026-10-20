@@ -1,6 +1,6 @@
 import type * as React from "react";
 
-// 图标按钮：方形、2px 墨线；active 用于分段控件
+// 图标按钮：圆形柔光 hover，active 用主色浅底
 export function IconButton({
   label,
   className = "",
@@ -8,13 +8,13 @@ export function IconButton({
   ...rest
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { label: string; active?: boolean }) {
   const state = active
-    ? "border-line-strong bg-primary-soft text-primary-text"
-    : "border-line bg-surface-1 text-ink-2 hover:border-line-strong hover:bg-bg-sub hover:text-ink";
+    ? "bg-primary-soft text-primary-text shadow-soft"
+    : "text-ink-2 hover:bg-white hover:text-ink hover:shadow-soft";
   return (
     <button
       aria-label={label}
       title={label}
-      className={`inline-flex h-9 w-9 items-center justify-center rounded-btn border transition-colors duration-(--duration-fast) tap ${state} ${className}`}
+      className={`inline-flex h-9 w-9 items-center justify-center rounded-full transition-[background-color,color,box-shadow,transform] duration-(--duration-fast) ease-[var(--ease-spring)] hover:-translate-y-0.5 tap ${state} ${className}`}
       {...rest}
     />
   );

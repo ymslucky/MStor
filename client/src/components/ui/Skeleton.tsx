@@ -1,4 +1,15 @@
-// 加载占位：块状、无圆角，与面板同构
+// 加载占位：玻璃底 + 流光（保留 animate-pulse 作为无障碍/测试可识别的加载态标记）
 export function Skeleton({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse rounded-card border border-line bg-line/50 ${className}`} aria-hidden />;
+  return (
+    <div
+      className={`animate-pulse relative overflow-hidden rounded-card bg-white/50 ${className}`}
+      aria-hidden
+      style={{
+        backgroundImage:
+          "linear-gradient(90deg, rgb(255 255 255 / 0) 0%, rgb(255 255 255 / 0.65) 50%, rgb(255 255 255 / 0) 100%)",
+        backgroundSize: "200% 100%",
+        animation: "shimmer 1.4s linear infinite, pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+      }}
+    />
+  );
 }

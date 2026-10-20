@@ -1,6 +1,6 @@
 import type * as React from "react";
 
-// 工业风按钮：2px 墨线 + 硬投影，按下时位移到"贴板"状态
+// 明亮按钮：主按钮实色 + 柔和投影，hover 抬升、按下微缩（spring）
 export function Button({
   variant = "primary",
   size = "md",
@@ -8,12 +8,12 @@ export function Button({
   ...rest
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "ghost" | "danger"; size?: "md" | "sm" }) {
   const base =
-    "inline-flex items-center justify-center gap-1.5 rounded-btn border border-line-strong font-mono uppercase tracking-wider transition-transform duration-(--duration-fast) disabled:opacity-45 disabled:pointer-events-none tap shadow-card hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-soft active:translate-x-[2px] active:translate-y-[2px] active:shadow-none";
-  const sizes = { md: "px-3.5 py-2 text-xs", sm: "px-2 py-1 text-2xs" };
+    "inline-flex items-center justify-center gap-1.5 rounded-btn border font-medium transition-[transform,box-shadow,background-color] duration-(--duration-fast) ease-[var(--ease-spring)] disabled:opacity-45 disabled:pointer-events-none tap hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]";
+  const sizes = { md: "px-3.5 py-2 text-sm", sm: "px-2.5 py-1 text-xs" };
   const variants = {
-    primary: "bg-primary text-surface-2 hover:bg-accent-deep",
-    ghost: "bg-surface-1 text-ink hover:bg-primary-soft",
-    danger: "bg-surface-1 text-danger-text hover:bg-danger-soft",
+    primary: "border-transparent bg-primary text-white shadow-card hover:bg-accent-deep hover:shadow-lift",
+    ghost: "border-line-strong bg-white/70 text-ink shadow-soft backdrop-blur-sm hover:bg-white hover:shadow-card",
+    danger: "border-transparent bg-danger-soft text-danger-text shadow-soft hover:bg-danger hover:text-white hover:shadow-card",
   };
   return <button className={`${base} ${sizes[size]} ${variants[variant]} ${className}`} {...rest} />;
 }

@@ -4,7 +4,7 @@ import type * as React from "react";
 export function Input({ className = "", ...rest }: React.ComponentPropsWithRef<"input">) {
   return (
     <input
-      className={`w-full rounded-input border border-line-strong bg-surface-2 px-3 py-2 font-mono text-sm text-ink bezel transition-colors duration-(--duration-fast) placeholder:text-ink-3 focus:border-primary ${className}`}
+      className={`w-full rounded-input border border-line bg-white/70 px-3 py-2 text-sm text-ink shadow-soft backdrop-blur-sm transition-[border-color,box-shadow] duration-(--duration-fast) placeholder:text-ink-3 hover:border-line-strong focus:border-primary focus:outline-none ${className}`}
       {...rest}
     />
   );
