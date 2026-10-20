@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { UserPlus } from "lucide-react";
-import { createInvitation, listInvitations, listMembers, revokeInvitation } from "../api/workspaces";
+import { createInvitation, listInvitations, listMembers, removeMember, revokeInvitation, updateMemberRole } from "../api/workspaces";
 import { formatDate } from "../lib/format";
 import { Button, GlassCard, Input } from "./ui";
 import { toast } from "./Toaster";
@@ -13,9 +13,34 @@ const ROLE_LABEL: Record<string, string> = { owner: "所有者", admin: "管理�
  * 邀请链接由服务端签发，需人工转达——本项目不发事务邮件（方案 §0.2 双重簿记）。
  */
 export function MemberPanel() {
-  const queryClient = useQueryClient();
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"member" | "admin">("member");
+  const queryClient = useQueryClient();
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const changeRole = async (userId: string, next: "admin" | "member") => {
+    setBusy(userId);
+    try {
+      await updateMemberRole(userId, next);
+      await queryClient.invalidateQueries({ queryKey: ["workspace-members"] });
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "修改角色失败");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const removeNow = async (userId: string) => {
+    setBusy(userId);
+    try {
+      await removeMember(userId);
+      await queryClient.invalidateQueries({ queryKey: ["workspace-members"] });
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "移除成员失败");
+    } finally {
+      setBusy(null);
+    }
+  };
   const members = useQuery({ queryKey: ["members"], queryFn: listMembers });
   const invites = useQuery({ queryKey: ["invitations"], queryFn: listInvitations });
 
@@ -89,9 +114,27 @@ export function MemberPanel() {
                   <div className="truncate text-sm text-ink">{m.name}</div>
                   <div className="truncate text-xs text-ink-3">{m.email ?? "（未提供邮箱）"}</div>
                 </div>
-                <span className="shrink-0 rounded-full bg-primary-soft px-2 py-0.5 text-xs text-primary-text">
-                  {ROLE_LABEL[m.role] ?? m.role}
-                </span>
+                <div className="flex shrink-0 items-center gap-2">
+                  <select
+                    aria-label={`修改 ${m.name} 的角色`}
+                    value={m.role}
+                    disabled={m.role === "owner" || busy === m.user_id}
+                    onChange={(e) => void changeRole(m.user_id, e.target.value as "admin" | "member")}
+                    className="rounded-btn border border-line bg-surface-1 px-2 py-1 text-xs text-ink disabled:opacity-50"
+                  >
+                    <option value="owner">所有者</option>
+                    <option value="admin">管理员</option>
+                    <option value="member">成员</option>
+                  </select>
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    disabled={m.role === "owner" || busy === m.user_id}
+                    onClick={() => void removeNow(m.user_id)}
+                  >
+                    移除
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>

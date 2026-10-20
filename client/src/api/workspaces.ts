@@ -37,3 +37,11 @@ export const listUnbound = () =>
   api<{ users: { id: string; name: string; email: string | null; created_at: number }[] }>("/api/me/admin/unbound", {
     skipActAs: true,
   });
+
+/** 改成员角色（仅 owner/admin；服务端拒绝把最后一名 owner 降级） */
+export const updateMemberRole = (userId: string, role: "owner" | "admin" | "member") =>
+  api<{ ok: true }>(`/api/workspaces/members/${userId}`, { method: "PATCH", body: JSON.stringify({ role }) });
+
+/** 移除成员（仅 owner/admin；服务端拒绝移除最后一名 owner） */
+export const removeMember = (userId: string) =>
+  api<{ ok: true }>(`/api/workspaces/members/${userId}`, { method: "DELETE" });
