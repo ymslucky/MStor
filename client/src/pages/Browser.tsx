@@ -16,6 +16,8 @@ import { BrowserToolbar } from "../components/BrowserToolbar";
 import { BatchProgress } from "../components/BatchProgress";
 import { UndoSnackbar } from "../components/UndoSnackbar";
 import { ConflictDialog, uniqueName } from "../components/ConflictDialog";
+import { PullToRefreshIndicator } from "../components/PullToRefreshIndicator";
+import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import type { ConflictPolicy } from "../components/ConflictDialog";
 import { BrowserDialogs } from "../components/BrowserDialogs";
 import { NodeRowActions } from "../components/NodeRowActions";
@@ -126,6 +128,9 @@ export default function Browser() {
   const [rememberConflict, setRememberConflict] = useState(() => getString(CONFLICT_KEY) !== "");
 
   const takenNames = new Set(allNodes.map((n) => n.name));
+
+  // 移动端下拉刷新当前目录（桌面无影响）
+  const pull = usePullToRefresh(() => query.refetch());
 
   // 收藏：行内星标切换（服务端 PUT/DELETE 幂等），成功后刷新收藏集合
   const favorites = useQuery({ queryKey: ["favorites"], queryFn: listFavorites });
@@ -402,6 +407,7 @@ export default function Browser() {
           onCancel={() => setConflicts(null)}
         />
       )}
+      <PullToRefreshIndicator pull={pull.pull} ready={pull.ready} refreshing={pull.refreshing} />
       {undoId && (
         <UndoSnackbar
           message="已移动，可在 10 秒内撤销"
