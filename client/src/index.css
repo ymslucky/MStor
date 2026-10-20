@@ -62,11 +62,11 @@
   --color-chip-rose-fg: #be123c;
 
   /* 圆角：玻璃质感需要圆润 */
-  --radius-chip: 8px;
-  --radius-btn: 12px;
-  --radius-input: 12px;
-  --radius-card: 16px;
-  --radius-panel: 20px;
+  --radius-chip: 6px;
+  --radius-btn: 8px;
+  --radius-input: 8px;
+  --radius-card: 12px;
+  --radius-panel: 16px;
 
   /* 阴影：大范围柔光，不用硬边 */
   --shadow-soft: 0 1px 2px rgb(16 32 44 / 0.04), 0 2px 8px rgb(16 32 44 / 0.04);
@@ -178,15 +178,13 @@ body {
 /* ============================================================
    玻璃档位（真正做毛玻璃：半透明 + backdrop-blur + 顶部高光描边）
    ============================================================ */
+/* 常规面板：实色 + 发丝边（不做模糊，滚动更稳） */
 .glass,
 .glass-light {
-  background: rgb(255 255 255 / 0.66);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgb(255 255 255 / 0.7);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.75), var(--shadow-card);
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-line);
+  box-shadow: var(--shadow-card);
   border-radius: var(--radius-card);
-  will-change: backdrop-filter;
 }
 
 .glass-strong,
@@ -201,18 +199,12 @@ body {
 }
 
 .glass-panel {
-  background: rgb(255 255 255 / 0.72);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  border-bottom: 1px solid rgb(255 255 255 / 0.6);
-  box-shadow: 0 1px 0 rgb(16 32 44 / 0.04);
-  will-change: backdrop-filter;
+  background: var(--color-surface-2);
+  border-bottom: 1px solid var(--color-line);
 }
 
 .glass-subtle {
-  background: rgb(255 255 255 / 0.42);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: var(--color-bg-sub);
 }
 
 @media (prefers-color-scheme: dark) {
