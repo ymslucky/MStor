@@ -33,7 +33,7 @@ export function AdminOverviewSection() {
           <div>
             <dt className="text-xs text-ink-3">用户</dt>
             <dd className="font-display text-xl font-semibold text-ink">{data.users.total}</dd>
-            <dd className="text-[11px] text-ink-3">
+            <dd className="text-2xs text-ink-3">
               停用 {data.users.disabled} · 待绑定 {data.users.unbound}
             </dd>
           </div>
@@ -47,7 +47,7 @@ export function AdminOverviewSection() {
               逻辑占用合计
             </dt>
             <dd className="font-display text-xl font-semibold text-ink">{formatBytes(data.workspaces.usedBytes)}</dd>
-            <dd className="text-[11px] text-ink-3">按逻辑字节计；R2 去重不影响配额</dd>
+            <dd className="text-2xs text-ink-3">按逻辑字节计；R2 去重不影响配额</dd>
           </div>
         </dl>
       </GlassCard>

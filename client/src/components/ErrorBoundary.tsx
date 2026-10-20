@@ -58,7 +58,7 @@ export class ErrorBoundary extends Component<Props, State> {
           </div>
           <details className="mt-6 text-left">
             <summary className="cursor-pointer text-xs text-ink-3">错误详情</summary>
-            <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded-lg border border-line bg-white p-3 text-[11px] text-ink-3">
+            <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded-lg border border-line bg-white p-3 text-2xs text-ink-3">
               {error.message}
             </pre>
           </details>

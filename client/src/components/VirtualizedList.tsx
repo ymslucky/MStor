@@ -3,8 +3,22 @@ import type { ReactNode } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { Node } from "../api/types";
 
-/** 虚拟行高（设计规范：列表行高 48px） */
-export const ROW_HEIGHT = 48;
+/** 行高兜底值（与 --density-row-h 默认一致；无 CSS 环境按此回退） */
+const FALLBACK_ROW_HEIGHT = 48;
+
+/**
+ * 行高来自密度令牌 --density-row-h（comfortable 48 / compact 40）。
+ * 组件在渲染期读取，切换密度后重新挂载即生效；jsdom 读不到时回落 48。
+ */
+export function getRowHeight(): number {
+  if (typeof window === "undefined" || typeof getComputedStyle !== "function") return FALLBACK_ROW_HEIGHT;
+  const raw = getComputedStyle(document.documentElement).getPropertyValue("--density-row-h").trim();
+  const px = Number.parseFloat(raw);
+  return Number.isFinite(px) && px > 0 ? px : FALLBACK_ROW_HEIGHT;
+}
+
+/** 兼容旧引用：默认行高常量 */
+export const ROW_HEIGHT = FALLBACK_ROW_HEIGHT;
 
 /**
  * 视口内虚拟滚动：容器由上层布局给出确定高度（md:flex-1 / md:min-h-0），
@@ -21,10 +35,11 @@ export default function VirtualizedList({
   row: (n: Node, index: number, top: number) => ReactNode;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const rowHeight = getRowHeight();
   const virtualizer = useVirtualizer({
     count: nodes.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => ROW_HEIGHT,
+    estimateSize: () => rowHeight,
     overscan: 8,
   });
 
@@ -44,9 +59,9 @@ export default function VirtualizedList({
       data-testid="file-virtual"
       className="md:min-h-0 md:flex-1 md:overflow-y-auto"
     >
-      <div className="relative w-full" style={{ height: virtualizer.getTotalSize() || nodes.length * ROW_HEIGHT }}>
+      <div className="relative w-full" style={{ height: virtualizer.getTotalSize() || nodes.length * rowHeight }}>
         {items.length === 0
-          ? nodes.slice(0, FALLBACK_ROWS).map((n, i) => <Fragment key={n.id}>{row(n, i, i * ROW_HEIGHT)}</Fragment>)
+          ? nodes.slice(0, FALLBACK_ROWS).map((n, i) => <Fragment key={n.id}>{row(n, i, i * rowHeight)}</Fragment>)
           : items.map((vi) => {
               const n = nodes[vi.index];
               return <Fragment key={n.id}>{row(n, vi.index, vi.start)}</Fragment>;

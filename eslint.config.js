@@ -41,6 +41,10 @@ export default tseslint.config(
           selector: "JSXAttribute > Literal[value=/rounded-full bg-[a-z-]*soft px-/]",
           message: "手写胶囊：请使用 components/ui 的 <Pill> 或 <Badge>",
         },
+        {
+          selector: "JSXAttribute > Literal[value=/text-\\[\\d+px\\]/]",
+          message: "任意字号：请使用 type 刻度（text-2xs/xs/sm/base/lg/xl/2xl）",
+        },
       ],
     },
   },

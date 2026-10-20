@@ -30,7 +30,7 @@ export default function StorageMeter({
           strokeDashoffset={c * (1 - pct / 100)}
         />
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold tabular-nums text-ink">{pct}%</span>
+      <span className="absolute inset-0 flex items-center justify-center text-2xs font-semibold tabular-nums text-ink">{pct}%</span>
     </div>
   );
   const usage = `${formatBytes(usedBytes)} / ${formatBytes(quotaBytes)}`;
@@ -46,7 +46,7 @@ export default function StorageMeter({
       {ring}
       <div className="min-w-0">
         <div className="truncate text-xs font-medium tabular-nums text-ink">{usage}</div>
-        <div className="text-[11px] text-ink-faint">R2 出口流量免费</div>
+        <div className="text-2xs text-ink-faint">R2 出口流量免费</div>
       </div>
     </div>
   );

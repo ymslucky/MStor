@@ -44,7 +44,7 @@ export function GlobalUploadDock() {
                   <span className="block truncate text-xs text-ink" title={it.path ? it.path + "/" + it.name : it.name}>
                     {it.name}
                   </span>
-                  <span className="text-[11px] text-ink-3">
+                  <span className="text-2xs text-ink-3">
                     {it.status === "paused" ? "已暂停" : it.status === "pending" ? "排队中" : percent + "%"} · {formatBytes(it.size)}
                   </span>
                 </span>

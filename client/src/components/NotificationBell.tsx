@@ -53,7 +53,7 @@ export function NotificationBell() {
       >
         <Bell size={18} aria-hidden />
         {unread > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-semibold text-white">
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-2xs font-semibold text-white">
             {unread > 9 ? "9+" : unread}
           </span>
         )}
@@ -94,7 +94,7 @@ export function NotificationBell() {
                   >
                     <span className="block text-sm text-ink">{n.title}</span>
                     {n.body && <span className="mt-0.5 block text-xs text-ink-3">{n.body}</span>}
-                    <span className="mt-0.5 block text-[11px] text-ink-3">{formatDate(n.created_at)}</span>
+                    <span className="mt-0.5 block text-2xs text-ink-3">{formatDate(n.created_at)}</span>
                   </button>
                 </li>
               ))

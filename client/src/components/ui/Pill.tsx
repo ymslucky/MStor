@@ -3,7 +3,7 @@ import { cn } from "../../lib/cn";
 
 /**
  * 胶囊标签：唯一的「rounded-full + 浅底 + 2xs」出处。
- * 不要手写 `rounded-full bg-x-soft px-1.5 py-0.5 text-[10px]`。
+ * 不要手写 `rounded-full bg-x-soft px-1.5 py-0.5 text-2xs`。
  */
 export function Pill({
   tone = "neutral",

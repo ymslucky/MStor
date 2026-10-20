@@ -20,7 +20,7 @@ import { useFileTable } from "../hooks/useFileTable";
 import { hasNodeDrag, readNodeDrag, setNodeDrag } from "../lib/dnd";
 import { Badge, EmptyState } from "./ui";
 import { toast } from "./Toaster";
-import VirtualizedList, { ROW_HEIGHT } from "./VirtualizedList";
+import VirtualizedList, { getRowHeight } from "./VirtualizedList";
 
 /** 列表 ≥50 行启用虚拟滚动 */
 const VIRTUAL_THRESHOLD = 50;
@@ -371,7 +371,7 @@ export default function FileList({
         tabIndex={-1}
         role="row"
         className={`group absolute inset-x-0 top-0 rounded-lg px-2 text-sm hover:bg-bg-sub ${rowCls(i, n)}`}
-        style={{ height: ROW_HEIGHT, transform: `translateY(${top}px)`, ...gridStyle, ...dropHoverStyle(n) }}
+        style={{ height: getRowHeight(), transform: `translateY(${top}px)`, ...gridStyle, ...dropHoverStyle(n) }}
         onClick={rowClick(n, i)}
         onDoubleClick={rowDoubleClick(n, i)}
         {...rowEvents(n, i)}
@@ -411,7 +411,7 @@ export default function FileList({
             tabIndex={-1}
             role="row"
             className={`group border-b border-line/70 text-sm hover:bg-bg-sub ${i % 2 === 1 ? "bg-bg-sub/40" : ""} ${rowCls(i, n)} ${animate ? "anim-item-in" : ""}`}
-            style={{ ...gridStyle, height: ROW_HEIGHT, padding: "0 8px", ...animStyle(i), ...dropHoverStyle(n) }}
+            style={{ ...gridStyle, height: getRowHeight(), padding: "0 8px", ...animStyle(i), ...dropHoverStyle(n) }}
             onClick={rowClick(n, i)}
             onDoubleClick={rowDoubleClick(n, i)}
             {...rowEvents(n, i)}
