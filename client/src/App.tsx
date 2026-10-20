@@ -31,7 +31,7 @@ function AccessDeniedHint({ message }: { message?: string }) {
   return (
     <div className="relative flex min-h-dvh items-center justify-center p-6">
       <div className="glow-radial" aria-hidden />
-      <div className="glass relative z-10 w-full max-w-sm rounded-card p-8 text-center">
+      <div className="glass relative z-content w-full max-w-sm rounded-card p-8 text-center">
         <h1 className="font-display text-3xl font-bold text-ink">MStor</h1>
         <p className="mt-2 text-sm text-ink-2">私有家庭云盘 · 经 Cloudflare Access 保护</p>
         <p className="mt-4 text-xs text-ink-3">{message ?? "尚未获得访问授权，请确认已通过 Access 登录后重试。"}</p>

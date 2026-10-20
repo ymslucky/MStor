@@ -8,7 +8,7 @@ export function PullToRefreshIndicator({ pull, ready, refreshing }: { pull: numb
       role="status"
       aria-live="polite"
       data-testid="pull-to-refresh"
-      className="pointer-events-none fixed inset-x-0 top-2 z-40 flex justify-center md:hidden"
+      className="pointer-events-none fixed inset-x-0 top-2 z-overlay flex justify-center md:hidden"
       style={{ opacity: refreshing ? 1 : Math.min(1, pull / 70) }}
     >
       <div className="glass flex items-center gap-1.5 px-3 py-1.5 text-xs text-ink-2">

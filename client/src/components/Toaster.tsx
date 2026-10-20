@@ -71,7 +71,7 @@ export function Toaster() {
           </Toast.Close>
         </Toast.Root>
       ))}
-      <Toast.Viewport className="fixed top-4 left-1/2 z-[60] flex w-full max-w-sm -translate-x-1/2 flex-col items-center gap-2 outline-none" />
+      <Toast.Viewport className="fixed top-4 left-1/2 z-menu flex w-full max-w-sm -translate-x-1/2 flex-col items-center gap-2 outline-none" />
     </Toast.Provider>
   );
 }

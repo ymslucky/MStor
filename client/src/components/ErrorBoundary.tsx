@@ -43,7 +43,7 @@ export class ErrorBoundary extends Component<Props, State> {
     const { compact = false, title } = this.props;
     const box = compact
       ? "w-full rounded-card border border-line bg-white p-8 text-center"
-      : "glass relative z-10 w-full max-w-md rounded-card p-8 text-center";
+      : "glass relative z-content w-full max-w-md rounded-card p-8 text-center";
     return (
       <div role="alert" className={compact ? "py-8" : "relative flex min-h-dvh items-center justify-center p-6"}>
         {!compact && <div className="glow-radial" aria-hidden />}

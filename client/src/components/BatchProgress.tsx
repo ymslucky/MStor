@@ -7,7 +7,7 @@ interface Props {
 export function BatchProgress({ done, total }: Props) {
   const pct = Math.round((done / Math.max(total, 1)) * 100);
   return (
-    <div data-testid="batch-progress" className="fixed inset-x-0 bottom-20 z-50 flex justify-center px-4 sm:bottom-6">
+    <div data-testid="batch-progress" className="fixed inset-x-0 bottom-20 z-modal flex justify-center px-4 sm:bottom-6">
       <div className="glass flex items-center gap-2 rounded-card px-3 py-2 text-sm text-ink">
         <span className="whitespace-nowrap">
           处理中 {done}/{total}

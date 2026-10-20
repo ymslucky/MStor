@@ -38,7 +38,7 @@ test("mask click closes, click inside panel does not", async () => {
 
 test("panel keeps glass surface with mobile bottom-sheet classes", () => {
   renderWithProviders(<Dialog open title="标题" onClose={() => {}}>内容</Dialog>);
-  expect(screen.getByTestId("dialog-mask")).toHaveClass("z-40", "bg-ink/40");
+  expect(screen.getByTestId("dialog-mask")).toHaveClass("z-overlay", "bg-ink/40");
   const panel = screen.getByTestId("dialog-panel");
   expect(panel).toHaveClass("glass", "rounded-t-panel", "w-full", "sm:max-w-md", "sm:rounded-panel");
 });

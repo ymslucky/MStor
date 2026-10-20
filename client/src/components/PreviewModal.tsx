@@ -56,7 +56,7 @@ export default function PreviewModal({ node, onClose }: Props) {
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col bg-black/70 p-2 sm:p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-overlay flex flex-col bg-black/70 p-2 sm:p-4" onClick={onClose}>
       {/* 预览面板：glass-strong 层（当前打开的弹层，占用一个模糊预算） */}
       <div
         className={`glass-strong flex min-h-0 flex-1 flex-col overflow-hidden rounded-panel transition-[opacity,transform] duration-300 ease-spring ${

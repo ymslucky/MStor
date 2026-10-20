@@ -25,12 +25,12 @@ export function Dialog({ open, onClose, title, children, footer, skin = "white" 
       <RadixDialog.Portal>
         <RadixDialog.Overlay
           data-testid="dialog-mask"
-          className="anim-fade fixed inset-0 z-40 bg-ink/40 backdrop-blur-[2px]"
+          className="anim-fade fixed inset-0 z-overlay bg-ink/40 backdrop-blur-[2px]"
         />
         <RadixDialog.Content
           data-testid="dialog-panel"
           className={cn(
-            "anim-pop fixed inset-x-0 bottom-0 z-50 mx-auto w-full rounded-t-panel p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] outline-none",
+            "anim-pop fixed inset-x-0 bottom-0 z-modal mx-auto w-full rounded-t-panel p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] outline-none",
             "sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-panel sm:p-4",
             skin === "glass" ? "glass-strong" : "glass",
           )}

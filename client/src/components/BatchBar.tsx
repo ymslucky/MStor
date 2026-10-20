@@ -15,7 +15,7 @@ interface Props {
 export function BatchBar({ count, hasFileSelected, onDownload, onMove, onDelete, onClear, hidden }: Props) {
   if (count <= 0 || hidden) return null;
   return (
-    <div className="fixed inset-x-0 bottom-20 z-40 flex justify-center px-4 sm:bottom-6">
+    <div className="fixed inset-x-0 bottom-20 z-overlay flex justify-center px-4 sm:bottom-6">
       <div className="glass flex items-center gap-1.5 rounded-card p-2">
         <span className="whitespace-nowrap px-2 text-sm font-medium text-ink">已选 {count} 项</span>
         {hasFileSelected && (

@@ -17,7 +17,7 @@ export function GlobalUploadDock() {
   const percent = totalBytes > 0 ? Math.round((doneBytes / totalBytes) * 100) : 0;
 
   return (
-    <div className="fixed bottom-20 right-4 z-40 w-72 md:bottom-4" role="status" aria-live="polite">
+    <div className="fixed bottom-20 right-4 z-overlay w-72 md:bottom-4" role="status" aria-live="polite">
       <div className="overflow-hidden rounded-card border border-line bg-white shadow-card">
         <button
           type="button"

@@ -459,7 +459,7 @@ export default function Browser() {
       {detail && !isDesktop && <NodeDetailDialog node={detail} onClose={() => setDetail(null)} />}
       {/* 拖拽全屏覆盖层：白底 80% + 内嵌虚线框；drop/离开窗口后关闭（计数法归零） */}
       {dragDepth > 0 && (
-        <div data-testid="drop-overlay" className="fixed inset-0 z-40 bg-white/80">
+        <div data-testid="drop-overlay" className="fixed inset-0 z-overlay bg-white/80">
           <div className="absolute inset-3 flex items-center justify-center rounded-card border-2 border-dashed border-accent bg-white/60 sm:inset-6">
             <p className="text-sm font-medium text-ink">松开，上传到当前目录</p>
           </div>

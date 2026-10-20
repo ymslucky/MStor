@@ -19,7 +19,7 @@ export default function OfflineBar() {
   return (
     <div
       role="status"
-      className="fixed inset-x-0 top-0 z-[70] border-b border-line bg-warn-soft px-4 py-2 text-center text-xs font-medium text-warn-text"
+      className="fixed inset-x-0 top-0 z-toast border-b border-line bg-warn-soft px-4 py-2 text-center text-xs font-medium text-warn-text"
     >
       当前离线，显示的是缓存界面
     </div>

@@ -87,7 +87,7 @@ export function FileListHeader({
           {columnsOpen && (
             <div
               role="menu"
-              className="absolute right-0 z-20 mt-1 w-40 rounded-xl border border-line bg-white p-1 shadow-card"
+              className="absolute right-0 z-sticky mt-1 w-40 rounded-xl border border-line bg-white p-1 shadow-card"
             >
               {VISIBILITY_ITEMS.map((item) => {
                 const column = table.getColumn(item.id);

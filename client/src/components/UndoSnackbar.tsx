@@ -24,7 +24,7 @@ export function UndoSnackbar({
       role="status"
       aria-live="polite"
       data-testid="undo-snackbar"
-      className="glass anim-pop fixed inset-x-4 bottom-24 z-50 mx-auto flex max-w-md items-center gap-3 px-4 py-2.5 md:bottom-8"
+      className="glass anim-pop fixed inset-x-4 bottom-24 z-modal mx-auto flex max-w-md items-center gap-3 px-4 py-2.5 md:bottom-8"
     >
       <span className="min-w-0 flex-1 truncate text-sm text-ink">{message}</span>
       <button

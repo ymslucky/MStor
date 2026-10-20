@@ -62,7 +62,7 @@ export function NotificationBell() {
         <div
           role="dialog"
           aria-label="通知列表"
-          className="absolute right-0 top-11 z-50 w-80 overflow-hidden rounded-card border border-line bg-white shadow-card"
+          className="absolute right-0 top-11 z-modal w-80 overflow-hidden rounded-card border border-line bg-white shadow-card"
         >
           <div className="flex items-center justify-between border-b border-line px-3 py-2">
             <span className="text-sm font-medium text-ink">通知</span>

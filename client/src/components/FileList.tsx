@@ -407,7 +407,7 @@ export default function FileList({
               {...dragProps(n)}
               {...folderDropProps(n)}
             >
-              {selectable && checkbox(n, "absolute top-2 left-2 z-10")}
+              {selectable && checkbox(n, "absolute top-2 left-2 z-content")}
               <FileCard
                 node={n}
                 thumbSrc={n.is_dir ? null : n.thumb_key ? thumbUrl(n.id) : isImage ? contentUrl(n.id) : null}

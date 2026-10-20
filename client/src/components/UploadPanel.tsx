@@ -12,7 +12,7 @@ export default function UploadPanel({ queue }: { queue: Queue }) {
   return (
     // 玻璃悬浮条（glass-light blur12）：移动端抬高避开底部导航，sm+ 贴近右下角；
     // 底部 padding 兼容 iOS safe-area（横屏 Home 条）
-    <div className="glass-light fixed right-4 bottom-20 z-30 w-72 rounded-panel shadow-glass pb-[env(safe-area-inset-bottom)] sm:bottom-4">
+    <div className="glass-light fixed right-4 bottom-20 z-nav w-72 rounded-panel shadow-glass pb-[env(safe-area-inset-bottom)] sm:bottom-4">
       <div className="mb-2 flex items-center justify-between px-3 pt-3 text-xs text-ink-2">
         <span className="flex items-center gap-1.5">
           <CloudUpload size={14} aria-hidden className="text-primary-text" />

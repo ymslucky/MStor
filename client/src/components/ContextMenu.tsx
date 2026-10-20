@@ -90,7 +90,7 @@ export default function ContextMenu({ open, x, y, items, onClose }: Props) {
       ref={ref}
       role="menu"
       aria-label="节点操作"
-      className="glass anim-pop fixed z-[60] min-w-[10rem] py-1"
+      className="glass anim-pop fixed z-menu min-w-[10rem] py-1"
       style={{ left: pos.x, top: pos.y }}
     >
       {items.map((item) => (

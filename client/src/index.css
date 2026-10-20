@@ -98,6 +98,15 @@
 
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-display: "Plus Jakarta Sans Variable", "Inter Variable", sans-serif;
+
+  /* 层叠令牌：全站只允许这七层，禁止再写裸 z-[数字] */
+  --z-content: 10;
+  --z-sticky: 20;
+  --z-nav: 30;
+  --z-overlay: 40;
+  --z-modal: 50;
+  --z-menu: 60;
+  --z-toast: 70;
 }
 
 /* 深色：深蓝灰 + 玻璃，同样通透 */
@@ -167,6 +176,15 @@ body {
 :where(.rounded-xl, .rounded-2xl, .rounded-3xl) {
   border-radius: 16px;
 }
+
+/* 层叠层级（唯一出处）：overflow 容器内不要用它，否则会新建层叠上下文 */
+.z-content { z-index: var(--z-content); }
+.z-sticky { z-index: var(--z-sticky); }
+.z-nav { z-index: var(--z-nav); }
+.z-overlay { z-index: var(--z-overlay); }
+.z-modal { z-index: var(--z-modal); }
+.z-menu { z-index: var(--z-menu); }
+.z-toast { z-index: var(--z-toast); }
 
 /* 数字等宽（只有数值） */
 .num,

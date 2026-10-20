@@ -109,7 +109,7 @@ export default function TrashPage() {
       )}
       {/* 批量操作条：选中 ≥1 项时浮出，移动端避让底部导航（bottom-20） */}
       {selection.count > 0 && !batchPurging && !purgingAll && (
-        <div className="fixed inset-x-0 bottom-20 z-40 flex justify-center px-4 sm:bottom-6">
+        <div className="fixed inset-x-0 bottom-20 z-overlay flex justify-center px-4 sm:bottom-6">
           <div className="flex items-center gap-1.5 rounded-card border border-line bg-white p-2 shadow-card">
             <span className="whitespace-nowrap px-2 text-sm font-medium text-ink">已选 {selection.count} 项</span>
             <Button size="sm" disabled={busy} onClick={() => void runBatchRestore()}>

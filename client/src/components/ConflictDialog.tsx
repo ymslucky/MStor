@@ -26,7 +26,7 @@ export function ConflictDialog({
       aria-modal="true"
       aria-labelledby="conflict-title"
       data-testid="conflict-dialog"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-[2px]"
+      className="fixed inset-0 z-modal flex items-center justify-center bg-ink/40 p-4 backdrop-blur-[2px]"
       onClick={onCancel}
     >
       <div className="glass anim-pop w-full max-w-md p-4" onClick={(e) => e.stopPropagation()}>

@@ -49,7 +49,7 @@ export default function SearchBox() {
         onFocus={() => setOpen(true)}
       />
       {open && dq.trim() && (
-        <div className="glass anim-pop absolute right-0 z-30 mt-1 max-h-80 w-80 max-w-[calc(100vw-2rem)] overflow-auto">
+        <div className="glass anim-pop absolute right-0 z-nav mt-1 max-h-80 w-80 max-w-[calc(100vw-2rem)] overflow-auto">
           <div className="flex items-center gap-1.5 border-b border-line px-2 py-1.5">
             <select
               aria-label="排序"

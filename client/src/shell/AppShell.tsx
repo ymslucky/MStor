@@ -57,9 +57,9 @@ function AppShellLayout() {
   return (
     <div className="relative min-h-dvh">
       <div className="glow-radial" aria-hidden />
-      <div className="relative z-10 md:flex md:h-dvh">
+      <div className="relative z-content md:flex md:h-dvh">
         <aside
-          className={`glass sticky top-0 z-30 hidden h-dvh shrink-0 flex-col transition-[width] duration-200 ease-(--ease-spring) md:flex ${
+          className={`glass sticky top-0 z-nav hidden h-dvh shrink-0 flex-col transition-[width] duration-200 ease-(--ease-spring) md:flex ${
             collapsed ? "md:w-16" : "md:w-60"
           }`}
         >
@@ -103,7 +103,7 @@ function AppShellLayout() {
 
       {/* 移动端导航抽屉 */}
       {menuOpen && (
-        <div className="fixed inset-0 z-50 md:hidden" onClick={() => setMenuOpen(false)}>
+        <div className="fixed inset-0 z-modal md:hidden" onClick={() => setMenuOpen(false)}>
           <div className="absolute inset-0 bg-ink/40 backdrop-blur-sm" />
           <div
             role="dialog"

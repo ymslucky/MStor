@@ -84,7 +84,7 @@ export default function Breadcrumb({ crumbs, onDropNode }: Props) {
             …
           </button>
           {open && (
-            <div className="absolute top-full left-0 z-40 mt-1 min-w-[8rem] rounded-xl border border-line bg-white py-1 shadow-card">
+            <div className="absolute top-full left-0 z-overlay mt-1 min-w-[8rem] rounded-xl border border-line bg-white py-1 shadow-card">
               {hidden.map((c) => (
                 <Link
                   key={c.id}
