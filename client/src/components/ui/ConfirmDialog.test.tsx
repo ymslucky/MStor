@@ -35,7 +35,7 @@ test("custom confirm/cancel texts and danger variant class", () => {
   renderWithProviders(
     <ConfirmDialog open title="删除" confirmText="彻底删除" cancelText="返回" danger onConfirm={() => {}} onCancel={() => {}} />,
   );
-  expect(screen.getByRole("button", { name: "彻底删除" })).toHaveClass("text-danger");
+  expect(screen.getByRole("button", { name: "彻底删除" })).toHaveClass("text-danger-text");
   expect(screen.getByRole("button", { name: "返回" })).toBeInTheDocument();
 });
 

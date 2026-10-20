@@ -1,237 +1,215 @@
 @import "tailwindcss";
 
+/* ============================================================
+   MStor 设计系统 v4 · 令牌层（单一真相）
+   原则：中性优先 / 一个强调色 / 用层次而不是玻璃 / 发丝边框 / 克制动效
+   ============================================================ */
 @theme {
-  /* —— 奶白底体系（UI v3：Arc/Craft/Sonoma 玻璃拟态）—— */
-  --color-bg: #faf9f7;
-  --color-bg-sub: #f5f3f0;
-  --color-ink: #2d2a26;        /* 暖黑主文字 */
-  --color-ink-2: #6b6660;      /* 次 */
-  --color-ink-3: #a8a29c;      /* 弱 */
-  --color-line: #eeece8;       /* 卡片描边（生硬边框禁用：一律 1px 极浅） */
-  --color-primary: #7c9eff;
-  --color-primary-text: #4c6fe8;  /* 文字级主色（浅底对比达标） */
-  --color-primary-soft: #eef2ff;  /* 主色浅底（选中/hover） */
-  --color-cta: #ffb380;           /* 暖奶橘，CTA/高亮 */
-  --color-cta-text: #b46a2a;
-  --color-success: #7bc9a6;  --color-success-text: #3e7d5f;
-  --color-warn: #ffc98f;     --color-warn-text: #9a6414;
-  --color-danger: #f5a3a3;   --color-danger-text: #b45454;
+  /* 表面：0 页面 / 1 卡片 / 2 悬浮（下拉、弹窗、顶栏） */
+  --color-bg: #fbfbfa;
+  --color-bg-sub: #f4f4f2;
+  --color-surface-0: #fbfbfa;
+  --color-surface-1: #ffffff;
+  --color-surface-2: #ffffff;
 
-  /* —— 旧令牌名保留，值并入新体系（存量组件类名立即获得新配色）—— */
-  --color-ink-dim: #6b6660;      /* 旧 ink-2 */
-  --color-ink-faint: #a8a29c;    /* 旧 ink-3 */
-  --color-surface: #faf9f7;
-  --color-surface-raised: #ffffff;
-  --color-accent: #7c9eff;
-  --color-accent-strong: #4c6fe8;
-  --color-accent-deep: #3b55ba;
-  --color-accent-soft: #eef2ff;
-  --color-warning: #ffc98f;
-  --color-warning-text: #9a6414;
+  /* 文字：主 / 次 / 弱 */
+  --color-ink: #1c1b19;
+  --color-ink-2: #57534e;
+  --color-ink-3: #8a857f;
 
-  /* —— 粉彩图标芯片（暖奶白微调）—— */
-  --color-chip-amber-bg: #fdeedd;
-  --color-chip-amber-fg: #b46a2a;
-  --color-chip-blue-bg: #eef2ff;
-  --color-chip-blue-fg: #4c6fe8;
-  --color-chip-violet-bg: #f0edfd;
-  --color-chip-violet-fg: #7a5fd0;
-  --color-chip-rose-bg: #fdeaea;
-  --color-chip-rose-fg: #b45454;
+  /* 描边 */
+  --color-line: #e8e6e3;
+  --color-line-strong: #d7d4cf;
 
-  /* —— 圆角/阴影/动效 —— */
-  --radius-card: 16px;
-  --radius-btn: 10px;
-  --radius-input: 10px;
-  --radius-panel: 1.25rem;
-  --shadow-soft: 0 4px 24px rgb(0 0 0 / 0.05);
-  --shadow-glass: 0 8px 32px rgb(0 0 0 / 0.06);
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px rgb(0 0 0 / 0.05);
-  --shadow-lift: 0 2px 6px rgb(0 0 0 / 0.08);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* 品牌强调色（唯一） */
+  --color-primary: #4c5bd4;
+  --color-primary-text: #3a47ae;
+  --color-primary-soft: #eef0fb;
+  --color-cta: #f0a25f;
+  --color-cta-text: #96561f;
+
+  /* 功能色 */
+  --color-success: #15803d;
+  --color-success-text: #15803d;
+  --color-warn: #b45309;
+  --color-warn-text: #92400e;
+  --color-danger: #b91c1c;
+  --color-danger-text: #991b1b;
+
+  /* 兼容层：旧令牌名映射到新语义（组件零改动获得新外观） */
+  --color-ink-dim: var(--color-ink-2);
+  --color-ink-faint: var(--color-ink-3);
+  --color-surface: var(--color-bg);
+  --color-surface-raised: var(--color-surface-1);
+  --color-accent: var(--color-primary);
+  --color-accent-strong: var(--color-primary-text);
+  --color-accent-deep: #2f3a8f;
+  --color-accent-soft: var(--color-primary-soft);
+  --color-warning: var(--color-warn);
+  --color-warning-text: var(--color-warn-text);
+
+  /* 图标芯片：低饱和底 + 深一档前景 */
+  --color-chip-amber-bg: #fdf3e7;
+  --color-chip-amber-fg: #96561f;
+  --color-chip-blue-bg: #eef0fb;
+  --color-chip-blue-fg: #3a47ae;
+  --color-chip-violet-bg: #f2eefb;
+  --color-chip-violet-fg: #5b45a8;
+  --color-chip-rose-bg: #fdeeee;
+  --color-chip-rose-fg: #991b1b;
+
+  /* 圆角阶梯：chip 6 / control 8 / card 12 / panel 14 */
+  --radius-chip: 6px;
+  --radius-btn: 8px;
+  --radius-input: 8px;
+  --radius-card: 12px;
+  --radius-panel: 14px;
+
+  /* 阴影阶梯：卡片 / 悬浮 / 弹窗（1–2 层极浅） */
+  --shadow-soft: 0 1px 2px rgb(24 20 16 / 0.04);
+  --shadow-card: 0 1px 2px rgb(24 20 16 / 0.05), 0 1px 3px rgb(24 20 16 / 0.04);
+  --shadow-lift: 0 2px 8px rgb(24 20 16 / 0.06), 0 1px 2px rgb(24 20 16 / 0.04);
+  --shadow-glass: 0 8px 24px rgb(24 20 16 / 0.08), 0 2px 6px rgb(24 20 16 / 0.05);
+
+  /* 字号阶梯（1.25 比例）+ 行高 */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.1rem;
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base: 0.9375rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.6rem;
+  --text-xl: 1.375rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl: 1.75rem;
+  --text-2xl--line-height: 2.1rem;
+
+  /* 动效：短促、克制 */
+  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
-  --duration-fast: 150ms;
-  --duration-slow: 320ms;
-  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --duration-fast: 120ms;
+  --duration-slow: 240ms;
+  --duration-320: 320ms;
+
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-display: "Plus Jakarta Sans Variable", "Inter Variable", sans-serif;
 }
 
-/* dark：深灰蓝而非纯黑 */
+/* 深色：中性深灰，不纯黑 */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg: #1a1d24; --color-bg-sub: #20242c;
-    --color-ink: #f5f3f0; --color-ink-2: #b3aea6; --color-ink-3: #7d786f;
-    --color-line: #2b303a;
-    --color-primary-soft: rgb(124 158 255 / 0.14);
-    --color-cta-text: #ffc79e;
-    /* 旧令牌别名同步 */
-    --color-ink-dim: #b3aea6; --color-ink-faint: #7d786f;
-    --color-surface: #1a1d24; --color-surface-raised: #232830;
-    --color-accent-soft: rgb(124 158 255 / 0.14);
-    --color-accent-strong: #93aefc;
-    --color-accent-deep: #b0c2ff;
-    --color-chip-amber-bg: rgb(255 179 128 / 0.14);
-    --color-chip-blue-bg: rgb(124 158 255 / 0.14);
-    --color-chip-violet-bg: rgb(148 122 224 / 0.16);
-    --color-chip-rose-bg: rgb(245 163 163 / 0.14);
+    --color-bg: #131417;
+    --color-bg-sub: #1a1c20;
+    --color-surface-0: #131417;
+    --color-surface-1: #1a1c20;
+    --color-surface-2: #212429;
+    --color-ink: #ecebe8;
+    --color-ink-2: #a8a5a0;
+    --color-ink-3: #787571;
+    --color-line: #2a2d33;
+    --color-line-strong: #3a3e46;
+    --color-primary: #7c88e8;
+    --color-primary-text: #a9b2f2;
+    --color-primary-soft: rgb(124 136 232 / 0.14);
+    --color-cta-text: #f3b686;
+    --color-success-text: #4ade80;
+    --color-warn-text: #fbbf24;
+    --color-danger-text: #f87171;
+    --color-chip-amber-bg: rgb(240 162 95 / 0.14);
+    --color-chip-blue-bg: rgb(124 136 232 / 0.14);
+    --color-chip-violet-bg: rgb(150 126 232 / 0.16);
+    --color-chip-rose-bg: rgb(248 113 113 / 0.14);
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-lift: 0 2px 10px rgb(0 0 0 / 0.45);
+    --shadow-glass: 0 10px 28px rgb(0 0 0 / 0.5);
   }
 }
 
-/* 页面底色 */
 body {
   background: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   min-height: 100dvh;
 }
 
-/* —— 玻璃三档（规范：侧栏/弹窗/下拉/Toast/悬浮条/hover 卡片可用；列表主体禁用）—— */
-.glass,
-.glass-strong,
-.glass-light {
-  will-change: backdrop-filter;
-}
-.glass {
-  background: rgb(255 255 255 / 0.65);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgb(255 255 255 / 0.8);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.6), var(--shadow-glass);
-}
-.glass-strong {
-  background: rgb(255 255 255 / 0.78);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgb(255 255 255 / 0.85);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.6), var(--shadow-glass);
-}
-.glass-light {
-  background: rgb(255 255 255 / 0.45);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgb(255 255 255 / 0.7);
-}
-/* dark 下玻璃面色重写为 rgba(255,255,255,0.08) 系 */
-@media (prefers-color-scheme: dark) {
-  .glass {
-    background: rgb(255 255 255 / 0.08);
-    border-color: rgb(255 255 255 / 0.12);
-    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.06), var(--shadow-glass);
-  }
-  .glass-strong {
-    background: rgb(255 255 255 / 0.12);
-    border-color: rgb(255 255 255 / 0.14);
-    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.06), var(--shadow-glass);
-  }
-  .glass-light {
-    background: rgb(255 255 255 / 0.06);
-    border-color: rgb(255 255 255 / 0.1);
-  }
-}
-/* prefers-reduced-transparency → 三档全部实底（bg-sub/白）且去 blur */
-@media (prefers-reduced-transparency: reduce) {
-  .glass,
-  .glass-light {
-    background: var(--color-bg-sub);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    border: 1px solid var(--color-line);
-    box-shadow: none;
-  }
-  .glass-strong {
-    background: #ffffff;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    border: 1px solid var(--color-line);
-    box-shadow: var(--shadow-glass);
-  }
-}
-@media (prefers-reduced-transparency: reduce) and (prefers-color-scheme: dark) {
-  .glass-strong {
-    background: #232830;
-  }
+/* 数字等宽：大小/时间/计数不跳动 */
+.num,
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
 }
 
-/* —— 旧玻璃类名保留为 v3 玻璃档映射（组件零改动迁移）—— */
+/* ============================================================
+   表面档位：用「实色 + 发丝边框 + 极浅投影」表达层次，不做玻璃拟态。
+   旧类名全部保留并映射到新档位，组件无需改动。
+   ============================================================ */
+.glass,
+.glass-light {
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-line);
+  box-shadow: var(--shadow-card);
+}
+
+.glass-strong,
+.glass-modal {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-line);
+  box-shadow: var(--shadow-lift);
+}
+
+/* 顶栏/侧栏：2 档实色 + 底部发丝线，无模糊 */
+.glass-panel {
+  background: var(--color-surface-2);
+  border-bottom: 1px solid var(--color-line);
+  box-shadow: none;
+}
+
 .glass-subtle {
   background: var(--color-bg-sub);
 }
-.glass-panel {
-  background: rgb(255 255 255 / 0.65);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  will-change: backdrop-filter;
-  border-bottom: 1px solid var(--color-line);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.6), var(--shadow-glass);
-}
-.glass-modal {
-  background: rgb(255 255 255 / 0.78);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  will-change: backdrop-filter;
-  border: 1px solid rgb(255 255 255 / 0.85);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.6), var(--shadow-glass);
-}
-@media (prefers-color-scheme: dark) {
-  .glass-panel {
-    background: rgb(255 255 255 / 0.08);
-    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.06), var(--shadow-glass);
-  }
-  .glass-modal {
-    background: rgb(255 255 255 / 0.12);
-    border-color: rgb(255 255 255 / 0.14);
-    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.06), var(--shadow-glass);
-  }
-}
-@media (prefers-reduced-transparency: reduce) {
-  .glass-panel,
-  .glass-modal {
-    background: var(--color-bg-sub);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    border: 1px solid var(--color-line);
-    border-bottom-width: 1px;
-    box-shadow: none;
-  }
-  .glass-modal {
-    background: #ffffff;
-  }
-}
-@media (prefers-reduced-transparency: reduce) and (prefers-color-scheme: dark) {
-  .glass-modal {
-    background: #232830;
-  }
-}
 
-/* —— 柔光光晕（页面 1-2 处径向渐变，奶白通透感）—— */
+/* 柔光：一处极淡强调色光晕，只做气氛 */
 .glow-radial {
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  background:
-    radial-gradient(720px 420px at 12% -8%, rgb(124 158 255 / 0.10), transparent 62%),
-    radial-gradient(640px 380px at 100% 12%, rgb(255 179 128 / 0.09), transparent 60%);
+  background: radial-gradient(900px 520px at 50% -18%, rgb(76 91 212 / 0.05), transparent 62%);
 }
 
-/* —— 动效关键帧（入场 stagger / 弹窗弹性 / 骨架 shimmer）—— */
+@media (prefers-color-scheme: dark) {
+  .glow-radial {
+    background: radial-gradient(900px 520px at 50% -18%, rgb(124 136 232 / 0.07), transparent 62%);
+  }
+}
+
+/* 动效：入场 6px 位移，不做缩放弹跳 */
 @keyframes item-in {
-  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  from { opacity: 0; transform: translateY(6px); }
 }
 @keyframes modal-in {
-  from { opacity: 0; transform: scale(0.94); }
+  from { opacity: 0; transform: translateY(8px); }
 }
 @keyframes shimmer {
   from { background-position: 200% 0; }
   to { background-position: -200% 0; }
 }
 
-/* 列表项/卡片入场（≤10 项启用；inline style 提供 i*20ms stagger） */
 .anim-item-in {
-  animation: item-in 250ms var(--ease-spring) both;
+  animation: item-in 200ms var(--ease-out-soft) both;
 }
 
-/* 降级：减少动效 */
+@media (max-width: 640px) {
+  .anim-item-in { animation: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -240,15 +218,15 @@ body {
   }
 }
 
-/* 移动端安全区：calc 叠加基础 padding，env()=0 的环境（桌面/安卓多数机型）不会把原 padding 清零 */
+/* 移动端安全区 */
 .safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom) + 0.375rem); }
-.pb-nav { padding-bottom: calc(env(safe-area-inset-bottom) + 5rem); } /* 底部导航存在时页面留白 */
+.pb-nav { padding-bottom: calc(env(safe-area-inset-bottom) + 5rem); }
 
-/* 焦点环（可访问性，全站统一，色值换 primary-text） */
+/* 焦点环：全站唯一强调色 */
 :where(button, a, input, select, textarea, [tabindex]):focus-visible {
-  outline: 2px solid var(--color-primary-text);
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: var(--radius-chip);
 }
 
 /* 触控目标下限 */
