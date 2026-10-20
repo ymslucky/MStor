@@ -10,7 +10,7 @@ export function Panel({
   className = "",
   children,
   ...rest
-}: React.HTMLAttributes<HTMLDivElement> & { level?: "e2" | "e3" }) {
+}: React.ComponentPropsWithRef<"div"> & { level?: "e2" | "e3" }) {
   return (
     <div className={cn(level === "e3" ? "glass-strong" : "glass", "p-2", className)} {...rest}>
       {children}

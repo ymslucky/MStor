@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { cn } from "../lib/cn";
+import { Panel } from "./ui";
 
 export interface ContextMenuItem {
   label: string;
@@ -86,11 +87,12 @@ export default function ContextMenu({ open, x, y, items, onClose }: Props) {
 
   if (!open || !items.length) return null;
   return (
-    <div
+    <Panel
       ref={ref}
       role="menu"
       aria-label="节点操作"
-      className="glass anim-pop fixed z-menu min-w-[10rem] py-1"
+      level="e3"
+      className="anim-pop fixed z-menu min-w-[10rem] py-1"
       style={{ left: pos.x, top: pos.y }}
     >
       {items.map((item) => (
@@ -112,6 +114,6 @@ export default function ContextMenu({ open, x, y, items, onClose }: Props) {
           {item.label}
         </button>
       ))}
-    </div>
+    </Panel>
   );
 }
