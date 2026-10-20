@@ -418,6 +418,20 @@ html[data-skin="brutal"] {
   --shadow-e1: 2px 2px 0 var(--line-strong);
   --shadow-e2: 3px 3px 0 var(--line-strong);
   --shadow-e3: 4px 4px 0 var(--line-strong);
+  /* 覆盖历史阴影令牌：让既有组件（Button/Surface/GlassCard/Dialog）无需改代码即获得硬投影 */
+  --shadow-soft: 1px 1px 0 var(--line-strong);
+  --shadow-card: 2px 2px 0 var(--line-strong);
+  --shadow-lift: 3px 3px 0 var(--line-strong);
+  --shadow-glass: 4px 4px 0 var(--line-strong);
+}
+
+/* brutal：所有圆角压到 2px（头像/状态点保留圆形），描边加粗 */
+html[data-skin="brutal"] :where(.rounded-md, .rounded-lg, .rounded-xl, .rounded-2xl, .rounded-3xl) {
+  border-radius: var(--radius-sm);
+}
+html[data-skin="brutal"] :where(input, select, textarea) {
+  border-width: var(--border-w);
+  border-color: var(--line-strong);
 }
 
 /* brutal 下：面板描边加粗、玻璃退化为实色（新粗野主义不用模糊） */
