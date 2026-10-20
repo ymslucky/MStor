@@ -3,7 +3,7 @@ import { useState } from "react";
 import { UserPlus } from "lucide-react";
 import { createInvitation, listInvitations, listMembers, removeMember, revokeInvitation, updateMemberRole } from "../api/workspaces";
 import { formatDate } from "../lib/format";
-import { Button, GlassCard, Input } from "./ui";
+import { Button, ConfirmDialog, Field, Input, ListRow, Pill, SettingRow, Surface } from "./ui";
 import { toast } from "./Toaster";
 
 const ROLE_LABEL: Record<string, string> = { owner: "所有者", admin: "管理员", member: "成员" };
@@ -15,6 +15,8 @@ const ROLE_LABEL: Record<string, string> = { owner: "所有者", admin: "管理�
 export function MemberPanel() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"member" | "admin">("member");
+  // 移除是不可逆的危险操作：先弹确认，再发请求
+  const [pendingRemove, setPendingRemove] = useState<{ id: string; name: string } | null>(null);
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -65,15 +67,13 @@ export function MemberPanel() {
   });
 
   return (
-    <div className="space-y-4">
-      <GlassCard className="p-4">
-        <h2 className="mb-1 flex items-center gap-1.5 font-semibold text-ink">
-          <UserPlus size={16} aria-hidden />
-          邀请成员
-        </h2>
-        <p className="mb-3 text-xs text-ink-3">
-          受邀者需先在 Cloudflare Access 侧被放行（GitHub 登录），首次登录后自动加入本空间。
-        </p>
+    <Surface className="p-4">
+      <h2 className="mb-2 flex items-center gap-1.5 font-semibold text-ink">
+        <UserPlus size={16} aria-hidden className="text-primary-text" />
+        空间成员
+      </h2>
+
+      <SettingRow title="邀请成员" hint="受邀者需先在 Cloudflare Access 侧被放行（GitHub 登录），首次登录后自动加入本空间">
         <form
           className="flex flex-wrap items-end gap-2"
           onSubmit={(e) => {
@@ -81,12 +81,10 @@ export function MemberPanel() {
             if (email.trim()) invite.mutate();
           }}
         >
-          <label className="min-w-48 flex-1">
-            <span className="mb-1 block text-xs text-ink-3">邮箱</span>
+          <Field label="邮箱" className="min-w-48 flex-1">
             <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" type="email" />
-          </label>
-          <label>
-            <span className="mb-1 block text-xs text-ink-3">角色</span>
+          </Field>
+          <Field label="角色">
             <select
               value={role}
               onChange={(e) => setRole(e.target.value === "admin" ? "admin" : "member")}
@@ -95,26 +93,26 @@ export function MemberPanel() {
               <option value="member">成员</option>
               <option value="admin">管理员</option>
             </select>
-          </label>
+          </Field>
           <Button type="submit" disabled={invite.isPending || !email.trim()}>
             生成邀请链接
           </Button>
         </form>
-      </GlassCard>
+      </SettingRow>
 
-      <GlassCard className="p-4">
-        <h2 className="mb-3 font-semibold text-ink">成员（{members.data?.members.length ?? 0}）</h2>
+      <SettingRow title={`成员（${members.data?.members.length ?? 0}）`} hint="角色变更与移除仅空间所有者 / 管理员可用">
         {members.isLoading ? (
           <p className="text-sm text-ink-3">加载中…</p>
         ) : (
           <ul className="divide-y divide-line">
             {(members.data?.members ?? []).map((m) => (
-              <li key={m.user_id} className="flex items-center justify-between gap-3 py-2">
-                <div className="min-w-0">
-                  <div className="truncate text-sm text-ink">{m.name}</div>
-                  <div className="truncate text-xs text-ink-3">{m.email ?? "（未提供邮箱）"}</div>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
+              <li key={m.user_id}>
+                <ListRow className="gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm text-ink">{m.name}</div>
+                    <div className="truncate text-2xs text-ink-3">{m.email ?? "（未提供邮箱）"}</div>
+                  </div>
+                  <Pill tone={m.role === "owner" ? "accent" : "neutral"}>{ROLE_LABEL[m.role] ?? m.role}</Pill>
                   <select
                     aria-label={`修改 ${m.name} 的角色`}
                     value={m.role}
@@ -130,19 +128,18 @@ export function MemberPanel() {
                     size="sm"
                     variant="danger"
                     disabled={m.role === "owner" || busy === m.user_id}
-                    onClick={() => void removeNow(m.user_id)}
+                    onClick={() => setPendingRemove({ id: m.user_id, name: m.name })}
                   >
                     移除
                   </Button>
-                </div>
+                </ListRow>
               </li>
             ))}
           </ul>
         )}
-      </GlassCard>
+      </SettingRow>
 
-      <GlassCard className="p-4">
-        <h2 className="mb-3 font-semibold text-ink">待接受的邀请</h2>
+      <SettingRow title="待接受的邀请" hint="邀请链接由服务端签发，需人工转达">
         {invites.isLoading ? (
           <p className="text-sm text-ink-3">加载中…</p>
         ) : (invites.data?.invitations.length ?? 0) === 0 ? (
@@ -150,21 +147,37 @@ export function MemberPanel() {
         ) : (
           <ul className="divide-y divide-line">
             {(invites.data?.invitations ?? []).map((inv) => (
-              <li key={inv.email} className="flex items-center justify-between gap-3 py-2">
-                <div className="min-w-0">
-                  <div className="truncate text-sm text-ink">{inv.email}</div>
-                  <div className="text-xs text-ink-3">
-                    {ROLE_LABEL[inv.role] ?? inv.role} · {formatDate(inv.expires_at)} 过期
+              <li key={inv.email}>
+                <ListRow className="gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm text-ink">{inv.email}</div>
+                    <div className="truncate text-2xs text-ink-3">
+                      {ROLE_LABEL[inv.role] ?? inv.role} · {formatDate(inv.expires_at)} 过期
+                    </div>
                   </div>
-                </div>
-                <Button variant="ghost" size="sm" disabled={revoke.isPending} onClick={() => revoke.mutate(inv.email)}>
-                  撤销
-                </Button>
+                  <Button variant="ghost" size="sm" disabled={revoke.isPending} onClick={() => revoke.mutate(inv.email)}>
+                    撤销
+                  </Button>
+                </ListRow>
               </li>
             ))}
           </ul>
         )}
-      </GlassCard>
-    </div>
+      </SettingRow>
+
+      <ConfirmDialog
+        open={pendingRemove !== null}
+        danger
+        title="移除成员"
+        description={`确定把「${pendingRemove?.name ?? ""}」移出本空间吗？该成员将立即失去访问权。`}
+        confirmText="移除"
+        onConfirm={() => {
+          const target = pendingRemove;
+          setPendingRemove(null);
+          if (target) void removeNow(target.id);
+        }}
+        onCancel={() => setPendingRemove(null)}
+      />
+    </Surface>
   );
 }

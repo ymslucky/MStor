@@ -13,3 +13,4 @@ export * from "./Panel";
 export * from "./Field";
 export * from "./NavItem";
 export * from "./ListRow";
+export * from "./SettingRow";

@@ -2,7 +2,7 @@ import { render } from "@testing-library/react";
 import { renderWithProviders } from "./utils";
 import { describe, expect, test } from "vitest";
 import { axe } from "vitest-axe";
-import { Badge, Button, Field, IconButton, Input, ListRow, NavItem, Panel } from "../components/ui";
+import { Badge, Button, Field, IconButton, Input, ListRow, NavItem, Panel, SettingRow } from "../components/ui";
 import { Dialog } from "../components/ui/Dialog";
 import { ConflictDialog } from "../components/ConflictDialog";
 import { BatchBar } from "../components/BatchBar";
@@ -83,6 +83,11 @@ describe("无障碍闸门", () => {
           <Input defaultValue="x" />
         </Field>
         <NavItem to="/">导航项</NavItem>
+        <SettingRow title="上传并发" hint="同时上传的分片数">
+          <Field label="并发数">
+            <Input defaultValue="4" />
+          </Field>
+        </SettingRow>
       </div>,
     );
     expect(await axe(container)).toHaveNoViolations();

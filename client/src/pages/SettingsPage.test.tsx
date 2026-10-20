@@ -1,5 +1,5 @@
 import type { JSX } from "react";
-import { screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, test, vi } from "vitest";
 import type { Me } from "../api/types";
@@ -39,8 +39,7 @@ test("upload tab saves concurrency to localStorage", async () => {
   const input = screen.getByLabelText(/并发数/);
   await user.clear(input);
   await user.type(input, "8");
-  const card = screen.getByText("上传并发").closest("div") as HTMLElement;
-  await user.click(within(card).getByRole("button", { name: "保存" }));
+  await user.click(screen.getByRole("button", { name: "保存并发数" }));
   expect(localStorage.getItem("mstor_upload_concurrency")).toBe("8");
   localStorage.removeItem("mstor_upload_concurrency");
 });
@@ -56,8 +55,6 @@ test("admin saves trash retention days in upload tab", async () => {
   expect(input).toHaveValue(30);
   await user.clear(input);
   await user.type(input, "7");
-  // 上传分区此刻有两个「保存」，按分区卡片作用域取保留期那一个
-  const card = screen.getByText("回收站保留天数").closest("div") as HTMLElement;
-  await user.click(within(card).getByRole("button", { name: "保存" }));
+  await user.click(screen.getByRole("button", { name: "保存保留天数" }));
   await waitFor(() => expect(patchAdminSettings).toHaveBeenCalledWith({ trash_retention_days: 7 }));
 });

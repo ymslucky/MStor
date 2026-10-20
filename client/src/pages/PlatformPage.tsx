@@ -5,7 +5,7 @@ import type { Me } from "../api/types";
 import { getAdminOverview } from "../api/me";
 import { AuditTable } from "../components/AuditTable";
 import { Skeleton } from "../components/ui";
-import { AdminUsersSection } from "./SettingsPage";
+import { AdminUsersSection } from "../components/AdminUsersSection";
 
 type Kind = "users" | "audit";
 
