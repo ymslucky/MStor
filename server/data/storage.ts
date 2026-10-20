@@ -1,5 +1,6 @@
 import { HttpError } from "../lib/errors";
 import { getSetting } from "../lib/settings";
+import { notifyManagers } from "./notifications";
 
 /**
  * 存储治理（方案 P2 B1）：workspaces.used_bytes 是配额真相，storage_stats 是解释性四分项。
@@ -90,6 +91,22 @@ export async function assertGlobalBudget(env: { DB: D1Database }, extraBytes: nu
 }
 
 /** 用量水位：前端据此显示 80%/95%/100% 的提示与阻断文案 */
+export async function notifyIfStorageLevelHigh(env: { DB: D1Database }, workspaceId: string): Promise<void> {
+  const ws = await env.DB.prepare("SELECT used_bytes, quota_bytes FROM workspaces WHERE id = ?1").bind(workspaceId).first<{ used_bytes: number; quota_bytes: number }>();
+  if (!ws || ws.quota_bytes <= 0) return;
+  const level = storageLevel(ws.used_bytes, ws.quota_bytes);
+  if (level !== "critical" && level !== "full") return;
+  const pct = Math.round((ws.used_bytes / ws.quota_bytes) * 100);
+  await notifyManagers(env.DB, {
+    workspaceId,
+    kind: "storage.high",
+    title: pct >= 100 ? "空间已满" : `空间使用已达 ${pct}%`,
+    body: "清理回收站或调整配额后可继续上传",
+    link: "/settings",
+    dedupe: true,
+  });
+}
+
 export function storageLevel(usedBytes: number, quotaBytes: number): "ok" | "warn" | "critical" | "full" {
   if (quotaBytes <= 0) return "ok";
   const ratio = usedBytes / quotaBytes;

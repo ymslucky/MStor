@@ -5,7 +5,7 @@ import { errors, HttpError } from "../lib/errors";
 import { assertQuota, adjustUsedBytes, breadcrumb, childPath, getNode, listChildren, moveNode, resolveParent, uniqueName, validateNodeName } from "../lib/nodes";
 import { serveObject } from "../lib/serve";
 import { isUniqueViolation } from "../lib/sql";
-import { assertGlobalBudget, recomputeStorageStats, storageDeltaStmt } from "../data/storage";
+import { assertGlobalBudget, notifyIfStorageLevelHigh, recomputeStorageStats, storageDeltaStmt } from "../data/storage";
 import { copyNode } from "../data/copy";
 import { recordMoveUndo, undoOperation } from "../data/operations";
 import { moveMany, permanentDeleteMany, softDeleteMany, softDeleteNode, parseIds } from "../data/trash";
@@ -107,6 +107,7 @@ files.put("/upload", async (c) => {
       }
       await adjustUsedBytes(c.env.DB, c.get("workspace").id, len);
       await storageDeltaStmt(c.env.DB, c.get("workspace").id, { active: len }).run();
+    await notifyIfStorageLevelHigh(c.env, c.get("workspace").id);
       return c.json({ id, name: finalName, size: len, deduplicated: true }, 201);
     }
   }
@@ -143,6 +144,7 @@ files.put("/upload", async (c) => {
   }
   await adjustUsedBytes(c.env.DB, c.get("workspace").id, obj.size);
   await storageDeltaStmt(c.env.DB, c.get("workspace").id, { active: obj.size }).run();
+    await notifyIfStorageLevelHigh(c.env, c.get("workspace").id);
   return c.json({ id, name: finalName, size: obj.size }, 201);
 });
 
@@ -189,6 +191,7 @@ files.post("/instant", async (c) => {
   }
   await adjustUsedBytes(c.env.DB, c.get("workspace").id, size);
   await storageDeltaStmt(c.env.DB, c.get("workspace").id, { active: size }).run();
+    await notifyIfStorageLevelHigh(c.env, c.get("workspace").id);
   return c.json({ id, name: finalName, size, deduplicated: true }, 201);
 });
 

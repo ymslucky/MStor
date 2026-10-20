@@ -846,6 +846,61 @@ async function main() {
     assertEqual(forbidden.status, 403, "普通成员应 403，实际 " + forbidden.status);
   });
 
+  // —— 通知中心（P2 B11 收尾）——
+  await check("HTTP：邀请被接受 → 管理者收到通知；标已读后未读数归零", async () => {
+    const db = makeD1(schema1x);
+    const env = makeEnv(db, makeR2());
+    const alice = { "x-dev-email": "a@example.com" };
+    const bob = { "x-dev-email": "b@example.com" };
+    await call(env, "/api/me", { headers: alice });
+    await call(env, "/api/workspaces/invitations", {
+      method: "POST",
+      headers: { ...alice, "content-type": "application/json" },
+      body: JSON.stringify({ email: "b@example.com", role: "member" }),
+    });
+    await call(env, "/api/me", { headers: bob }); // Bob 首登认领邀请
+    const list = await call(env, "/api/notifications", { headers: alice });
+    assertEqual(list.status, 200, "通知列表应 200，实际 " + list.status);
+    assert(list.json.items.length >= 1, "管理者应收到成员加入通知，实际 " + list.json.items.length);
+    assertEqual(list.json.items[0].kind, "member.joined", "通知类型应为 member.joined");
+    const me = await call(env, "/api/me", { headers: alice });
+    assert(me.json.unreadNotifications >= 1, "/api/me 应返回未读数，实际 " + me.json.unreadNotifications);
+    const id = list.json.items[0].id;
+    const readOne = await call(env, "/api/notifications/" + id + "/read", { method: "POST", headers: alice });
+    assertEqual(readOne.status, 200, "标记已读应 200");
+    // Bob 不能标记 Alice 的通知
+    const readOther = await call(env, "/api/notifications/" + list.json.items[0].id + "/read", { method: "POST", headers: bob });
+    assertEqual(readOther.status, 404, "他人的通知应 404，实际 " + readOther.status);
+    const afterMe = await call(env, "/api/me", { headers: alice });
+    assertEqual(afterMe.json.unreadNotifications, 0, "全部已读后未读数应为 0");
+  });
+
+  await check("HTTP：存储水位越线通知管理者，且 24h 内不重复", async () => {
+    const db = makeD1(schema1x);
+    const env = makeEnv(db, makeR2());
+    const alice = { "x-dev-email": "a@example.com" };
+    const me = await call(env, "/api/me", { headers: alice });
+    const wsId = me.json.workspace.id;
+    // 把配额压到 10 字节，上传 10 字节 → 100% full
+    db.prepare("UPDATE workspaces SET quota_bytes = 10 WHERE id = ?").run(wsId);
+    const up = await call(env, "/api/files/upload?name=fill.bin&parentId=", {
+      method: "PUT",
+      headers: { ...alice, "content-type": "application/octet-stream" },
+      body: new Uint8Array(10),
+    });
+    assertEqual(up.status, 201, "上传应 201，实际 " + up.status + " " + up.text.slice(0, 120));
+    const n1 = db.prepare("SELECT COUNT(*) c FROM notifications WHERE kind = 'storage.high'").first().c;
+    assertEqual(n1, 1, "应写入一条存储告警通知，实际 " + n1);
+    // 再传一次（配额已满会被拒，这里直接调上传看是否重复通知）
+    await call(env, "/api/files/upload?name=fill2.bin&parentId=", {
+      method: "PUT",
+      headers: { ...alice, "content-type": "application/octet-stream" },
+      body: new Uint8Array(1),
+    });
+    const n2 = db.prepare("SELECT COUNT(*) c FROM notifications WHERE kind = 'storage.high'").first().c;
+    assertEqual(n2, 1, "24h 内不应重复通知，实际 " + n2);
+  });
+
   // —— 语句数预算（§4.6）：大批量下语句数必须与批次无关 ——
   await check("200 项批量：软删 ≤4 条语句、彻底删除 ≤5 条语句", async () => {
     const db = makeD1(schema1x);

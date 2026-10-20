@@ -230,6 +230,21 @@ CREATE TABLE IF NOT EXISTS node_tags (
 );
 CREATE INDEX IF NOT EXISTS idx_node_tags_node ON node_tags(node_id);
 
+-- 站内通知（收件人维度；不做邮件投递，方案 §0.1 假设）
+CREATE TABLE IF NOT EXISTS notifications (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,
+  title TEXT NOT NULL,
+  body TEXT,
+  link TEXT,
+  read_at INTEGER,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(user_id, created_at DESC) WHERE read_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, created_at DESC);
+
 -- 动态配置：scope = 'global' 或 workspace id
 CREATE TABLE IF NOT EXISTS settings (
   scope TEXT NOT NULL DEFAULT 'global',

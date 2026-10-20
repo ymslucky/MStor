@@ -1,5 +1,6 @@
 import { errors } from "../lib/errors";
 import { isUniqueViolation } from "../lib/sql";
+import { notifyManagers } from "./notifications";
 import type { WorkspaceRole } from "../types";
 
 /** 邀请有效期：7 天（够转发给人，过期需重发） */
@@ -106,6 +107,16 @@ export async function acceptPendingInvitations(db: D1Database, userId: string, r
       .bind(crypto.randomUUID(), inv.workspace_id, userId, now),
   ]);
   await db.batch(stmts);
+  // 通知空间管理者：有人加入了
+  for (const inv of results) {
+    await notifyManagers(db, {
+      workspaceId: inv.workspace_id,
+      kind: "member.joined",
+      title: `${email} 加入了空间`,
+      body: "通过邀请链接加入（Access 身份认领）",
+      link: "/settings?tab=members",
+    });
+  }
   return results.map((r) => r.workspace_id);
 }
 

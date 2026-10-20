@@ -11,6 +11,7 @@ import { Badge, ConfirmDialog, IconButton } from "../components/ui";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { UploadQueueProvider } from "../hooks/UploadQueueProvider";
 import { GlobalUploadDock } from "../components/GlobalUploadDock";
+import { NotificationBell } from "../components/NotificationBell";
 import SearchBox from "../components/SearchBox";
 import OfflineBar from "../components/OfflineBar";
 import StorageMeter from "../components/StorageMeter";
@@ -179,6 +180,7 @@ function AppShellLayout() {
                 <p className="hidden truncate font-display text-base font-semibold text-ink md:block">{PAGE_TITLES[pathname] ?? "MStor"}</p>
               </div>
               <div className="flex items-center gap-2">
+                <NotificationBell />
                 <SearchBox />
                 {logoutButton("md:hidden")}
               </div>
