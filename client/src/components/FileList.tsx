@@ -256,7 +256,8 @@ export default function FileList({
       : {};
 
   const sharedBadge = (n: Node) => (sharedIds?.has(n.id) ? <Badge tone="accent">已分享</Badge> : null);
-  const animStyle = (i: number): CSSProperties => (animate ? { animationDelay: `${i * 20}ms` } : {});
+  // 入场不做逐行延迟：长列表会形成波浪，且每行一个动画等于每行一次合成
+  const animStyle = (_i: number): CSSProperties => ({});
 
   const copyName = (n: Node) => {
     void navigator.clipboard?.writeText(n.name);

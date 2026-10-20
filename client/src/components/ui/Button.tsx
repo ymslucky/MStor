@@ -8,7 +8,7 @@ export function Button({
   ...rest
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "ghost" | "danger"; size?: "md" | "sm" }) {
   const base =
-    "inline-flex items-center justify-center gap-1.5 rounded-btn border font-medium transition-[transform,box-shadow,background-color] duration-(--duration-fast) ease-[var(--ease-spring)] disabled:opacity-45 disabled:pointer-events-none tap hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]";
+    "inline-flex items-center justify-center gap-1.5 rounded-btn border font-medium transition-[transform,box-shadow,background-color] duration-(--duration-fast) ease-[var(--ease-spring)] disabled:opacity-45 disabled:pointer-events-none tap active:scale-[0.985]";
   const sizes = { md: "px-3.5 py-2 text-sm", sm: "px-2.5 py-1 text-xs" };
   const variants = {
     primary: "border-transparent bg-primary text-white shadow-card hover:bg-accent-deep hover:shadow-lift",
