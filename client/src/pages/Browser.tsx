@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
-import { Copy, Download, ExternalLink, FolderInput, FolderPlus, FolderUp, Info, LayoutGrid, Link2, List, Pencil, Share2, Trash2, TriangleAlert, Upload } from "lucide-react";
+import { Copy, Download, ExternalLink, FolderInput, Info, Link2, Pencil, Share2, Trash2, TriangleAlert } from "lucide-react";
 import { listShares } from "../api/shares";
 import type { Me, Node } from "../api/types";
 import { contentUrl } from "../api/nodes";
@@ -10,16 +10,16 @@ import Breadcrumb from "../components/Breadcrumb";
 import ContextMenu from "../components/ContextMenu";
 import type { ContextMenuItem } from "../components/ContextMenu";
 import FileList, { RowAction } from "../components/FileList";
-import { TimeFilterChips, TypeFilterChips } from "../components/FileFilters";
 import MoveDialog from "../components/MoveDialog";
 import NameDialog from "../components/NameDialog";
 import NodeDetailDialog from "../components/NodeDetailDialog";
 import PreviewModal from "../components/PreviewModal";
 import ShareDialog from "../components/ShareDialog";
-import StorageRing from "../components/StorageRing";
+import { BrowserKpi } from "../components/BrowserKpi";
+import { BrowserToolbar } from "../components/BrowserToolbar";
 import UploadPanel from "../components/UploadPanel";
 import { toast } from "../components/Toaster";
-import { Button, ConfirmDialog, EmptyState, GlassCard, IconButton, Skeleton } from "../components/ui";
+import { Button, ConfirmDialog, EmptyState, GlassCard, Skeleton } from "../components/ui";
 import { useBatchOps } from "../hooks/useBatchOps";
 import { useBrowserDialogs } from "../hooks/useBrowserDialogs";
 import { useFiles } from "../hooks/useFiles";
@@ -30,7 +30,6 @@ import { collectDirectory, collectUploads, supportsDirectoryPicker } from "../li
 import { triggerDownload } from "../lib/download";
 import { filterNodes } from "../lib/fileFilters";
 import type { TimeFilter, TypeFilter } from "../lib/fileFilters";
-import { formatBytes } from "../lib/format";
 import { STORAGE_KEYS, getString, setString } from "../lib/storage";
 
 export default function Browser() {
@@ -296,24 +295,7 @@ export default function Browser() {
       }}
     >
       {/* KPI 行：存储用量 + 当前目录统计 */}
-      <div className="mb-4 grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <GlassCard className="flex items-center gap-3 p-4">
-          <StorageRing pct={pct} />
-          <div className="min-w-0">
-            <div className="text-xs text-ink-faint">存储用量</div>
-            <div className="truncate text-sm font-semibold text-ink" title={`${formatBytes(used)} / ${formatBytes(quota)}`}>
-              {me ? `${formatBytes(used)} / ${formatBytes(quota)}` : "-"}
-            </div>
-          </div>
-        </GlassCard>
-        <GlassCard className="flex flex-col justify-center gap-1 p-4">
-          <div className="text-xs text-ink-faint">当前目录</div>
-          <div className="text-sm font-semibold text-ink" data-testid="dir-stats">
-            {query.data ? `${dirStats.files} 个文件 · ${dirStats.dirs} 个文件夹` : "-"}
-          </div>
-          <div className="text-xs text-ink-2">合计 {formatBytes(dirStats.size)}</div>
-        </GlassCard>
-      </div>
+      <BrowserKpi hasQuota={!!me} used={used} quota={quota} pct={pct} hasData={!!query.data} dirStats={dirStats} />
       <input
         ref={fileInput}
         type="file"
@@ -374,33 +356,17 @@ export default function Browser() {
       )}
       {query.data && (
         <GlassCard className="p-3 sm:p-4">
-          {/* 工具栏：左侧类型/时间过滤 chips（纯前端过滤），右侧列表/网格分段控件 */}
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <TypeFilterChips value={typeFilter} onChange={setTypeFilter} />
-              <TimeFilterChips value={timeFilter} onChange={setTimeFilter} />
-            </div>
-            <div className="flex items-center gap-2">
-              <IconButton label="新建文件夹" onClick={() => setCreating(true)}>
-                <FolderPlus size={18} aria-hidden />
-              </IconButton>
-              <IconButton label="上传文件" onClick={() => fileInput.current?.click()}>
-                <Upload size={18} aria-hidden />
-              </IconButton>
-              <IconButton label="上传文件夹" onClick={pickFolder}>
-                <FolderUp size={18} aria-hidden />
-              </IconButton>
-              <div role="group" aria-label="视图切换" className="inline-flex items-center gap-1 rounded-xl border border-line bg-bg-sub p-1">
-                <IconButton label="列表视图" active={view === "list"} aria-pressed={view === "list"} onClick={() => switchView("list")}>
-                  <List size={18} aria-hidden />
-                </IconButton>
-                <IconButton label="网格视图" active={view === "grid"} aria-pressed={view === "grid"} onClick={() => switchView("grid")}>
-                  <LayoutGrid size={18} aria-hidden />
-                </IconButton>
-              </div>
-            </div>
-          </div>
-          <FileList
+          <BrowserToolbar
+            typeFilter={typeFilter}
+            timeFilter={timeFilter}
+            onTypeFilter={setTypeFilter}
+            onTimeFilter={setTimeFilter}
+            view={view}
+            onView={switchView}
+            onCreateDir={() => setCreating(true)}
+            onUploadFiles={() => fileInput.current?.click()}
+            onUploadFolder={pickFolder}
+          />          <FileList
             nodes={nodes}
             view={view}
             selectable
