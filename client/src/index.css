@@ -10,35 +10,46 @@
    - 动效：spring 曲线，160/240/320ms，进场位移 + 抬升 + 按压缩放
    ============================================================ */
 @theme {
-  --color-bg: #f6f8fb;
-  --color-bg-sub: #eef2f7;
+
+  /* L1 语义角色：组件只允许引用这一层 */
+  --surface-canvas: #fbfbfa; --surface-raised: #ffffff; --surface-sunken: #f4f4f2; --surface-overlay: #ffffff;
+  --ink-primary: #1c1b19; --ink-secondary: #57534e; --ink-tertiary: #8a857f; --ink-inverse: #fbfbfa;
+  --line-subtle: #e8e6e3; --line-strong: #d7d4cf;
+  --accent: #4c5bd4; --accent-hover: #3a47ae; --accent-text: #3a47ae; --accent-tint: #eef0fb;
+  --state-positive: #15803d; --state-positive-tint: #e7f5ec; --state-positive-text: #126532;
+  --state-caution: #b45309; --state-caution-tint: #fdf0dd; --state-caution-text: #92400e;
+  --state-critical: #b91c1c; --state-critical-tint: #fdeceb; --state-critical-text: #991b1b;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px;
+  --density-row-h: 48px; --density-pad: 16px;
+  --color-bg: var(--surface-canvas);
+  --color-bg-sub: var(--surface-sunken);
   --color-surface-0: #f6f8fb;
-  --color-surface-1: #ffffff;
-  --color-surface-2: #ffffff;
+  --color-surface-1: var(--surface-raised);
+  --color-surface-2: var(--surface-overlay);
 
-  --color-ink: #10202c;
-  --color-ink-2: #4a5b68;
-  --color-ink-3: #8296a3;
+  --color-ink: var(--ink-primary);
+  --color-ink-2: var(--ink-secondary);
+  --color-ink-3: var(--ink-tertiary);
 
-  --color-line: #e2e9f0;
-  --color-line-strong: #cdd8e3;
+  --color-line: var(--line-subtle);
+  --color-line-strong: var(--line-strong);
 
   /* 强调色：清新薄荷青 */
-  --color-primary: #0ea5a4;
-  --color-primary-text: #0b7f7e;
-  --color-primary-soft: #d9f4f3;
+  --color-primary: var(--accent);
+  --color-primary-text: var(--accent-text);
+  --color-primary-soft: var(--accent-tint);
   --color-cta: #38bdf8;
   --color-cta-text: #0369a1;
 
   --color-success: #10b981;
-  --color-success-text: #047857;
-  --color-success-soft: #d6f5e6;
+  --color-success-text: var(--state-positive-text);
+  --color-success-soft: var(--state-positive-tint);
   --color-warn: #f59e0b;
-  --color-warn-text: #b45309;
-  --color-warn-soft: #fdf0d5;
+  --color-warn-text: var(--state-caution-text);
+  --color-warn-soft: var(--state-caution-tint);
   --color-danger: #f43f5e;
-  --color-danger-text: #be123c;
-  --color-danger-soft: #ffe4e9;
+  --color-danger-text: var(--state-critical-text);
+  --color-danger-soft: var(--state-critical-tint);
 
   /* 兼容层 */
   --color-ink-dim: var(--color-ink-2);
@@ -349,3 +360,26 @@ body {
 @media (pointer: coarse) {
   .tap { min-height: 44px; min-width: 44px; }
 }
+
+/* ============================================================
+   皮肤：只覆盖 L1 颜色，不改结构（html[data-skin]）
+   paper=默认纸感 / slate=冷灰控制台 / ink=深色优先
+   ============================================================ */
+html[data-skin="slate"] {
+  --surface-canvas: #f4f6f8; --surface-raised: #ffffff; --surface-sunken: #eef2f5; --surface-overlay: #ffffff;
+  --ink-primary: #16202b; --ink-secondary: #4a5b68; --ink-tertiary: #7d8b98;
+  --line-subtle: #e0e6ec; --line-strong: #c9d3dc;
+  --accent: #0f766e; --accent-hover: #0b5d56; --accent-text: #0b5d56; --accent-tint: #d9f0ec;
+}
+html[data-skin="ink"] {
+  --surface-canvas: #111417; --surface-raised: #181c21; --surface-sunken: #1f242a; --surface-overlay: #1c2127;
+  --ink-primary: #e8eaed; --ink-secondary: #a8b0b8; --ink-tertiary: #78828c; --ink-inverse: #111417;
+  --line-subtle: #262c33; --line-strong: #39424c;
+  --accent: #e8a33d; --accent-hover: #c9862b; --accent-text: #f0b968; --accent-tint: rgb(232 163 61 / 0.16);
+  --state-positive-text: #6ee7a0; --state-positive-tint: rgb(74 222 128 / 0.14);
+  --state-caution-text: #fcd34d; --state-caution-tint: rgb(251 191 36 / 0.14);
+  --state-critical-text: #fca5a5; --state-critical-tint: rgb(248 113 113 / 0.14);
+}
+
+/* 密度：只改行高与内边距（html[data-density]） */
+html[data-density="compact"] { --density-row-h: 40px; --density-pad: 12px; }

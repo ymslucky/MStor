@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Badge, Button, Dialog, GlassCard, IconButton, Input, Pill, Skeleton, Surface } from "../components/ui";
 import { cn } from "../lib/cn";
+import { readDensity, readSkin, setDensity, setSkin } from "../lib/appearance";
+import type { Density, Skin } from "../lib/appearance";
 import { Cloud } from "lucide-react";
 
 const SWATCHES: { name: string; varName: string; note: string }[] = [
@@ -35,8 +37,20 @@ const TYPE = [
  * /design —— 设计系统的可执行规范：令牌与全部原语的真实渲染。
  * 任何人改主题后打开这一页就能看到影响面；新增原语必须先在这里登记。
  */
+const SKINS: { key: Skin; label: string }[] = [
+  { key: "paper", label: "Paper · 明亮纸感" },
+  { key: "slate", label: "Slate · 冷灰控制台" },
+  { key: "ink", label: "Ink · 深色优先" },
+];
+const DENSITIES: { key: Density; label: string }[] = [
+  { key: "comfortable", label: "舒适" },
+  { key: "compact", label: "紧凑" },
+];
+
 export default function DesignPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [skin, setSkinState] = useState<Skin>(() => readSkin());
+  const [density, setDensityState] = useState<Density>(() => readDensity());
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -48,6 +62,40 @@ export default function DesignPage() {
           <code className="ml-1 rounded bg-bg-sub px-1">components/ui</code>。
         </p>
       </header>
+
+      <GlassCard className="p-4">
+        <h2 className="mb-3 text-sm font-semibold text-ink">皮肤与密度</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          {SKINS.map((s) => (
+            <Button
+              key={s.key}
+              size="sm"
+              variant={skin === s.key ? "primary" : "ghost"}
+              onClick={() => {
+                setSkin(s.key);
+                setSkinState(s.key);
+              }}
+            >
+              {s.label}
+            </Button>
+          ))}
+          <span aria-hidden className="mx-1 h-5 w-px bg-line" />
+          {DENSITIES.map((x) => (
+            <Button
+              key={x.key}
+              size="sm"
+              variant={density === x.key ? "primary" : "ghost"}
+              onClick={() => {
+                setDensity(x.key);
+                setDensityState(x.key);
+              }}
+            >
+              {x.label}
+            </Button>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-ink-3">皮肤只覆盖颜色令牌，密度只改行高与内边距；结构不变。</p>
+      </GlassCard>
 
       <GlassCard className="p-4">
         <h2 className="mb-3 text-sm font-semibold text-ink">颜色令牌</h2>
