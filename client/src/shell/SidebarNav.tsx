@@ -1,6 +1,5 @@
 import { Cloud, PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { NavLink } from "react-router-dom";
-import { IconButton } from "../components/ui";
+import { IconButton, NavItem } from "../components/ui";
 import { cn } from "../lib/cn";
 import { SECTIONS } from "./nav";
 
@@ -28,24 +27,9 @@ export function SidebarNav({ collapsed, onToggle }: { collapsed: boolean; onTogg
             )}
             <div className="flex flex-col gap-0.5">
               {section.items.map(({ to, label, Icon }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  end={to === "/"}
-                  title={collapsed ? label : undefined}
-                  className={({ isActive }) =>
-                    cn(
-                      "flex min-h-[44px] items-center gap-3 rounded-xl px-3 text-sm transition-colors",
-                      collapsed && "justify-center",
-                      isActive
-                        ? "bg-primary-soft font-medium text-primary-text"
-                        : "text-ink-2 hover:bg-primary-soft/60 hover:text-primary-text",
-                    )
-                  }
-                >
-                  <Icon size={18} aria-hidden className="shrink-0" />
-                  {!collapsed && <span>{label}</span>}
-                </NavLink>
+                <NavItem key={to} to={to} end={to === "/"} icon={<Icon size={18} />}>
+                  {collapsed ? <span className="sr-only">{label}</span> : label}
+                </NavItem>
               ))}
             </div>
           </div>
