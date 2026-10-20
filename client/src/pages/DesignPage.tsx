@@ -41,6 +41,7 @@ const SKINS: { key: Skin; label: string }[] = [
   { key: "paper", label: "Paper · 明亮纸感" },
   { key: "slate", label: "Slate · 冷灰控制台" },
   { key: "ink", label: "Ink · 深色优先" },
+  { key: "brutal", label: "Brutal · 新粗野主义" },
 ];
 const DENSITIES: { key: Density; label: string }[] = [
   { key: "comfortable", label: "舒适" },

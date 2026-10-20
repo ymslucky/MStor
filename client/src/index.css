@@ -383,3 +383,62 @@ html[data-skin="ink"] {
 
 /* 密度：只改行高与内边距（html[data-density]） */
 html[data-density="compact"] { --density-row-h: 40px; --density-pad: 12px; }
+
+/* ============================================================
+   皮肤：brutal（新粗野主义）——材质取向，不改结构
+   粗描边 + 硬投影（无模糊）+ 近零圆角 + 高对比本色
+   ============================================================ */
+html[data-skin="brutal"] {
+  --surface-canvas: #f2f0e9;
+  --surface-raised: #ffffff;
+  --surface-sunken: #e7e4da;
+  --surface-overlay: #ffffff;
+  --ink-primary: #0d0d0d;
+  --ink-secondary: #3a3a3a;
+  --ink-tertiary: #6d6d6d;
+  --ink-inverse: #f2f0e9;
+  --line-subtle: #0d0d0d;
+  --line-strong: #0d0d0d;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-text: #1e40af;
+  --accent-tint: #dbe6ff;
+  --state-positive-text: #14532d;
+  --state-positive-tint: #d6f2df;
+  --state-caution-text: #78350f;
+  --state-caution-tint: #fbe8c8;
+  --state-critical-text: #7f1d1d;
+  --state-critical-tint: #fbdcdc;
+  /* 形态：粗描边 + 近零圆角 + 硬投影 */
+  --border-w: 2px;
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 5px;
+  --shadow-e0: none;
+  --shadow-e1: 2px 2px 0 var(--line-strong);
+  --shadow-e2: 3px 3px 0 var(--line-strong);
+  --shadow-e3: 4px 4px 0 var(--line-strong);
+}
+
+/* brutal 下：面板描边加粗、玻璃退化为实色（新粗野主义不用模糊） */
+html[data-skin="brutal"] :where(.glass, .glass-light, .glass-strong, .glass-modal, .glass-subtle) {
+  border-width: var(--border-w);
+  border-style: solid;
+  border-color: var(--line-strong);
+  background: var(--surface-raised);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: var(--shadow-e2);
+}
+html[data-skin="brutal"] :where(.rounded-card, .rounded-panel) { border-width: var(--border-w); }
+
+/* Material 借鉴：状态层与动效曲线（供原语使用，改一处全站生效） */
+:root {
+  --state-hover: rgb(13 13 13 / 0.06);
+  --state-press: rgb(13 13 13 / 0.12);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-decelerate: cubic-bezier(0, 0, 0, 1);
+  --ease-accelerate: cubic-bezier(0.3, 0, 1, 1);
+  --border-w: 1px;
+}
+

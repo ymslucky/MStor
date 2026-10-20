@@ -1,23 +1,30 @@
-export type Skin = "paper" | "slate" | "ink";
+export type Skin = "paper" | "slate" | "ink" | "brutal";
 export type Density = "comfortable" | "compact";
 
 const SKIN_KEY = "mstor_skin";
 const DENSITY_KEY = "mstor_density";
 
+const DEFAULT_SKIN: Skin = "slate";
+
 function apply(attr: "data-skin" | "data-density", value: string | null) {
   if (typeof document === "undefined") return;
   const el = document.documentElement;
-  if (!value || (attr === "data-skin" && value === "paper") || (attr === "data-density" && value === "comfortable")) {
-    el.removeAttribute(attr); // paper / comfortable 是默认值，不写属性
-  } else {
+  const isDefault =
+    !value ||
+    (attr === "data-density" && value === "comfortable") ||
+    // 皮肤默认值也要写属性：CSS 里的 L1 基础值只作为兜底
+    (attr === "data-skin" && value === DEFAULT_SKIN && el.getAttribute("data-skin") === DEFAULT_SKIN);
+  if (isDefault && attr === "data-density") {
+    el.removeAttribute(attr);
+  } else if (value) {
     el.setAttribute(attr, value);
   }
 }
 
 export function readSkin(): Skin {
-  if (typeof localStorage === "undefined") return "paper";
+  if (typeof localStorage === "undefined") return DEFAULT_SKIN;
   const v = localStorage.getItem(SKIN_KEY);
-  return v === "slate" || v === "ink" ? v : "paper";
+  return v === "paper" || v === "slate" || v === "ink" || v === "brutal" ? v : DEFAULT_SKIN;
 }
 
 export function readDensity(): Density {
