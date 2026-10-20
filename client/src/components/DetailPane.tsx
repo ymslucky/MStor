@@ -24,15 +24,15 @@ const Row = ({ label, value }: { label: string; value: string }) => (
 );
 
 /**
- * 右详情栏（三栏骨架的第三栏）：桌面固定在右侧，选中节点即显示详情与动作。
- * 窄屏不渲染（由页面回落到弹窗形态，避免遮挡列表）。
+ * 右详情栏（三栏骨架的第三栏）：作为布局中的一列参与排版（不再 fixed 浮层）。
+ * 是否渲染由页面用 useMediaQuery 决定——一个 detail 状态只对应一个界面，不用 CSS 隐藏兜底。
  */
 export function DetailPane({ node, onClose, onDownload, onShare, onRename, onMove, onDelete }: Props) {
   return (
     <aside
       data-testid="detail-pane"
       aria-label="详情"
-      className="glass fixed top-20 right-4 bottom-16 z-20 flex w-72 flex-col p-4 xl:w-80"
+      className="glass flex w-72 shrink-0 flex-col self-stretch p-4 xl:w-80"
     >
       <div className="flex items-start gap-2">
         <NodeIcon node={node} size={28} className="shrink-0" />

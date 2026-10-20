@@ -18,6 +18,7 @@ import { UndoSnackbar } from "../components/UndoSnackbar";
 import { ConflictDialog, uniqueName } from "../components/ConflictDialog";
 import { PullToRefreshIndicator } from "../components/PullToRefreshIndicator";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 import type { ConflictPolicy } from "../components/ConflictDialog";
 import { BrowserDialogs } from "../components/BrowserDialogs";
 import { NodeRowActions } from "../components/NodeRowActions";
@@ -128,6 +129,9 @@ export default function Browser() {
   const [rememberConflict, setRememberConflict] = useState(() => getString(CONFLICT_KEY) !== "");
 
   const takenNames = new Set(allNodes.map((n) => n.name));
+
+  // 详情只有一种呈现：桌面 = 右侧布局列，窄屏 = 弹窗（不再用 CSS 隐藏 + Portal 的组合）
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
 
   // 移动端下拉刷新当前目录（桌面无影响）
   const pull = usePullToRefresh(() => query.refetch());
@@ -350,7 +354,10 @@ export default function Browser() {
             onCreateDir={() => setCreating(true)}
             onUploadFiles={() => fileInput.current?.click()}
             onUploadFolder={pickFolder}
-          />          <FileList
+          />
+          <div className="md:flex md:min-h-0 md:flex-1 md:gap-4">
+            <div className="md:flex md:min-h-0 md:min-w-0 md:flex-1 md:flex-col">
+          <FileList
             nodes={nodes}
             view={view}
             selectable
@@ -380,6 +387,19 @@ export default function Browser() {
               />
             )}
           />
+            </div>
+            {detail && isDesktop && (
+              <DetailPane
+                node={detail}
+                onClose={() => setDetail(null)}
+                onDownload={downloadNode}
+                onShare={setSharing}
+                onRename={setRenaming}
+                onMove={setMoving}
+                onDelete={setDeleting}
+              />
+            )}
+          </div>
         </GlassCard>
       )}
       <UploadPanel queue={queue} />
@@ -435,25 +455,8 @@ export default function Browser() {
           batchMoving,
           setBatchMoving,
         }}
-      />      {/* 详情只读弹窗：名称/大小/类型/修改时间 */}
-      {detail && (
-        <>
-          <div className="hidden lg:block">
-            <DetailPane
-              node={detail}
-              onClose={() => setDetail(null)}
-              onDownload={downloadNode}
-              onShare={setSharing}
-              onRename={setRenaming}
-              onMove={setMoving}
-              onDelete={setDeleting}
-            />
-          </div>
-          <div className="lg:hidden">
-            <NodeDetailDialog node={detail} onClose={() => setDetail(null)} />
-          </div>
-        </>
-      )}
+      />      {/* 窄屏详情：弹窗形态（桌面用右侧详情栏，二选一，不并存） */}
+      {detail && !isDesktop && <NodeDetailDialog node={detail} onClose={() => setDetail(null)} />}
       {/* 拖拽全屏覆盖层：白底 80% + 内嵌虚线框；drop/离开窗口后关闭（计数法归零） */}
       {dragDepth > 0 && (
         <div data-testid="drop-overlay" className="fixed inset-0 z-40 bg-white/80">
