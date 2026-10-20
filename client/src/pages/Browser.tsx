@@ -14,6 +14,8 @@ import PreviewModal from "../components/PreviewModal";
 import { BrowserToolbar } from "../components/BrowserToolbar";
 import { BatchProgress } from "../components/BatchProgress";
 import { UndoSnackbar } from "../components/UndoSnackbar";
+import { ConflictDialog, uniqueName } from "../components/ConflictDialog";
+import type { ConflictPolicy } from "../components/ConflictDialog";
 import { BrowserDialogs } from "../components/BrowserDialogs";
 import { NodeRowActions } from "../components/NodeRowActions";
 import { BatchBar } from "../components/BatchBar";
@@ -117,6 +119,52 @@ export default function Browser() {
     files.forEach((n, i) => window.setTimeout(() => triggerDownload(n.id), i * 300));
   };
 
+  // 同名冲突：入队前比对当前目录名称；记住的选择写 localStorage（mstor_upload_conflict）
+  const CONFLICT_KEY = "mstor_upload_conflict";
+  const [conflicts, setConflicts] = useState<{ files: File[]; names: string[] } | null>(null);
+  const [rememberConflict, setRememberConflict] = useState(() => getString(CONFLICT_KEY) !== "");
+
+  const takenNames = new Set(allNodes.map((n) => n.name));
+
+  const applyPolicy = (policy: ConflictPolicy, files: File[]) => {
+    if (policy === "skip") {
+      queue.add(files.filter((f) => !takenNames.has(f.name)), dir);
+      return;
+    }
+    if (policy === "keepBoth") {
+      const used = new Set(takenNames);
+      const renamed = files.map((f) => {
+        if (!takenNames.has(f.name)) return f;
+        const name = uniqueName(f.name, used);
+        used.add(name);
+        return new File([f], name, { type: f.type });
+      });
+      queue.add(renamed, dir);
+      return;
+    }
+    // 覆盖：先彻底删除同名节点（软删会占着唯一名），再入队
+    const ids = allNodes.filter((n) => files.some((f) => f.name === n.name)).map((n) => n.id);
+    void Promise.all(ids.map((id) => purgeNow(id))).then(() => queue.add(files, dir));
+  };
+
+  const enqueue = (items: (File | { file: File; path?: string })[]) => {
+    const plain = items.filter((i): i is File => i instanceof File);
+    const withPath = items.filter((i) => !(i instanceof File));
+    if (withPath.length) queue.add(withPath, dir);
+    if (!plain.length) return;
+    const dup = plain.filter((f) => takenNames.has(f.name)).map((f) => f.name);
+    if (!dup.length) {
+      queue.add(plain, dir);
+      return;
+    }
+    const remembered = getString(CONFLICT_KEY);
+    if (remembered === "keepBoth" || remembered === "overwrite" || remembered === "skip") {
+      applyPolicy(remembered, plain);
+      return;
+    }
+    setConflicts({ files: plain, names: dup });
+  };
+
   const selectedNodes = allNodes.filter((n) => selection.selected.has(n.id));
   const hasFileSelected = selectedNodes.some((n) => !n.is_dir);
 
@@ -203,7 +251,7 @@ export default function Browser() {
         // 目录树递归采集（含文件与文件夹混合拖入），入队后由队列逐级建目录
         void collectUploads(dt)
           .then((items) => {
-            if (items.length) queue.add(items, dir);
+            if (items.length) enqueue(items);
             else if (hasItems) toast("未发现可上传的文件（空文件夹不会产生上传项）");
           })
           .catch(() => toast("读取拖入内容失败"));
@@ -217,7 +265,7 @@ export default function Browser() {
         multiple
         className="hidden"
         onChange={(e) => {
-          if (e.target.files?.length) queue.add(Array.from(e.target.files), dir);
+          if (e.target.files?.length) enqueue(Array.from(e.target.files));
           e.target.value = "";
         }}
       />
@@ -323,6 +371,20 @@ export default function Browser() {
       />
             {preview && <PreviewModal key={preview.id} node={preview} onClose={() => setPreview(null)} />}
       {batchProgress && <BatchProgress done={batchProgress.done} total={batchProgress.total} />}
+      {conflicts && (
+        <ConflictDialog
+          names={conflicts.names}
+          remember={rememberConflict}
+          onRememberChange={setRememberConflict}
+          onDecide={(policy) => {
+            if (rememberConflict) setString(CONFLICT_KEY, policy);
+            const files = conflicts.files;
+            setConflicts(null);
+            applyPolicy(policy, files);
+          }}
+          onCancel={() => setConflicts(null)}
+        />
+      )}
       {undoId && (
         <UndoSnackbar
           message="已移动，可在 10 秒内撤销"
