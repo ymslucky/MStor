@@ -523,6 +523,72 @@ async function main() {
     assertEqual(db.prepare("SELECT COUNT(*) c FROM nodes WHERE name = 'big.bin'").first().c, 0, "被拒上传不应留下节点");
   });
 
+  // —— 分享 2.0（P2 B3）：原子名额 + Range/预览不计数 + 去重 ——
+  await check("HTTP：分享下载上限原子扣减（max=1 第二次 410）且 Range/预览不计数", async () => {
+    const db = makeD1(schema1x);
+    const bucket = makeR2();
+    const env = makeEnv(db, bucket);
+    const auth = { "x-dev-email": "a@example.com" };
+    const up = await call(env, "/api/files/upload?name=shared.bin&parentId=", {
+      method: "PUT",
+      headers: { ...auth, "content-type": "application/octet-stream" },
+      body: new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]),
+    });
+    const nodeId = up.json.id;
+    const created = await call(env, "/api/shares", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ nodeId, maxDownloads: 1 }),
+    });
+    assertEqual(created.status, 201, "创建分享应 201，实际 " + created.status + " " + created.text.slice(0, 160));
+    const token = created.json.token;
+    const raw = (query, headers) => call(env, "/api/s/" + token + "/raw/" + nodeId + (query || ""), { headers });
+    // 预览（无 dl）不计数
+    const preview = await raw("", { "user-agent": "preview-agent" });
+    assertEqual(preview.status, 200, "预览应 200");
+    // Range 分段（拖进度条）不计数
+    const r1 = await raw("?dl=1", { "user-agent": "player", range: "bytes=0-1" });
+    const r2 = await raw("?dl=1", { "user-agent": "player", range: "bytes=2-3" });
+    assertEqual(r1.status, 206, "Range 应 206，实际 " + r1.status);
+    assertEqual(r2.status, 206, "第二次 Range 仍应 206，实际 " + r2.status);
+    assertEqual(db.prepare("SELECT downloads d FROM shares WHERE token = ?").first(token).d, 0, "Range/预览不应计数");
+    // 真正的下载意图：第一次成功，第二次（换 UA 跳过去重）名额已用尽
+    const d1 = await raw("?dl=1", { "user-agent": "dl-one" });
+    assertEqual(d1.status, 200, "首次下载应 200，实际 " + d1.status + " " + d1.text.slice(0, 120));
+    const d2 = await raw("?dl=1", { "user-agent": "dl-two" });
+    assertEqual(d2.status, 410, "名额用尽应 410，实际 " + d2.status);
+    assertEqual(d2.json.error.code, "SHARE_EXHAUSTED", "错误码应为 SHARE_EXHAUSTED");
+    assertEqual(db.prepare("SELECT downloads d FROM shares WHERE token = ?").first(token).d, 1, "下载次数应恰好为 1");
+  });
+
+  await check("HTTP：同来源 10 分钟内重复下载只计一次（dedupe），撤销后 404", async () => {
+    const db = makeD1(schema1x);
+    const env = makeEnv(db, makeR2());
+    const auth = { "x-dev-email": "a@example.com" };
+    const up = await call(env, "/api/files/upload?name=dedupe.bin&parentId=", {
+      method: "PUT",
+      headers: { ...auth, "content-type": "application/octet-stream" },
+      body: new Uint8Array([9, 9]),
+    });
+    const nodeId = up.json.id;
+    const created = await call(env, "/api/shares", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ nodeId, maxDownloads: 5 }),
+    });
+    const token = created.json.token;
+    const headers = { "user-agent": "same-agent", "cf-connecting-ip": "1.2.3.4" };
+    const url = "/api/s/" + token + "/raw/" + nodeId + "?dl=1";
+    await call(env, url, { headers });
+    await call(env, url, { headers });
+    assertEqual(db.prepare("SELECT downloads d FROM shares WHERE token = ?").first(token).d, 1, "同来源重复下载只计一次");
+    const list = await call(env, "/api/shares", { headers: auth });
+    const shareId = list.json.shares[0].id;
+    await call(env, "/api/shares/" + shareId, { method: "DELETE", headers: auth });
+    const afterRevoke = await call(env, url, { headers });
+    assertEqual(afterRevoke.status, 404, "撤销后应 404，实际 " + afterRevoke.status);
+  });
+
   // —— 语句数预算（§4.6）：大批量下语句数必须与批次无关 ——
   await check("200 项批量：软删 ≤4 条语句、彻底删除 ≤5 条语句", async () => {
     const db = makeD1(schema1x);

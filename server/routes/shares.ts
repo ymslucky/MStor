@@ -6,13 +6,14 @@ import { pbkdf2Hash, pbkdf2Verify, randomToken } from "../lib/crypto";
 import { getNode, isDescendant, listChildren } from "../lib/nodes";
 import { parseIds } from "../data/trash";
 import { serveObject } from "../lib/serve";
+import { isDownloadIntent, releaseDownloadSlot, takeDownloadSlot } from "../data/shares";
 import type { NodeRow, ShareRow } from "../types";
 
 export const shares = new Hono<AppEnv>();
 
 shares.post("/", async (c) => {
-  const { nodeId, expiresInDays, password } = await c.req.json<{
-    nodeId: string; expiresInDays?: number; password?: string;
+  const { nodeId, expiresInDays, password, maxDownloads, oneTime } = await c.req.json<{
+    nodeId: string; expiresInDays?: number; password?: string; maxDownloads?: number; oneTime?: boolean;
   }>();
   // getNode 不过滤 deleted_at；分享目标必须是未删除节点
   const node = await getNode(c.env.DB, c.get("workspace").id, nodeId);
@@ -20,12 +21,17 @@ shares.post("/", async (c) => {
   if (expiresInDays !== undefined && (!Number.isFinite(expiresInDays) || expiresInDays <= 0)) {
     throw errors.badRequest("有效期须为正数天数");
   }
+  // 一次性 = 最多下载 1 次；显式 maxDownloads 优先
+  const limit = oneTime ? 1 : maxDownloads;
+  if (limit !== undefined && (!Number.isInteger(limit) || limit < 1 || limit > 10000)) {
+    throw errors.badRequest("maxDownloads 须为 1-10000 的整数");
+  }
   const token = randomToken(16);
   const passwordHash = password ? await pbkdf2Hash(password) : null;
   const expiresAt = expiresInDays ? Date.now() + expiresInDays * 86400000 : null;
   await c.env.DB.prepare(
-    "INSERT INTO shares (id, workspace_id, node_id, token, password_hash, expires_at, downloads, created_at, revoked_at) VALUES (?1,?2,?3,?4,?5,?6,0,?7,NULL)"
-  ).bind(randomToken(12), c.get("workspace").id, nodeId, token, passwordHash, expiresAt, Date.now()).run();
+    "INSERT INTO shares (id, workspace_id, node_id, token, password_hash, expires_at, max_downloads, downloads, created_at, revoked_at) VALUES (?1,?2,?3,?4,?5,?6,?7,0,?8,NULL)"
+  ).bind(randomToken(12), c.get("workspace").id, nodeId, token, passwordHash, expiresAt, limit ?? null, Date.now()).run();
   return c.json({ token, url: `${c.env.PUBLIC_URL}/s/${token}` }, 201);
 });
 
@@ -103,7 +109,7 @@ publicShares.get("/:token", async (c) => {
   });
 });
 
-publicShares.get("/:token/raw/:fileId", async (c) => {
+publicShares.on(["GET", "HEAD"], "/:token/raw/:fileId", async (c) => {
   const { share, node } = await loadShare(c, c.req.param("token"));
   const fileId = c.req.param("fileId");
   const target = await getNode(c.env.DB, node.workspace_id, fileId);
@@ -111,9 +117,19 @@ publicShares.get("/:token/raw/:fileId", async (c) => {
   if (!target || target.is_dir || target.deleted_at || !(await isDescendant(c.env.DB, node.workspace_id, node.id, fileId))) {
     throw errors.notFound();
   }
-  // 计数在确认对象可下载之后：R2 缺对象 404 时不虚增
-  const res = await serveObject(c, target);
-  await c.env.DB.prepare("UPDATE shares SET downloads = downloads + 1 WHERE id = ?1").bind(share.id).run();
+
+  const isHead = c.req.method === "HEAD";
+  // 只有「下载意图」占名额：Range（拖进度条）、预览、HEAD 都不计数
+  const slot = !isHead && isDownloadIntent(c) ? await takeDownloadSlot(c, share) : null;
+  let res: Response;
+  try {
+    res = await serveObject(c, target);
+  } catch (e) {
+    // 内容没发出去就不该计数（R2 缺对象等）
+    if (slot) await releaseDownloadSlot(c, share, slot.dedupeKey);
+    throw e;
+  }
+  if (isHead) return new Response(null, { status: res.status, headers: res.headers });
   return res;
 });
 

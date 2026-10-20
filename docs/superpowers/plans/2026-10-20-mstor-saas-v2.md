@@ -748,6 +748,8 @@ WHERE id = ?2 AND workspace_id = ?3
 > **P2 进度**：存储治理已完成——`storage_stats` 四分项（active/trash）随上传增量、随删除/还原重算（低频路径用重算，天然不漂移），整站预算 `settings.global_quota_bytes`（缺省 10GiB）超限返回 **507 STORAGE_FULL** 且与个人配额 403 区分，`/api/me.storage` 暴露四分项与 `level`（ok/warn≥80%/critical≥95%/full≥100%）。
 > **版本管理暂不做**（用户决定）：`file_versions` 表与 `content_version` 字段保留但不在 1.0 范围内，`storage_stats.version_bytes` 恒为 0。
 
+> **P2 进度（续）**：分享 2.0 已完成——`maxDownloads` / `oneTime` 创建分享；下载名额**原子扣减**（撤销/过期/上限全部写进 `WHERE`，靠 `meta.changes` 判定）；**Range 分段与预览、HEAD 不计数**（拖进度条不耗次数）；同来源 10 分钟去重（`share_downloads.dedupe_key` 唯一索引）；内容下发失败自动归还名额；`/:token/raw/:fileId` 支持 HEAD。全局上传中心已完成（队列提升到 AppShell + 全局浮层 + 服务端幂等/续传契约）。
+
 ### P2 · 商业级 1.0 功能（5–6 周）
 存储治理与成本中心（四分项计量 + 全局预算 + 507 拒绝）→ 全局上传中心（AppShell 级队列 + IndexedDB 续传 + 幂等键）→ 分享 2.0（下载上限、一次性、审计、限流）→ 文件名检索 2.0（前缀 LIKE + FTS + 服务端过滤 + 游标分页 + 高亮；不做内容检索）→ 收藏/最近/标签 → 复制/撤销（8–30s Snackbar）→ 管理台（用户/存储/设置/审计/健康）→ 通知 → 缩略图与预览矩阵（客户端 WebP + PDF.js 按需 chunk + DOCX/XLSX 客户端预览 + Range/HEAD/ETag 消费端）。
 退出标准：每项验收通过；预算不超（每请求 ≤40 子请求）；无 P0 缺陷。
