@@ -4,8 +4,10 @@ import { randomId } from "../lib/crypto";
 import { errors } from "../lib/errors";
 import { assertQuota, adjustUsedBytes, childPath, resolveParent, uniqueName, validateNodeName } from "../lib/nodes";
 import { abortMultipart, completeMultipart, createMultipart, presignPart } from "../lib/r2";
+import { isUniqueViolation } from "../lib/sql";
 
-export const PART_SIZE = 16 * 1048576; // R2 分片最小 5MB（末片除外）
+import { PART_SIZE } from "../lib/constants";
+export { PART_SIZE }; // 兼容既有引用方（me.ts 已改为直接从 lib 取）
 
 export const uploads = new Hono<AppEnv>();
 
@@ -72,7 +74,7 @@ uploads.post("/:id/complete", async (c) => {
     await c.env.DB.batch(buildBatch(finalName));
   } catch (e) {
     // uniqueName 与 batch 之间并发同名撞唯一索引：换名重试一次（R2 上传已完成，无需重传）
-    if (!(e instanceof Error && e.message.includes("UNIQUE constraint failed"))) throw e;
+    if (!isUniqueViolation(e)) throw e;
     finalName = await uniqueName(c.env.DB, user.id, parent.id, row.name);
     await c.env.DB.batch(buildBatch(finalName));
   }

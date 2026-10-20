@@ -1,7 +1,7 @@
 import { env, SELF } from "cloudflare:test";
 import { expect, test } from "vitest";
 import { seedNode, seedUser, sessionHeaders } from "./helpers";
-import { sweepOrphanObjects } from "../server/routes/trash";
+import { sweepOrphanObjects } from "../server/data/trash";
 
 async function upload(u: Awaited<ReturnType<typeof seedUser>>, name: string, body: string) {
   const res = await SELF.fetch(`https://example.com/api/files/upload?name=${name}`, {

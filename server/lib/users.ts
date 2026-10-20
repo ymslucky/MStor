@@ -2,6 +2,7 @@ import type { Env } from "../env";
 import { HttpError } from "./errors";
 import { randomToken } from "./crypto";
 import { ensureRootDir } from "./nodes";
+import { isUniqueViolation } from "./sql";
 import type { UserRow } from "../types";
 
 /** Access 身份（JWT 验签通过后的可信字段） */
@@ -84,7 +85,7 @@ export async function bindOrProvision(env: Env, ident: AccessIdentity): Promise<
       .bind(id, ident.sub, ident.email, boundAt, name, role, quota, createdAt)
       .run();
   } catch (e) {
-    if (e instanceof Error && e.message.includes("UNIQUE constraint failed")) {
+    if (isUniqueViolation(e)) {
       // 并发首登：按 sub 幂等复用；若撞的是 email 唯一索引，则转为显式身份冲突而非 500
       const existing = ident.email
         ? await db

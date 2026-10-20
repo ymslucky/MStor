@@ -7,7 +7,8 @@ import { me } from "./routes/me";
 import { files } from "./routes/files";
 import { dirs } from "./routes/dirs";
 import { uploads } from "./routes/uploads";
-import { trash, purgeExpiredTrash, sweepOrphanObjects } from "./routes/trash";
+import { trash } from "./routes/trash";
+import { purgeExpiredTrash, sweepOrphanObjects } from "./data/trash";
 import { abortStaleUploads } from "./routes/uploads";
 import { search } from "./routes/search";
 

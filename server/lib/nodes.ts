@@ -1,5 +1,6 @@
 import { randomId } from "./crypto";
 import { errors } from "./errors";
+import { isUniqueViolation } from "./sql";
 import type { NodeRow } from "../types";
 
 const now = () => Date.now();
@@ -32,7 +33,7 @@ export async function ensureRootDir(db: D1Database, ownerId: string): Promise<No
       "INSERT INTO nodes (id, owner_id, parent_id, path, name, is_dir, r2_key, size, mime, created_at, updated_at, deleted_at) VALUES (?1,?2,'','/','',1,NULL,NULL,NULL,?3,?3,NULL)"
     ).bind(id, ownerId, now()).run();
   } catch (e) {
-    if (e instanceof Error && e.message.includes("UNIQUE constraint failed")) {
+    if (isUniqueViolation(e)) {
       // 并发首次访问：另一个请求已建根目录，幂等复用
       const existing = await db.prepare("SELECT * FROM nodes WHERE owner_id = ?1 AND parent_id = '' AND name = '' LIMIT 1").bind(ownerId).first<NodeRow>();
       if (existing) return existing;
@@ -82,7 +83,7 @@ export async function createDir(db: D1Database, ownerId: string, parentId: strin
     ).bind(id, ownerId, parent.id, childPath(parent), name, now()).run();
   } catch (e) {
     // check-then-insert 竞态：并发同名时唯一索引兜底，映射为 409
-    if (e instanceof Error && e.message.includes("UNIQUE constraint failed")) throw errors.conflict();
+    if (isUniqueViolation(e)) throw errors.conflict();
     throw e;
   }
   return (await db.prepare("SELECT * FROM nodes WHERE id = ?1").bind(id).first<NodeRow>())!;

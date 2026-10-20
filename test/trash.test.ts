@@ -1,6 +1,6 @@
 import { env, SELF } from "cloudflare:test";
 import { expect, test } from "vitest";
-import { purgeExpiredTrash, sweepOrphanObjects } from "../server/routes/trash";
+import { purgeExpiredTrash, sweepOrphanObjects } from "../server/data/trash";
 import { ensureRootDir } from "../server/lib/nodes";
 import { seedUser, sessionHeaders } from "./helpers";
 

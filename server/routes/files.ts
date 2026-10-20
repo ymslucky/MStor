@@ -4,7 +4,8 @@ import { randomId } from "../lib/crypto";
 import { errors, HttpError } from "../lib/errors";
 import { assertQuota, adjustUsedBytes, breadcrumb, childPath, getNode, listChildren, moveNode, resolveParent, uniqueName, validateNodeName } from "../lib/nodes";
 import { serveObject } from "../lib/serve";
-import { moveMany, permanentDeleteMany, softDeleteMany, softDeleteNode, parseIds } from "./trash";
+import { isUniqueViolation } from "../lib/sql";
+import { moveMany, permanentDeleteMany, softDeleteMany, softDeleteNode, parseIds } from "../data/trash";
 
 export const files = new Hono<AppEnv>();
 
@@ -72,7 +73,7 @@ files.put("/upload", async (c) => {
       try {
         await insertDup.bind(id, user.id, parent.id, parentPath, finalName, hit.r2_key, len, mime, normalizedSha, now).run();
       } catch (e) {
-        if (!(e instanceof Error && e.message.includes("UNIQUE constraint failed"))) throw e;
+        if (!isUniqueViolation(e)) throw e;
         finalName = await uniqueName(c.env.DB, user.id, parent.id, name);
         await insertDup.bind(id, user.id, parent.id, parentPath, finalName, hit.r2_key, len, mime, normalizedSha, now).run();
       }
@@ -102,7 +103,7 @@ files.put("/upload", async (c) => {
       await insert.bind(id, user.id, parent.id, parentPath, finalName, key, obj.size, mime, normalizedSha, now).run();
     } catch (e) {
       // uniqueName 与 INSERT 之间并发同名撞唯一索引：换名重试一次（R2 key 随机，无需重传）
-      if (!(e instanceof Error && e.message.includes("UNIQUE constraint failed"))) throw e;
+      if (!isUniqueViolation(e)) throw e;
       finalName = await uniqueName(c.env.DB, user.id, parent.id, name);
       await insert.bind(id, user.id, parent.id, parentPath, finalName, key, obj.size, mime, normalizedSha, now).run();
     }
@@ -150,7 +151,7 @@ files.post("/instant", async (c) => {
   try {
     await insert.bind(id, user.id, parent.id, childPath(parent), finalName, hit.r2_key, size, safeMime, sha256.toLowerCase(), now).run();
   } catch (e) {
-    if (!(e instanceof Error && e.message.includes("UNIQUE constraint failed"))) throw e;
+    if (!isUniqueViolation(e)) throw e;
     finalName = await uniqueName(c.env.DB, user.id, parent.id, safeName);
     await insert.bind(id, user.id, parent.id, childPath(parent), finalName, hit.r2_key, size, safeMime, sha256.toLowerCase(), now).run();
   }

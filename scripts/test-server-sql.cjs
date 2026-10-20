@@ -108,7 +108,7 @@ function assertEqual(actual, expected, msg) {
 async function main() {
   build();
   const schema1x = readFileSync(join(root, "sql/schema.sql"), "utf8");
-  const trash = require(join(outDir, "server/routes/trash.js"));
+  const trash = require(join(outDir, "server/data/trash.js"));
   const nodes = require(join(outDir, "server/lib/nodes.js"));
 
   const now = Date.now();

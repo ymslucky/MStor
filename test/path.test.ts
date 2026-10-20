@@ -3,7 +3,7 @@ import { expect, test } from "vitest";
 import {
   breadcrumb, createDir, ensureRootDir, getNode, isDescendant, moveNode, subtreeIds,
 } from "../server/lib/nodes";
-import { moveMany, restoreTrashNode, softDeleteMany, softDeleteNode } from "../server/routes/trash";
+import { moveMany, restoreTrashNode, softDeleteMany, softDeleteNode } from "../server/data/trash";
 import { seedNode, seedUser } from "./helpers";
 
 /** 递归校验整棵树的 path 与 parent_id 一致 */

@@ -4,7 +4,7 @@ import type { AppEnv } from "../env";
 import { HttpError, errors } from "../lib/errors";
 import { pbkdf2Hash, pbkdf2Verify, randomToken } from "../lib/crypto";
 import { getNode, isDescendant, listChildren } from "../lib/nodes";
-import { parseIds } from "./trash";
+import { parseIds } from "../data/trash";
 import { serveObject } from "../lib/serve";
 import type { NodeRow, ShareRow } from "../types";
 

@@ -738,7 +738,7 @@ WHERE id = ?2 AND workspace_id = ?3
 | 1.3 | 双重簿记治理：管理台「未绑定成员」视图 + 审计事件 + 邀请撤销/过期/单次消费 | Zero Trust 放行但应用无 membership 的用户被显式识别并告警 |
 | 1.4 | 限流：分享口令与上传 init 的 IP 维度限流（登录面已由 Access 承担，不做登录限流/验证码） | 分享口令爆破 20 次后 429 |
 | 1.5 | `workspaceGuard`：`(workspace_id, role)` 注入 + 全部查询带 workspace 条件 | **IDOR 负例矩阵**：A 用户拿 B 的 node/share/upload id 全部 404，无一例外 |
-| 1.6 | 规则收敛：`data/d1.ts`（`jsonList`/`inJson`/`isUniqueViolation`/`batch` 助手）、`data/quota.ts`（单一记账入口）、`domain/` 收口树不变量 | grep 验收：routes 层零分片字面量、零 UNIQUE 字符串判断、批量接口语句数 ≤4（§4.6） |
+| 1.6 | 规则收敛：`lib/sql.ts`（`jsonList`/`jsonSet`/`isUniqueViolation`/`chunk`/`runBatch`）、`lib/constants.ts`、`data/trash.ts`（业务函数下沉，路由只留编排）、`data/quota.ts`（单一记账入口）、`domain/` 收口树不变量 | **已完成部分**：9 处 UNIQUE 字符串判断全部收到 `lib/sql`（grep 只剩 1 处定义）；`routes/*` 之间零互相 import（`parseIds`/`moveMany` 等下沉到 `data/trash`）；批量接口语句数实测软删 3 / 彻底删除 5（§4.6），由 `npm run test:sql` 断言守护 |
 | 1.7 | 数据安全修复：`getLiveNode`/`requireLiveDir` 语义收紧；multipart 按 R2 实测大小记账 | 已删节点不可写入/下载/分享；声明 size 偏小时按实测记账 |
 | 1.8 | 契约层：`shared/contract/` 类型 + 边界校验，客户端 `api/types.ts` 改为引用 | 驼峰/下划线混用清零；改字段只改一处 |
 | 1.9 | 预览协议基础：显式 `HEAD`、`If-Range`、`If-None-Match/304`、416 `bytes */size`、`content_version` ETag、版本解析 | Range 合约测试全绿；视频 seek/PDF 按页不整包下载；旧 `?v` 不冒充当前内容 |

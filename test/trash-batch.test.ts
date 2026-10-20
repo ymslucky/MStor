@@ -1,7 +1,7 @@
 import { env, SELF } from "cloudflare:test";
 import { expect, test } from "vitest";
 import { seedUser, sessionHeaders } from "./helpers";
-import { sweepOrphanObjects } from "../server/routes/trash";
+import { sweepOrphanObjects } from "../server/data/trash";
 
 const json = { "content-type": "application/json" };
 

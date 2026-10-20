@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../env";
-import { chunk } from "./trash";
+import { jsonList, jsonSet } from "../lib/sql";
 
 export const search = new Hono<AppEnv>();
 
@@ -31,14 +31,11 @@ search.get("/", async (c) => {
     for (const id of (r.path as string).split("/")) if (id) ancestorIds.add(id);
   }
   const nameById = new Map<string, string>();
-  for (const part of chunk([...ancestorIds], 90)) {
-    const ph = part.map(() => "?").join(",");
-    // 纯 PK 查找（避免 owner 索引全扫），JS 侧过滤 owner
-    const { results: rows } = await c.env.DB.prepare(
-      `SELECT id, owner_id, name FROM nodes WHERE id IN (${ph})`
-    ).bind(...part).all<{ id: string; owner_id: string; name: string }>();
-    for (const row of rows) if (row.owner_id === c.get("user").id) nameById.set(row.id, row.name);
-  }
+  // 一次语句取全部祖先名（json_each 单参数，任意长度）；owner 过滤在 SQL 内
+  const { results: rows } = await c.env.DB.prepare(
+    `SELECT id, name FROM nodes WHERE owner_id = ?1 AND id IN ${jsonSet()}`
+  ).bind(c.get("user").id, jsonList([...ancestorIds])).all<{ id: string; name: string }>();
+  for (const row of rows) nameById.set(row.id, row.name);
   for (const r of results) {
     // 路径含自身名、不含根哨兵：祖先名（root→parent）+ 自身
     const segs = (r.path as string).split("/").filter(Boolean).map((id) => nameById.get(id) ?? "").filter((n) => n !== "");

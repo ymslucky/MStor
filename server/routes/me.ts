@@ -4,7 +4,8 @@ import { errors } from "../lib/errors";
 import { usedBytes } from "../lib/nodes";
 import { getSetting } from "../lib/settings";
 import { requireAdmin } from "../middleware/admin";
-import { PART_SIZE } from "./uploads";
+import { PART_SIZE } from "../lib/constants";
+import { isUniqueViolation } from "../lib/sql";
 
 export const me = new Hono<AppEnv>();
 
@@ -131,7 +132,7 @@ me.patch("/admin/users/:id", requireAdmin, async (c) => {
       .run();
   } catch (e) {
     // email 撞部分唯一索引 idx_users_email → 可行动的 400 而非 500
-    if (e instanceof Error && e.message.includes("UNIQUE constraint failed")) {
+    if (isUniqueViolation(e)) {
       throw errors.badRequest("该邮箱已绑定其他账号");
     }
     throw e;
