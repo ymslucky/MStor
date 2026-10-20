@@ -1,66 +1,30 @@
-import { MutationCache, QueryCache, QueryClient, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { Cloud, FolderOpen, LogOut, PanelLeftClose, PanelLeftOpen, Settings, Share2, Trash2 } from "lucide-react";
-import { ApiError, clearSessionFlag, handleSessionExpired } from "../api/client";
-import { getMe } from "../api/me";
+import { useQueryClient } from "@tanstack/react-query";
+import { clearSessionFlag } from "../api/client";
 import { setUploadLimits } from "../api/uploads";
 import { STORAGE_KEYS, getString, removeItem, setString } from "../lib/storage";
-import type { Me } from "../api/types";
-import { Badge, ConfirmDialog, IconButton } from "../components/ui";
+import { ConfirmDialog } from "../components/ui";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { UploadQueueProvider } from "../hooks/UploadQueueProvider";
 import { GlobalUploadDock } from "../components/GlobalUploadDock";
-import { NotificationBell } from "../components/NotificationBell";
 import { StatusBar } from "../components/StatusBar";
-import SearchBox from "../components/SearchBox";
-import OfflineBar from "../components/OfflineBar";
+import { SidebarNav } from "./SidebarNav";
+import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
+import { AccountMenu } from "./AccountMenu";
+import { TopBar } from "./TopBar";
+import { NAV, PAGE_TITLES } from "./nav";
+import { useMe, useSidebarCollapsed } from "./hooks";
 import StorageMeter from "../components/StorageMeter";
-import { Toaster, toast } from "../components/Toaster";
+import OfflineBar from "../components/OfflineBar";
+import { Toaster } from "../components/Toaster";
 
-export function makeQueryClient(): QueryClient {
-  const onError = (e: unknown) => {
-    // 会话中途过期：曾登录过则一次性自动重登（handleSessionExpired 自带防抖守卫）
-    if (e instanceof ApiError && e.status === 401) {
-      handleSessionExpired();
-      return;
-    }
-    toast(e instanceof Error ? e.message : "请求失败");
-  };
-  return new QueryClient({
-    queryCache: new QueryCache({ onError }),
-    mutationCache: new MutationCache({ onError }),
-    defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
-  });
-}
-
-function useMe(): Me | undefined {
-  const { data } = useQuery({ queryKey: ["me"], queryFn: getMe });
-  return data;
-}
-
-// 侧栏折叠状态持久化 localStorage("mstor_sidebar")
-function useSidebarCollapsed() {
-  const [collapsed, setCollapsed] = useState(() => getString(STORAGE_KEYS.sidebar) === "collapsed");
-  const toggle = () =>
-    setCollapsed((prev) => {
-      const next = !prev;
-      setString(STORAGE_KEYS.sidebar, next ? "collapsed" : "expanded");
-      return next;
-    });
-  return { collapsed, toggle };
-}
-
-const NAV = [
-  { to: "/", label: "文件", Icon: FolderOpen },
-  { to: "/trash", label: "回收站", Icon: Trash2 },
-  { to: "/shares", label: "分享", Icon: Share2 },
-  { to: "/settings", label: "设置", Icon: Settings },
-];
-
-// 顶部工具栏左侧页面标题（文件页的面包屑由页内渲染，工具栏只放页名）
-const PAGE_TITLES: Record<string, string> = { "/": "文件", "/trash": "回收站", "/shares": "分享", "/settings": "设置" };
-
+/**
+ * 外壳只负责「布局 + 会话级动作」：
+ * 侧栏 = SidebarNav + WorkspaceSwitcher + StorageMeter + AccountMenu；
+ * 顶栏 = TopBar；内容 = Outlet；底部 = StatusBar（桌面）+ 移动 Tab。
+ * 队列与浮层在导出层包住，切换路由不丢队列。
+ */
 function AppShellLayout() {
   const me = useMe();
   const queryClient = useQueryClient();
@@ -68,15 +32,19 @@ function AppShellLayout() {
   const [exitActOpen, setExitActOpen] = useState(false);
   const { collapsed, toggle } = useSidebarCollapsed();
   const { pathname } = useLocation();
-  // 上传上限由服务端下发（/api/me.limits），前端上传队列在此同步，避免前后端硬编码漂移
+
+  // 上传上限由服务端下发（/api/me.limits），前端队列在此同步，避免前后端硬编码漂移
   useEffect(() => {
     setUploadLimits(me?.limits);
   }, [me]);
+
   if (!me) return <div className="p-8 text-center text-ink-dim">加载中…</div>;
+
   const actAs = getString(STORAGE_KEYS.actAs);
-  // 侧栏档案行始终显示登录账号（self）：act-as 查看他人空间时当前空间用户会变化
+  // 档案行始终显示登录账号（self）：act-as 查看他人空间时当前空间用户会变化
   const account = me.self ?? me;
-  // 切换空间：写本地偏好 → 清缓存 → 整页重载，确保所有在途/缓存查询都带上新的 x-workspace
+
+  // 切空间：写本地偏好 → 清缓存 → 整页重载，确保所有在途/缓存查询都带上新的 x-workspace
   const switchWorkspace = (id: string) => {
     if (!id || id === me.workspace?.id) return;
     setString(STORAGE_KEYS.workspace, id);
@@ -84,109 +52,31 @@ function AppShellLayout() {
     window.location.reload();
   };
 
-  // 退出按钮共用同一确认弹窗：移动顶栏与桌面档案行各一份
-  const logoutButton = (className = "") => (
-    <IconButton label="退出" onClick={() => setLogoutOpen(true)} className={className}>
-      <LogOut size={18} aria-hidden />
-    </IconButton>
-  );
-
   return (
     <div className="relative min-h-dvh">
       <div className="glow-radial" aria-hidden />
       <div className="relative z-10 md:flex">
-        {/* 桌面侧边栏：glass 玻璃面 sticky，展开 240px / 折叠 64px */}
         <aside
           className={`glass sticky top-0 z-30 hidden h-dvh shrink-0 flex-col transition-[width] duration-200 ease-(--ease-spring) md:flex ${
             collapsed ? "md:w-16" : "md:w-60"
           }`}
         >
-          {/* 顶部：品牌 + 折叠钮 */}
-          <div className={`flex items-center border-b border-line py-3.5 ${collapsed ? "flex-col gap-2 px-2" : "gap-2 px-3"}`}>
-            <div className={`flex min-w-0 items-center ${collapsed ? "justify-center" : "flex-1 gap-2.5"}`}>
-              <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-white">
-                <Cloud size={20} />
-              </span>
-              {!collapsed && <span className="truncate font-display text-lg font-bold text-ink">MStor</span>}
-            </div>
-            <IconButton label={collapsed ? "展开侧栏" : "折叠侧栏"} onClick={toggle} className="shrink-0">
-              {collapsed ? <PanelLeftOpen size={18} aria-hidden /> : <PanelLeftClose size={18} aria-hidden />}
-            </IconButton>
-          </div>
-          {/* 导航：折叠态只显图标（title 提示文字），激活态 primary-soft 底 + primary-text 字 */}
-          <nav aria-label="主导航" className="flex flex-1 flex-col gap-1 px-2 py-3">
-            {NAV.map(({ to, label, Icon }) => (
-              <NavLink
-                key={to}
-                to={to}
-                end={to === "/"}
-                title={collapsed ? label : undefined}
-                className={({ isActive }) =>
-                  `flex min-h-[44px] items-center gap-3 rounded-xl px-3 text-sm transition-colors ${
-                    collapsed ? "justify-center" : ""
-                  } ${isActive ? "bg-primary-soft font-medium text-primary-text" : "text-ink-2 hover:bg-primary-soft/60 hover:text-primary-text"}`
-                }
-              >
-                <Icon size={18} aria-hidden className="shrink-0" />
-                {!collapsed && <span>{label}</span>}
-              </NavLink>
-            ))}
-          </nav>
-          {/* 底部：存储用量环形图 + 用户档案行 */}
+          <SidebarNav collapsed={collapsed} onToggle={toggle} />
           <div className={`space-y-3 border-t border-line py-4 ${collapsed ? "px-2" : "px-3"}`}>
-            {!collapsed && (me.workspaces?.length ?? 0) > 1 && (
-              <label className="block px-1">
-                <span className="sr-only">切换空间</span>
-                <select
-                  value={me.workspace?.id ?? ""}
-                  onChange={(e) => switchWorkspace(e.target.value)}
-                  className="w-full rounded-lg border border-line bg-white px-2 py-1.5 text-xs text-ink"
-                >
-                  {(me.workspaces ?? []).map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+            {!collapsed && (
+              <WorkspaceSwitcher
+                workspaces={me.workspaces ?? []}
+                currentId={me.workspace?.id}
+                onSwitch={switchWorkspace}
+              />
             )}
             <StorageMeter usedBytes={me.usedBytes} quotaBytes={me.quotaBytes} compact={collapsed} />
-            <div className={`flex items-center gap-2.5 ${collapsed ? "flex-col" : "px-1"}`}>
-              <span
-                aria-hidden
-                title={collapsed ? account.name : undefined}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-soft text-sm font-semibold text-primary-text"
-              >
-                {account.name.charAt(0)}
-              </span>
-              {!collapsed && (
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium text-ink">{account.name}</div>
-                  <Badge tone="accent">{account.role === "admin" ? "管理员" : "成员"}</Badge>
-                </div>
-              )}
-              {logoutButton()}
-            </div>
+            <AccountMenu account={account} collapsed={collapsed} onLogout={() => setLogoutOpen(true)} />
           </div>
         </aside>
-        {/* 内容列：自适应全宽 */}
+
         <div className="flex min-w-0 flex-1 flex-col">
-          {/* 顶部工具栏 56px：md+ 左侧页名 + 右侧搜索；移动端简化为品牌 + 退出 */}
-          <header className="glass-light sticky top-0 z-20">
-            <div className="flex h-14 items-center justify-between gap-3 px-4 sm:px-6">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-white md:hidden">
-                  <Cloud size={20} />
-                </span>
-                <p className="hidden truncate font-display text-base font-semibold text-ink md:block">{PAGE_TITLES[pathname] ?? "MStor"}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <NotificationBell />
-                <SearchBox />
-                {logoutButton("md:hidden")}
-              </div>
-            </div>
-          </header>
+          <TopBar title={PAGE_TITLES[pathname] ?? "MStor"} onLogout={() => setLogoutOpen(true)} />
           <main className="min-w-0 flex-1 px-4 py-4 pb-nav sm:px-6 sm:py-6 md:pb-6">
             {actAs && (
               <div className="mb-4 flex flex-wrap items-center gap-x-2 rounded-xl bg-warn-soft px-4 py-2 text-xs text-warn-text">
@@ -204,7 +94,8 @@ function AppShellLayout() {
           <StatusBar me={me} />
         </div>
       </div>
-      {/* 移动端底部 Tab（浅玻璃 + 安全区） */}
+
+      {/* 移动端底部 Tab（玻璃 + 安全区） */}
       <nav aria-label="底部导航" className="glass-light safe-bottom fixed inset-x-0 bottom-0 z-40 flex px-2 py-1.5 md:hidden">
         {NAV.map(({ to, label, Icon }) => (
           <NavLink
@@ -222,6 +113,7 @@ function AppShellLayout() {
           </NavLink>
         ))}
       </nav>
+
       <ConfirmDialog
         open={logoutOpen}
         title="退出登录"
