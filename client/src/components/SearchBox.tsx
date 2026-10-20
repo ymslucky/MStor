@@ -2,19 +2,22 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { searchNodes } from "../api/search";
+import type { SearchKind, SearchSort } from "../api/search";
 import { useDebounce } from "../hooks/useDebounce";
 import { NodeIcon } from "./NodeIcon";
 
 export default function SearchBox() {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
+  const [sort, setSort] = useState<SearchSort>("recent");
+  const [kind, setKind] = useState<SearchKind>("all");
   const dq = useDebounce(q, 300);
   const navigate = useNavigate();
   const boxRef = useRef<HTMLDivElement>(null);
 
   const { data, isFetching } = useQuery({
-    queryKey: ["search", dq],
-    queryFn: () => searchNodes(dq),
+    queryKey: ["search", dq, sort, kind],
+    queryFn: () => searchNodes({ q: dq, sort, type: kind }),
     enabled: dq.trim().length > 0,
   });
 
@@ -46,7 +49,30 @@ export default function SearchBox() {
         onFocus={() => setOpen(true)}
       />
       {open && dq.trim() && (
-        <div className="absolute right-0 z-30 mt-1 max-h-80 w-80 max-w-[calc(100vw-2rem)] overflow-auto rounded-xl border border-line bg-white shadow-card">
+        <div className="glass anim-pop absolute right-0 z-30 mt-1 max-h-80 w-80 max-w-[calc(100vw-2rem)] overflow-auto">
+          <div className="flex items-center gap-1.5 border-b border-line px-2 py-1.5">
+            <select
+              aria-label="排序"
+              value={sort}
+              onChange={(e) => setSort(e.target.value as SearchSort)}
+              className="rounded-btn border border-line bg-surface-1 px-1.5 py-0.5 text-2xs text-ink"
+            >
+              <option value="recent">最近</option>
+              <option value="name">名称</option>
+              <option value="size">大小</option>
+            </select>
+            <select
+              aria-label="类型"
+              value={kind}
+              onChange={(e) => setKind(e.target.value as SearchKind)}
+              className="rounded-btn border border-line bg-surface-1 px-1.5 py-0.5 text-2xs text-ink"
+            >
+              <option value="all">全部</option>
+              <option value="file">文件</option>
+              <option value="dir">文件夹</option>
+            </select>
+            {isFetching && <span className="text-2xs text-ink-3">搜索中…</span>}
+          </div>
           {isFetching && <div className="px-3 py-2 text-xs text-ink-dim">搜索中…</div>}
           {data?.nodes.length === 0 && !isFetching && <div className="px-3 py-2 text-xs text-ink-dim">无结果</div>}
           {data?.nodes.map((n) => (

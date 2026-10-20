@@ -29,7 +29,7 @@ test("debounces input then shows results with paths", async () => {
   vi.mocked(searchNodes).mockResolvedValue(RESULT);
   const { user } = renderWith(<SearchBox />);
   await user.type(screen.getByLabelText("搜索"), "聚会");
-  await waitFor(() => expect(searchNodes).toHaveBeenCalledWith("聚会"), { timeout: 2000 });
+  await waitFor(() => expect(searchNodes).toHaveBeenCalledWith({ q: "聚会", sort: "recent", type: "all" }), { timeout: 2000 });
   expect(await screen.findByText("相册/2026/聚会.jpg")).toBeInTheDocument();
   // 图标语义：目录行带 Lucide 类型图标（NodeIcon svg）+ 名称（路径列同名，限定名称 span）
   const dirRow = screen.getByText("聚会资料", { selector: "span" }).closest("button")!;

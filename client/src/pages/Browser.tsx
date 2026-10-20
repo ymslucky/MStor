@@ -4,6 +4,7 @@ import type { MouseEvent as ReactMouseEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import { TriangleAlert } from "lucide-react";
 import { listShares } from "../api/shares";
+import { addFavorite, listFavorites, removeFavorite } from "../api/library";
 import type { Node } from "../api/types";
 import Breadcrumb from "../components/Breadcrumb";
 import ContextMenu from "../components/ContextMenu";
@@ -125,6 +126,20 @@ export default function Browser() {
   const [rememberConflict, setRememberConflict] = useState(() => getString(CONFLICT_KEY) !== "");
 
   const takenNames = new Set(allNodes.map((n) => n.name));
+
+  // 收藏：行内星标切换（服务端 PUT/DELETE 幂等），成功后刷新收藏集合
+  const favorites = useQuery({ queryKey: ["favorites"], queryFn: listFavorites });
+  const favIds = new Set((favorites.data?.nodes ?? []).map((n) => n.id));
+  const toggleFavorite = (n: Node) => {
+    const on = favIds.has(n.id);
+    const action = on ? removeFavorite(n.id) : addFavorite(n.id);
+    void action
+      .then(() => {
+        toast(on ? "已取消收藏" : "已收藏", "info");
+        return favorites.refetch();
+      })
+      .catch((e) => toast(e instanceof Error ? e.message : "操作失败"));
+  };
 
   const applyPolicy = (policy: ConflictPolicy, files: File[]) => {
     if (policy === "skip") {
@@ -350,6 +365,8 @@ export default function Browser() {
             actions={(n) => (
               <NodeRowActions
                 node={n}
+                favorited={favIds.has(n.id)}
+                onToggleFavorite={toggleFavorite}
                 onShare={setSharing}
                 onRename={setRenaming}
                 onMove={setMoving}
