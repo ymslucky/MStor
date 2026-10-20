@@ -1,55 +1,78 @@
-# MStor 设计系统 v6 · 明亮清新 + 玻璃质感 + 活泼动效
+# MStor 设计系统 v6（权威版）
 
-> v4（中性极简）与 v5（工业终端/磁带未来主义）均被否。定稿方向：**明亮、清新、通透，毛玻璃与动效作为主要表达**。
-> 代码真相：`client/src/index.css`（令牌）+ `client/src/components/ui/*`（原语）。
+> **令牌唯一来源**：`client/src/index.css` 的 `@theme`（含暗色覆盖）。
+> **原语唯一来源**：`client/src/components/ui/*`（7 个）。
+> **可视化验收**：应用内 `/design` 页（`pages/DesignPage.tsx`）——新增令牌/原语**必须先在此登记**。
+> 类名合并统一走 `client/src/lib/cn.ts`（clsx + tailwind-merge）。
 
-## 1. 三条构成法则
+## 1. 方向：明亮清新 + 真毛玻璃 + 活泼动效
 
-1. **通透**：底色不是纯白，而是近白微冷 + 三处极淡色彩光晕（薄荷 / 天蓝 / 淡紫）；面板是真毛玻璃（半透明白 + `backdrop-filter: blur(20–28px) saturate(180%)` + 顶部 1px 高光描边）。
-2. **清新**：强调色为薄荷青 `#0ea5a4`，功能色用明亮却不刺眼的绿/琥珀/玫红；彩色只出现在状态与强调，不铺大面积。
-3. **有生气**：所有可交互元素 hover 抬升 2px、按下缩放 0.98；进场用 spring 曲线（10px 位移 + 0.99 缩放），时长 160/240/320ms；骨架用流光而不是灰块。
+| 原则 | 落地 |
+|---|---|
+| 通透 | 近白微冷底 + 三处极淡色彩光晕（薄荷/天蓝/淡紫）；面板为真毛玻璃（半透明白 + `backdrop-filter: blur(20–28px) saturate(180–190%)` + 顶部 1px 高光） |
+| 清新 | 唯一强调色薄荷青 `#0ea5a4`；功能色明亮但不刺眼（绿 `#10b981` / 琥珀 `#f59e0b` / 玫红 `#f43f5e`），只用于状态 |
+| 有生气 | spring 曲线 `cubic-bezier(0.34,1.4,0.64,1)`，160/240/320ms；按钮 hover 抬升 2px、按下缩放 0.98；卡片 `.hover-lift`；进场 `.anim-item-in`；弹窗 `.anim-pop`；骨架流光 |
+| 无障碍 | `prefers-reduced-motion` 动效归零；`prefers-reduced-transparency` 玻璃退化实色；焦点环统一 2px 主色 + 2px 偏移 |
 
 ## 2. 令牌
 
-| 类别 | 亮（清新） | 暗（深蓝灰玻璃） |
-|---|---|---|
-| `bg` | `#f6f8fb` + 三色光晕 | `#0e1620` + 同款光晕 |
-| `surface-1/2` | `#ffffff` | `#16202b` / `#1b2632` |
-| `ink / -2 / -3` | `#10202c / #4a5b68 / #8296a3` | 反转提亮 |
-| `line / -strong` | `#e2e9f0 / #cdd8e3` | `#24313d / #334455` |
-| `primary(-text/-soft)` | `#0ea5a4 / #0b7f7e / #d9f4f3` | `#2dd4bf / #5eead4` |
-| `success / warn / danger` | `#10b981 / #f59e0b / #f43f5e`（各带 -soft） | 提亮版 |
-| 圆角 | chip 8 / btn 12 / input 12 / card 16 / panel 20 | 同 |
-| 阴影 | soft / card / lift / glass 四级**柔和扩散**（不用硬投影） | 加深 |
-| 动效 | `--ease-spring` + 160/240/320ms | 同 |
-
-玻璃档位：`.glass`（卡片 66% 白 + blur20）、`.glass-strong / .glass-modal`（80% + blur28）、`.glass-panel`（顶栏 72% + blur24）、`.glass-subtle`（42% + blur12）。`prefers-reduced-transparency` 下自动退化实色。
-
-## 3. 原语
-
-| 原语 | 表现 |
+| 类别 | 值 |
 |---|---|
-| `Button` | 主按钮实色薄荷 + 柔和投影；hover 抬升、active 缩放 0.98；ghost 为 70% 白 + blur |
-| `Input` | 70% 白 + blur，hover 边框加深，focus 主色边框 |
-| `Badge` | 胶囊、浅底深字 |
-| `GlassCard` | `.glass + .sheen`（顶部高光） |
-| `IconButton` | 圆形，hover 白色柔光 + 抬升 |
-| `Skeleton` | 玻璃底 + 流光 + `animate-pulse`（保留加载态可识别性） |
+| 表面 | `bg #f6f8fb` → `surface-1 #ffffff` → `surface-2 #ffffff`；`bg-sub #eef2f7` |
+| 文字 | `ink #10202c` / `ink-2 #4a5b68` / `ink-3 #8296a3`（≥4.5:1） |
+| 描边 | `line #e2e9f0` / `line-strong #cdd8e3` |
+| 强调 | `primary #0ea5a4` / `primary-text #0b7f7e` / `primary-soft #d9f4f3` |
+| 状态 | `success` / `warn` / `danger` 各带 `-text`、`-soft` |
+| 圆角 | `chip 8` / `btn,input 12` / `card 16` / `panel 20` |
+| 阴影 | `soft` / `card` / `lift` / `glass`（四级柔和扩散，禁用硬投影） |
+| 字号 | 2xs 11 / xs 12 / sm 13 / base 15 / lg 18 / xl 22 / 2xl 30 |
+| 动效 | `--ease-spring` + `duration-fast 160` / `slow 240` / `320` |
 
-## 4. 布局目标（三栏，进行中）
+暗色：`#0e1620` 深蓝灰 + 同款光晕，玻璃转 `rgb(255 255 255 / 0.07–0.1)`。
+
+## 3. 原语与迁移状态
+
+| 原语 | 实现 | 状态 |
+|---|---|---|
+| `Dialog` | **Radix Dialog**（焦点陷阱/Esc/遮罩/aria-modal/滚动锁定/焦点还原） | ✅ 已迁移 |
+| `ConfirmDialog` | 复用 `Dialog` | ✅ 继承 |
+| `ContextMenu` | 自研（自算坐标 + 越界翻转） | ⬜ 待迁 Radix ContextMenu |
+| `Toaster` | 自研（`toast()` API） | ⬜ 待迁 Radix Toast |
+| `Button` / `Badge` / `IconButton` | 自研 + `cn` | ✅ |
+| `Input` | 自研 + `cn` | ✅ |
+| `GlassCard` / `Skeleton` | 自研 | ✅ |
+
+迁移原则：**契约不变、视觉不变**，只换底座（无障碍与交互正确性），调用点尽量零改动；每迁一个原语必须跑 `tsc + eslint + 190 用例 + build`。
+
+## 4. 布局与导航
 
 ```
-顶栏（glass-panel）：空间切换 · ⌘K 搜索 · 上传 · 通知 · 账户
-左导航（glass，圆角浮起）：空间 / 收藏 / 最近 / 标签 / 回收站 / 分享
+顶栏（glass-light）：汉堡(移动) · 页名 · 通知 · 搜索 · 退出
+侧栏（glass，可折叠，分区）：
+  浏览 → 文件 / 收藏 / 最近 / 标签
+  共享 → 分享 / 回收站
+  系统 → 设置
 中部：路径栏 · 工具条 · 文件列表（玻璃卡片，行 hover 抬升）
-右详情（glass，可收起）：详情 / 预览 / 标签 / 分享
+右详情栏（glass，桌面 lg+）：详情 / 预览 / 动作；窄屏回落 NodeDetailDialog
 底部状态栏（glass-subtle）：空间 · 用量 · 队列 · 未读
 ```
 
-## 5. 待办
+设置走子路由（`/settings/{account,upload,members,admin}`），可深链、可后退。
 
-1. 三栏骨架（AppShell 重写）+ 右详情栏
-2. 设置页拆路由（账户/空间/成员/存储/管理）
-3. 分享管理（剩余次数、过期状态、最近下载）
-4. 上传与批量（全局队列面板、冲突与续传可视化、批量操作条）
-5. 移动端（抽屉、下拉刷新、长按多选）
+## 5. 组件契约（新增组件必须遵守）
+
+1. 颜色只用语义令牌（`bg-surface-1` / `text-ink-2` / `border-line` …），**禁止** `bg-gray-100`、`text-blue-600` 这类调色板直写。
+2. 圆角只用四档，阴影只用四级。
+3. 交互元素必须有可见焦点（不覆盖全局 `:focus-visible`）与 ≥44px 触控区（`.tap` 在 coarse 指针下生效）。
+4. 动画只用 `--ease-spring` + 三档时长，且必须被 `prefers-reduced-motion` 覆盖。
+5. 类名拼接一律 `cn()`，不手写三元字符串。
+6. 新增原语先在 `/design` 登记用例，再接入业务组件。
+
+## 6. 历史（避免重走弯路）
+
+| 版本 | 方向 | 结果 |
+|---|---|---|
+| v3 | 奶白 + 彩色光斑 + 玻璃三档 | 被否（糖果感、层次靠糊） |
+| v4 | 中性极简（Linear 风） | 被否（太素） |
+| v5 | 工业终端 / 磁带未来主义 / 新野兽派 | 被否（终端质感过重） |
+| **v6** | **明亮清新 + 真毛玻璃 + 活泼动效** | 现行 |
