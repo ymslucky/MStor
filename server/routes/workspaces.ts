@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../env";
 import { createInvitation, listInvitations, listMembers, revokeInvitation } from "../data/invitations";
-import { listMemberships } from "../data/workspaces";
+import { listMemberships, removeMember, updateMemberRole } from "../data/workspaces";
 import { errors } from "../lib/errors";
 
 // 租户与成员管理：只有 owner/admin 能发邀请；member 只能读自己的空间列表
@@ -42,5 +42,28 @@ workspaces.post("/invitations", async (c) => {
 workspaces.delete("/invitations/:token", async (c) => {
   requireManager(c.get("role"));
   await revokeInvitation(c.env.DB, c.get("workspace").id, c.req.param("token"), c.get("user").id);
+  return c.json({ ok: true });
+});
+
+workspaces.patch("/members/:userId", async (c) => {
+  requireManager(c.get("role"));
+  const userId = c.req.param("userId");
+  if (userId === c.get("user").id) throw errors.badRequest("不能修改自己的角色");
+  const body = (await c.req.json().catch(() => ({}))) as { role?: string };
+  const role = body?.role;
+  if (role !== "owner" && role !== "admin" && role !== "member") throw errors.badRequest("role 非法");
+  const result = await updateMemberRole(c.env.DB, c.get("workspace").id, userId, role);
+  if (result === "not_found") throw errors.notFound();
+  if (result === "last_owner") throw errors.badRequest("空间至少保留一名所有者");
+  return c.json({ ok: true });
+});
+
+workspaces.delete("/members/:userId", async (c) => {
+  requireManager(c.get("role"));
+  const userId = c.req.param("userId");
+  if (userId === c.get("user").id) throw errors.badRequest("不能移除自己");
+  const result = await removeMember(c.env.DB, c.get("workspace").id, userId);
+  if (result === "not_found") throw errors.notFound();
+  if (result === "last_owner") throw errors.badRequest("空间至少保留一名所有者");
   return c.json({ ok: true });
 });

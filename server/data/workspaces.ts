@@ -117,3 +117,51 @@ export async function listMemberships(
 export function canWrite(role: WorkspaceRole): boolean {
   return WORKSPACE_ROLES.includes(role);
 }
+
+/** 改成员角色：拒绝把空间最后一名 owner 降级（否则空间失去管理者） */
+export async function updateMemberRole(
+  db: D1Database,
+  workspaceId: string,
+  userId: string,
+  role: WorkspaceRole,
+): Promise<"ok" | "not_found" | "last_owner"> {
+  const current = await db
+    .prepare("SELECT role FROM memberships WHERE workspace_id = ?1 AND user_id = ?2")
+    .bind(workspaceId, userId)
+    .first<{ role: string }>();
+  if (!current) return "not_found";
+  if (current.role === "owner" && role !== "owner") {
+    const owners = await db
+      .prepare("SELECT COUNT(*) AS n FROM memberships WHERE workspace_id = ?1 AND role = 'owner'")
+      .bind(workspaceId)
+      .first<{ n: number }>();
+    if ((owners?.n ?? 0) <= 1) return "last_owner";
+  }
+  await db
+    .prepare("UPDATE memberships SET role = ?2 WHERE workspace_id = ?1 AND user_id = ?3")
+    .bind(workspaceId, role, userId)
+    .run();
+  return "ok";
+}
+
+/** 移除成员：同样保护最后一名 owner */
+export async function removeMember(
+  db: D1Database,
+  workspaceId: string,
+  userId: string,
+): Promise<"ok" | "not_found" | "last_owner"> {
+  const current = await db
+    .prepare("SELECT role FROM memberships WHERE workspace_id = ?1 AND user_id = ?2")
+    .bind(workspaceId, userId)
+    .first<{ role: string }>();
+  if (!current) return "not_found";
+  if (current.role === "owner") {
+    const owners = await db
+      .prepare("SELECT COUNT(*) AS n FROM memberships WHERE workspace_id = ?1 AND role = 'owner'")
+      .bind(workspaceId)
+      .first<{ n: number }>();
+    if ((owners?.n ?? 0) <= 1) return "last_owner";
+  }
+  await db.prepare("DELETE FROM memberships WHERE workspace_id = ?1 AND user_id = ?2").bind(workspaceId, userId).run();
+  return "ok";
+}
