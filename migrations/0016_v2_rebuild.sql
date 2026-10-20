@@ -186,6 +186,20 @@ CREATE TABLE IF NOT EXISTS storage_stats (
   updated_at INTEGER
 );
 
+-- 可撤销操作（30 秒窗口）：移动/改名的逆操作载荷；删除的撤销走回收站还原
+CREATE TABLE IF NOT EXISTS operations (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL REFERENCES workspaces(id),
+  actor_id TEXT NOT NULL REFERENCES users(id),
+  kind TEXT NOT NULL CHECK (kind IN ('move','rename')),
+  node_id TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  undone_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_operations_live ON operations(workspace_id, expires_at) WHERE undone_at IS NULL;
+
 -- 动态配置：scope = 'global' 或 workspace id
 CREATE TABLE IF NOT EXISTS settings (
   scope TEXT NOT NULL DEFAULT 'global',

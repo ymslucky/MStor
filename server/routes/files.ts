@@ -6,6 +6,8 @@ import { assertQuota, adjustUsedBytes, breadcrumb, childPath, getNode, listChild
 import { serveObject } from "../lib/serve";
 import { isUniqueViolation } from "../lib/sql";
 import { assertGlobalBudget, recomputeStorageStats, storageDeltaStmt } from "../data/storage";
+import { copyNode } from "../data/copy";
+import { recordMoveUndo, undoOperation } from "../data/operations";
 import { moveMany, permanentDeleteMany, softDeleteMany, softDeleteNode, parseIds } from "../data/trash";
 
 export const files = new Hono<AppEnv>();
@@ -28,6 +30,33 @@ files.patch("/:id", async (c) => {
   if (!node) throw errors.notFound();
   const nextName = name !== undefined ? validateNodeName(name) : node.name;
   await moveNode(c.env.DB, c.get("workspace").id, node.id, parentId ?? node.parent_id, nextName);
+  // 记录 30 秒撤销窗口（前端 Snackbar 用 undoId 回滚）
+  const undoId = await recordMoveUndo(c.env.DB, {
+    workspaceId: c.get("workspace").id,
+    actorId: c.get("user").id,
+    nodeId: node.id,
+    oldParentId: node.parent_id,
+    oldName: node.name,
+  });
+  return c.json({ ok: true, undoId });
+});
+
+// 复制（含目录整棵子树；R2 对象共享、配额按逻辑字节计）
+files.post("/:id/copy", async (c) => {
+  const { parentId } = await c.req.json<{ parentId?: string }>();
+  const result = await copyNode(
+    c.env.DB,
+    c.get("workspace").id,
+    c.get("user").id,
+    c.req.param("id"),
+    parentId ?? "",
+  );
+  return c.json(result, 201);
+});
+
+// 撤销移动/改名（30 秒窗口）
+files.post("/operations/:id/undo", async (c) => {
+  await undoOperation(c.env.DB, c.get("workspace").id, c.req.param("id"));
   return c.json({ ok: true });
 });
 

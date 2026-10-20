@@ -660,6 +660,89 @@ async function main() {
     assertEqual(forbidden.status, 403, "普通成员访问应 403，实际 " + forbidden.status);
   });
 
+  // —— 复制与撤销（P2 B9）——
+  await check("HTTP：复制文件/目录（共享 R2 对象、配额按逻辑字节翻倍）", async () => {
+    const db = makeD1(schema1x);
+    const env = makeEnv(db, makeR2());
+    const auth = { "x-dev-email": "a@example.com" };
+    const up = await call(env, "/api/files/upload?name=x.bin&parentId=", {
+      method: "PUT",
+      headers: { ...auth, "content-type": "application/octet-stream" },
+      body: new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]),
+    });
+    const fileId = up.json.id;
+    const copy = await call(env, "/api/files/" + fileId + "/copy", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ parentId: "" }),
+    });
+    assertEqual(copy.status, 201, "复制应 201，实际 " + copy.status + " " + copy.text.slice(0, 160));
+    assertEqual(copy.json.name, "x (2).bin", "同名复制应自动让位，实际 " + copy.json.name);
+    const keys = db.prepare("SELECT DISTINCT r2_key FROM nodes WHERE name LIKE 'x%.bin'").all().results;
+    assertEqual(keys.length, 1, "两个副本应共享同一个 R2 对象");
+    assertEqual(db.prepare("SELECT used_bytes u FROM workspaces").first().u, 16, "配额按逻辑字节翻倍（16）");
+    const dir = await call(env, "/api/dirs", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ parentId: "", name: "d" }),
+    });
+    await call(env, "/api/files/upload?name=inner.bin&parentId=" + dir.json.id, {
+      method: "PUT",
+      headers: { ...auth, "content-type": "application/octet-stream" },
+      body: new Uint8Array([7, 7]),
+    });
+    const dirCopy = await call(env, "/api/files/" + dir.json.id + "/copy", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ parentId: "" }),
+    });
+    assertEqual(dirCopy.json.copied, 2, "目录复制应含自身 + 1 个子项");
+    const child = db.prepare("SELECT path FROM nodes WHERE id IN (SELECT id FROM nodes WHERE name = 'inner.bin' AND id != ?) LIMIT 1").first(copy.json.id);
+    assert(child && child.path.startsWith("/" + dir.json.id + "/") === false, "副本应在新的目录路径下");
+    assertEqual(db.prepare("SELECT COUNT(*) c FROM nodes WHERE name = 'd (2)'").first().c, 1, "副本目录应让位为 d (2)");
+  });
+
+  await check("HTTP：移动后 30 秒内可撤销（过期 410、重复撤销 409）", async () => {
+    const db = makeD1(schema1x);
+    const env = makeEnv(db, makeR2());
+    const auth = { "x-dev-email": "a@example.com" };
+    const up = await call(env, "/api/files/upload?name=move-me.bin&parentId=", {
+      method: "PUT",
+      headers: { ...auth, "content-type": "application/octet-stream" },
+      body: new Uint8Array([1]),
+    });
+    const fileId = up.json.id;
+    const dir = await call(env, "/api/dirs", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ parentId: "", name: "target" }),
+    });
+    const moved = await call(env, "/api/files/" + fileId, {
+      method: "PATCH",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ parentId: dir.json.id }),
+    });
+    assertEqual(moved.status, 200, "移动应 200");
+    assert(moved.json.undoId, "移动应返回 undoId");
+    assertEqual(db.prepare("SELECT parent_id p FROM nodes WHERE id = ?").first(fileId).p, dir.json.id, "移动后父应为目标目录");
+    const undo = await call(env, "/api/files/operations/" + moved.json.undoId + "/undo", { method: "POST", headers: auth });
+    assertEqual(undo.status, 200, "撤销应 200，实际 " + undo.status + " " + undo.text.slice(0, 160));
+    const back = db.prepare("SELECT parent_id p, name n FROM nodes WHERE id = ?").first(fileId);
+    assertEqual(back.n, "move-me.bin", "撤销后名称应还原");
+    assert(back.p !== dir.json.id, "撤销后不应仍在目标目录");
+    const again = await call(env, "/api/files/operations/" + moved.json.undoId + "/undo", { method: "POST", headers: auth });
+    assertEqual(again.status, 409, "重复撤销应 409，实际 " + again.status);
+    // 过期：把窗口改到过去
+    const moved2 = await call(env, "/api/files/" + fileId, {
+      method: "PATCH",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ parentId: dir.json.id }),
+    });
+    db.prepare("UPDATE operations SET expires_at = 1 WHERE id = ?").run(moved2.json.undoId);
+    const expired = await call(env, "/api/files/operations/" + moved2.json.undoId + "/undo", { method: "POST", headers: auth });
+    assertEqual(expired.status, 410, "过期撤销应 410，实际 " + expired.status);
+  });
+
   // —— 语句数预算（§4.6）：大批量下语句数必须与批次无关 ——
   await check("200 项批量：软删 ≤4 条语句、彻底删除 ≤5 条语句", async () => {
     const db = makeD1(schema1x);
