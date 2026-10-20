@@ -2,7 +2,7 @@ import { render } from "@testing-library/react";
 import { renderWithProviders } from "./utils";
 import { describe, expect, test } from "vitest";
 import { axe } from "vitest-axe";
-import { Badge, Button, IconButton, Input } from "../components/ui";
+import { Badge, Button, Field, IconButton, Input, ListRow, NavItem, Panel } from "../components/ui";
 import { Dialog } from "../components/ui/Dialog";
 import { ConflictDialog } from "../components/ConflictDialog";
 import { BatchBar } from "../components/BatchBar";
@@ -64,6 +64,25 @@ describe("无障碍闸门", () => {
         <ConflictDialog names={["a.txt"]} remember={false} onRememberChange={() => {}} onDecide={() => {}} onCancel={() => {}} />
         <BatchBar count={2} hasFileSelected onDownload={() => {}} onMove={() => {}} onDelete={() => {}} onClear={() => {}} />
         <UndoSnackbar message="已移动" onUndo={() => {}} onClose={() => {}} />
+      </div>,
+    );
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  test("S3 原语（Panel / Field / ListRow / NavItem）", async () => {
+    const { container } = wrap(
+      <div>
+        <Panel level="e2">
+          <ListRow selected>选中行</ListRow>
+          <ListRow>普通行</ListRow>
+        </Panel>
+        <Field label="名称" hint="用于展示" required>
+          <Input placeholder="名称" />
+        </Field>
+        <Field label="出错字段" error="必填项缺失">
+          <Input defaultValue="x" />
+        </Field>
+        <NavItem to="/">导航项</NavItem>
       </div>,
     );
     expect(await axe(container)).toHaveNoViolations();

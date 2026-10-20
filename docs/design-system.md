@@ -45,6 +45,10 @@
 | `Surface` | 卡片/面板唯一出处（描边+圆角+投影） | ✅ 新增 |
 | `Pill` | 胶囊标签唯一出处（替代手写 rounded-full bg-*-soft） | ✅ 新增 |
 | `Skeleton` | 自研 | ✅ |
+| `Panel` | 浮层容器（level=e2 glass / e3 glass-strong），唯一出处 | ✅ 新增 |
+| `Field` | label + 控件 + hint/error（自动 id 与 aria-describedby、error 用 role=alert） | ✅ 新增 |
+| `NavItem` | 导航项，选中 accent-tint，行高走 --density-row-h | ✅ 新增 |
+| `ListRow` | 列表行，高度走密度令牌，hover=E1 / 选中=accent-tint | ✅ 新增 |
 
 迁移原则：**契约不变、视觉不变**，只换底座（无障碍与交互正确性），调用点尽量零改动；每迁一个原语必须跑 `tsc + eslint + 190 用例 + build`。
 

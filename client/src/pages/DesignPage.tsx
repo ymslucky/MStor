@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Badge, Button, Dialog, GlassCard, IconButton, Input, Pill, Skeleton, Surface } from "../components/ui";
+import { Badge, Button, Dialog, Field, GlassCard, IconButton, Input, ListRow, NavItem, Panel, Pill, Skeleton, Surface } from "../components/ui";
 import { cn } from "../lib/cn";
 import { readDensity, readSkin, setDensity, setSkin } from "../lib/appearance";
 import type { Density, Skin } from "../lib/appearance";
@@ -175,6 +175,22 @@ export default function DesignPage() {
             <Pill tone="danger">已用尽</Pill>
           </div>
           <Surface className="p-3 text-sm text-ink-2">Surface（卡片/面板唯一出处）</Surface>
+          <Panel level="e2" className="max-w-xs">
+            <ListRow selected>Panel + ListRow（选中态）</ListRow>
+            <ListRow>Panel + ListRow（hover 态）</ListRow>
+          </Panel>
+          <div className="max-w-xs">
+            <Field label="字段标签" hint="辅助说明走 type-label" required>
+              <Input placeholder="Field 包裹的输入框" />
+            </Field>
+            <Field label="出错状态" error="这里会显示错误并带 role=alert">
+              <Input defaultValue="bad value" />
+            </Field>
+          </div>
+          <div className="flex max-w-xs flex-col gap-1">
+            <NavItem to="/design">NavItem（当前路由高亮）</NavItem>
+            <NavItem to="/settings">NavItem（普通态）</NavItem>
+          </div>
           <div className="grid gap-2 sm:grid-cols-2">
             <Input placeholder="输入框（focus 主色描边）" aria-label="示例输入" />
             <div className="flex items-center gap-2">
