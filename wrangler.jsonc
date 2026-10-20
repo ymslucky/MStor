@@ -29,7 +29,7 @@
     "ACCESS_TEAM_DOMAIN": "https://ymslucky.cloudflareaccess.com",
     "ACCESS_AUD": "572d0b7681bd7e98cd0bf698df79b586a3d48fbef9bb7e65e4c99a6656fac51b",
     "AUTH_MODE": "access",
-    "ACCESS_PROVISION": "off",
+    "ACCESS_PROVISION": "on",
     "PUBLIC_URL": "https://stor.msxor.com",
     "R2_ENDPOINT": "https://1c8085f64526758e5e231ee2f5395a2e.r2.cloudflarestorage.com/mstor",
     "DEFAULT_QUOTA_BYTES": "10737418240",
