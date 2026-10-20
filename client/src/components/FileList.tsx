@@ -12,12 +12,11 @@ import { ArrowDown, ArrowUp, Check, Columns3, Copy, Download, EyeOff, FolderOpen
 import { contentUrl } from "../api/nodes";
 import { thumbUrl } from "../api/thumbs";
 import { FileCard } from "./FileCard";
+import { FileRowCells } from "./FileRow";
 import type { Node } from "../api/types";
 import { compareNodes, useColumnPrefs } from "../hooks/useColumnPrefs";
 import type { SortKey } from "../hooks/useColumnPrefs";
 import { hasNodeDrag, readNodeDrag, setNodeDrag } from "../lib/dnd";
-import { formatBytes, formatDate, truncateMiddle } from "../lib/format";
-import { NodeIcon } from "./NodeIcon";
 import { Badge, Button, EmptyState } from "./ui";
 import { toast } from "./Toaster";
 import VirtualizedList, { ROW_HEIGHT } from "./VirtualizedList";
@@ -419,18 +418,12 @@ export default function FileList({
   );
 
   // 行内容（grid 子元素，与表头同模板对齐）
-  const rowCells = (n: Node, _i: number) => (
-    <>
-      {selectable && <span className="px-1 text-center">{checkbox(n)}</span>}
-      <span className="flex justify-center">
-        <NodeIcon node={n} size={18} className="shrink-0" />
-      </span>
-      <span className="flex min-w-0 items-center gap-1">
-        {/* 点击事件由行容器统一处理（避免冒泡双重 toggle），按钮仅承担样式与 title */}
-        <button type="button" className="min-w-0 truncate text-left text-ink hover:underline" title={n.name} tabIndex={-1}>
-          {truncateMiddle(n.name)}
-        </button>
-        {/* 复制文件名：紧跟文件名后（不属于操作列），点击阻断冒泡 */}
+  const rowCells = (n: Node) => (
+    <FileRowCells
+      node={n}
+      selectable={!!selectable}
+      checkboxEl={selectable ? checkbox(n) : null}
+      copyButton={
         <RowAction
           label={`复制文件名 ${n.name}`}
           className="h-6 w-6 opacity-60 hover:opacity-100"
@@ -442,14 +435,13 @@ export default function FileList({
         >
           <Copy size={12} aria-hidden />
         </RowAction>
-        {sharedBadge(n)}
-      </span>
-      {showSize && <span className="truncate px-2 text-right tabular-nums text-ink-dim">{formatBytes(n.size)}</span>}
-      {showTime && <span className="truncate px-2 tabular-nums text-ink-dim">{formatDate(n.updated_at)}</span>}
-      {actionCell(n)}
-    </>
+      }
+      badge={sharedBadge(n)}
+      actionCell={actionCell(n)}
+      showSize={!!showSize}
+      showTime={!!showTime}
+    />
   );
-
   const rowEvents = (n: Node, _i: number) => ({
     onContextMenu: (e: ReactMouseEvent<HTMLElement>) => onNodeContextMenu?.(e, n),
     ...dragProps(n),
@@ -468,7 +460,7 @@ export default function FileList({
       onDoubleClick={rowDoubleClick(n, i)}
       {...rowEvents(n, i)}
     >
-      {rowCells(n, i)}
+      {rowCells(n)}
     </div>
   );
 
@@ -524,7 +516,7 @@ export default function FileList({
           onDoubleClick={rowDoubleClick(n, i)}
           {...rowEvents(n, i)}
         >
-          {rowCells(n, i)}
+          {rowCells(n)}
         </div>
       ))}
     </div>
