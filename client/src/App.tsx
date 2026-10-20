@@ -10,6 +10,7 @@ import AppShell from "./shell/AppShell";
 import { makeQueryClient } from "./shell/queryClient";
 import Browser from "./pages/Browser";
 import SettingsPage from "./pages/SettingsPage";
+import DesignPage from "./pages/DesignPage";
 import SharePage from "./pages/SharePage";
 import SharesPage from "./pages/SharesPage";
 import TrashPage from "./pages/TrashPage";
@@ -79,7 +80,8 @@ export default function App() {
             <Route path="/" element={<Browser />} />
             <Route path="/shares" element={<SharesPage />} />
             <Route path="/trash" element={<TrashPage />} />
-            <Route path="/settings" element={<Navigate to="/settings/account" replace />} />
+            <Route path="/design" element={<DesignPage />} />
+          <Route path="/settings" element={<Navigate to="/settings/account" replace />} />
           <Route path="/settings/:tab" element={<SettingsRoute />} />
           </Route>
           {/* 兜底：任何未匹配路径（含陈旧 SW 缓存的 /cdn-cgi/* 授权回调）回首页，避免渲染空白页 */}
