@@ -105,7 +105,7 @@ function UploadSection() {
         <Button disabled={!valid || parsed === getUploadConcurrency()} onClick={save}>
           保存
         </Button>
-        {!valid && <span className="text-xs text-danger">须为 {MIN_UPLOAD_CONCURRENCY}-{MAX_UPLOAD_CONCURRENCY} 的整数</span>}
+        {!valid && <span className="text-xs text-danger-text">须为 {MIN_UPLOAD_CONCURRENCY}-{MAX_UPLOAD_CONCURRENCY} 的整数</span>}
       </div>
     </GlassCard>
   );
@@ -148,7 +148,7 @@ function TrashRetentionSection() {
         <Button disabled={!valid || save.isPending} onClick={() => save.mutate()}>
           保存
         </Button>
-        {days !== null && !valid && <span className="text-xs text-danger">须为 1-365 的整数</span>}
+        {days !== null && !valid && <span className="text-xs text-danger-text">须为 1-365 的整数</span>}
       </div>
     </GlassCard>
   );
@@ -168,7 +168,7 @@ function AdminRow({ u, selfId }: { u: AdminUser; selfId: string }) {
       <td className="py-2 text-ink">
         {u.name}
         {u.id === selfId && <span className="ml-1 text-xs text-ink-faint">（我）</span>}
-        {u.disabled_at && <span className="ml-1 text-xs text-danger">已停用</span>}
+        {u.disabled_at && <span className="ml-1 text-xs text-danger-text">已停用</span>}
       </td>
       <td className="hidden py-2 text-xs sm:table-cell">{u.role}</td>
       <td className="py-2">

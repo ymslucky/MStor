@@ -149,7 +149,7 @@ export default function SharePage() {
             ))}
             {/* 加载失败与空目录区分：失败时给出可感知的报错而非空态 */}
             {current && children.isError ? (
-              <tr><td colSpan={3} className="py-10 text-center text-sm text-danger">子目录加载失败：{children.error.message}</td></tr>
+              <tr><td colSpan={3} className="py-10 text-center text-sm text-danger-text">子目录加载失败：{children.error.message}</td></tr>
             ) : !files.length ? (
               <tr><td colSpan={3} className="py-10 text-center text-sm text-ink-faint">空文件夹</td></tr>
             ) : null}

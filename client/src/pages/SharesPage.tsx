@@ -63,7 +63,7 @@ export default function SharesPage() {
           <table className="w-full text-sm">
             <tbody>
               {shares.map((s) => (
-                <tr key={s.id} className="border-b border-line transition-colors last:border-b-0 hover:bg-gray-50">
+                <tr key={s.id} className="border-b border-line transition-colors last:border-b-0 hover:bg-bg-sub">
                   <td className="w-8 py-2">
                     <input
                       type="checkbox"
@@ -79,7 +79,7 @@ export default function SharesPage() {
                       <span className="truncate">{s.node_name}</span>
                       {/* 过期灰标：纯展示（打开链接仍 410） */}
                       {s.expires_at && s.expires_at < Date.now() && (
-                        <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-ink-3">已过期</span>
+                        <span className="shrink-0 rounded bg-bg-sub px-1.5 py-0.5 text-[10px] text-ink-3">已过期</span>
                       )}
                     </div>
                     <div className="text-xs text-ink-3">/s/{s.token}</div>

@@ -67,11 +67,11 @@ export function RowAction({
   ...rest
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { label: string; tone?: "neutral" | "blue" | "violet" | "amber" | "danger" }) {
   const tones: Record<string, string> = {
-    neutral: "text-ink-2 hover:bg-gray-100 hover:text-ink",
-    blue: "text-blue-600 hover:bg-blue-50",
-    violet: "text-violet-600 hover:bg-violet-50",
-    amber: "text-amber-600 hover:bg-amber-50",
-    danger: "text-danger-text hover:bg-red-50",
+    neutral: "text-ink-2 hover:bg-bg-sub hover:text-ink",
+    blue: "text-primary-text hover:bg-blue-50",
+    violet: "text-chip-violet-fg hover:bg-violet-50",
+    amber: "text-warn-text hover:bg-warn-soft",
+    danger: "text-danger-text hover:bg-danger-soft",
   };
   return (
     <button
@@ -274,7 +274,7 @@ export default function FileList({
           href={contentUrl(n.id, true)}
           aria-label={`下载 ${n.name}`}
           title={`下载 ${n.name}`}
-          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-blue-600 transition-colors hover:bg-blue-50"
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-primary-text transition-colors hover:bg-blue-50"
         >
           <Download size={14} aria-hidden />
         </a>
@@ -322,7 +322,7 @@ export default function FileList({
                 key={c.key}
                 role="menuitemcheckbox"
                 aria-checked={pref[c.key]}
-                className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-ink hover:bg-gray-50"
+                className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-ink hover:bg-bg-sub"
               >
                 <input
                   type="checkbox"
@@ -330,7 +330,7 @@ export default function FileList({
                   onChange={() => setPrefAndSave({ ...pref, [c.key]: !pref[c.key] })}
                   className="h-3.5 w-3.5 accent-emerald-600"
                 />
-                {pref[c.key] ? <Check size={12} aria-hidden className="text-emerald-600" /> : <EyeOff size={12} aria-hidden className="text-ink-faint" />}
+                {pref[c.key] ? <Check size={12} aria-hidden className="text-success-text" /> : <EyeOff size={12} aria-hidden className="text-ink-faint" />}
                 {c.label}
               </label>
             ))}
@@ -338,7 +338,7 @@ export default function FileList({
               <button
                 type="button"
                 role="menuitem"
-                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-ink hover:bg-gray-50"
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-ink hover:bg-bg-sub"
                 onClick={() => {
                   setPrefAndSave({ ...pref, sort: null });
                   setColMenuOpen(false);
@@ -462,7 +462,7 @@ export default function FileList({
       data-file-row={i}
       tabIndex={-1}
       role="row"
-      className={`group absolute inset-x-0 top-0 rounded-lg px-2 text-sm hover:bg-gray-100/70 ${rowCls(i, n)}`}
+      className={`group absolute inset-x-0 top-0 rounded-lg px-2 text-sm hover:bg-bg-sub ${rowCls(i, n)}`}
       style={{ height: ROW_HEIGHT, transform: `translateY(${top}px)`, ...gridStyle, ...dropHoverStyle(n) }}
       onClick={rowClick(n, i)}
       onDoubleClick={rowDoubleClick(n, i)}
@@ -518,7 +518,7 @@ export default function FileList({
           data-file-row={i}
           tabIndex={-1}
           role="row"
-          className={`group border-b border-line/70 text-sm hover:bg-gray-100/70 ${i % 2 === 1 ? "bg-gray-50/40" : ""} ${rowCls(i, n)} ${animate ? "anim-item-in" : ""}`}
+          className={`group border-b border-line/70 text-sm hover:bg-bg-sub ${i % 2 === 1 ? "bg-bg-sub/40" : ""} ${rowCls(i, n)} ${animate ? "anim-item-in" : ""}`}
           style={{ ...gridStyle, height: ROW_HEIGHT, padding: "0 8px", ...animStyle(i), ...dropHoverStyle(n) }}
           onClick={rowClick(n, i)}
           onDoubleClick={rowDoubleClick(n, i)}

@@ -94,12 +94,12 @@ export default function PreviewModal({ node, onClose }: Props) {
               <iframe src={contentUrl(node.id)} title={node.name} className="h-[80vh] w-[80vw] rounded bg-white" />
             )}
             {kind === "text" && (
-              <pre className="max-h-[80vh] w-[80vw] overflow-auto rounded-xl border border-line bg-gray-50 p-4 text-sm text-ink">
+              <pre className="max-h-[80vh] w-[80vw] overflow-auto rounded-xl border border-line bg-bg-sub p-4 text-sm text-ink">
                 {error ? `加载失败：${error}` : (text ?? "加载中…")}
               </pre>
             )}
             {kind === "none" && (
-              <div className="rounded-xl border border-line bg-gray-50 px-8 py-12 text-center text-sm text-ink-dim">
+              <div className="rounded-xl border border-line bg-bg-sub px-8 py-12 text-center text-sm text-ink-dim">
                 该文件类型不支持在线预览，请使用右上角「下载」
               </div>
             )}

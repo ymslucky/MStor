@@ -79,7 +79,7 @@ export default function Breadcrumb({ crumbs, onDropNode }: Props) {
             aria-label="更多层级"
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
-            className="rounded px-1 leading-none text-ink-dim hover:bg-gray-50 hover:text-ink"
+            className="rounded px-1 leading-none text-ink-dim hover:bg-bg-sub hover:text-ink"
           >
             …
           </button>
@@ -89,7 +89,7 @@ export default function Breadcrumb({ crumbs, onDropNode }: Props) {
                 <Link
                   key={c.id}
                   to={`/?dir=${c.id}`}
-                  className="block px-3 py-2 text-ink-dim hover:bg-gray-50 hover:text-ink"
+                  className="block px-3 py-2 text-ink-dim hover:bg-bg-sub hover:text-ink"
                   onClick={() => setOpen(false)}
                 >
                   {c.name}

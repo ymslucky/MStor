@@ -70,7 +70,7 @@ export function AdminOverviewSection() {
             <tbody>
               {data.topWorkspaces.map((w) => {
                 const pct = w.quotaBytes > 0 ? Math.round((w.usedBytes / w.quotaBytes) * 100) : 0;
-                const tone = pct >= 95 ? "text-danger" : pct >= 80 ? "text-amber-700" : "text-ink-2";
+                const tone = pct >= 95 ? "text-danger-text" : pct >= 80 ? "text-warn-text" : "text-ink-2";
                 return (
                   <tr key={w.id} className="border-b border-line/60">
                     <td className="max-w-40 truncate py-2 pr-3 text-ink">{w.name}</td>

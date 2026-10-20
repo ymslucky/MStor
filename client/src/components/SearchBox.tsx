@@ -52,7 +52,7 @@ export default function SearchBox() {
           {data?.nodes.map((n) => (
             <button
               key={n.id}
-              className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50"
+              className="block w-full px-3 py-2 text-left text-sm hover:bg-bg-sub"
               onClick={() => go(n.is_dir ? n.id : n.parent_id || null)}
             >
               <div className="flex items-center gap-1.5 truncate">

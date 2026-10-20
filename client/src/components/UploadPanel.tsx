@@ -46,7 +46,7 @@ export default function UploadPanel({ queue }: { queue: Queue }) {
               </span>
             </div>
             {(it.status === "uploading" || it.status === "paused") && (
-              <div className="mt-1 h-1 overflow-hidden rounded bg-gray-100">
+              <div className="mt-1 h-1 overflow-hidden rounded bg-bg-sub">
                 <div
                   className={it.status === "paused" ? "h-full rounded bg-gray-300" : "h-full rounded bg-primary transition-[width] duration-200 ease-out"}
                   style={{ width: `${Math.round(it.progress * 100)}%` }}

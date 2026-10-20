@@ -66,8 +66,8 @@ export default function ContextMenu({ open, x, y, items, onClose }: Props) {
           role="menuitem"
           type="button"
           onClick={item.onClick}
-          className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50 ${
-            item.danger ? "text-danger" : "text-ink"
+          className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-bg-sub ${
+            item.danger ? "text-danger-text" : "text-ink"
           }`}
         >
           {item.icon && (

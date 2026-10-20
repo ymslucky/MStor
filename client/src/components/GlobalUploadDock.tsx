@@ -68,7 +68,7 @@ export function GlobalUploadDock() {
                 )}
                 <button
                   type="button"
-                  className="shrink-0 rounded-lg p-1.5 text-danger hover:bg-red-50"
+                  className="shrink-0 rounded-lg p-1.5 text-danger hover:bg-danger-soft"
                   aria-label={"取消 " + it.name}
                   onClick={() => purge(it.key)}
                 >

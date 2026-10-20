@@ -22,7 +22,7 @@ export function FileCard({ node, thumbSrc, badge, overlay }: Props) {
     <>
       {overlay}
       <button type="button" className="block w-full text-left" title={node.name}>
-        <div className="flex h-28 items-center justify-center overflow-hidden bg-gray-50/70">
+        <div className="flex h-28 items-center justify-center overflow-hidden bg-bg-sub">
           {thumbSrc ? (
             <img
               src={thumbSrc}

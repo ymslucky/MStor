@@ -353,7 +353,7 @@ export default function Browser() {
         <GlassCard className="p-3 sm:p-4">
           <div className="space-y-2" aria-busy="true">
             {[0, 1, 2, 3, 4].map((i) => (
-              <div key={i} className="flex items-center gap-3 rounded-xl border border-line bg-gray-50/50 p-3">
+              <div key={i} className="flex items-center gap-3 rounded-xl border border-line bg-bg-sub/50 p-3">
                 <Skeleton className="h-9 w-9 shrink-0" />
                 <Skeleton className="h-4 flex-1" />
                 <Skeleton className="hidden h-4 w-16 sm:block" />
@@ -395,7 +395,7 @@ export default function Browser() {
               <IconButton label="上传文件夹" onClick={pickFolder}>
                 <FolderUp size={18} aria-hidden />
               </IconButton>
-              <div role="group" aria-label="视图切换" className="inline-flex items-center gap-1 rounded-xl border border-line bg-gray-50 p-1">
+              <div role="group" aria-label="视图切换" className="inline-flex items-center gap-1 rounded-xl border border-line bg-bg-sub p-1">
                 <IconButton label="列表视图" active={view === "list"} aria-pressed={view === "list"} onClick={() => switchView("list")}>
                   <List size={18} aria-hidden />
                 </IconButton>
@@ -474,7 +474,7 @@ export default function Browser() {
         >
           <div className="flex items-center gap-2 rounded-card border border-line bg-white px-3 py-2 text-sm text-ink shadow-card">
             <span className="whitespace-nowrap">处理中 {batchProgress.done}/{batchProgress.total}</span>
-            <div className="h-1.5 w-24 overflow-hidden rounded bg-gray-100">
+            <div className="h-1.5 w-24 overflow-hidden rounded bg-bg-sub">
               <div
                 className="h-full rounded bg-primary transition-[width] duration-200"
                 style={{ width: `${Math.round((batchProgress.done / Math.max(batchProgress.total, 1)) * 100)}%` }}
