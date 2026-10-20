@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type * as React from "react";
 import type {
   CSSProperties,
@@ -23,6 +23,9 @@ import VirtualizedList, { ROW_HEIGHT } from "./VirtualizedList";
 
 /** 列表 ≥50 行启用虚拟滚动 */
 const VIRTUAL_THRESHOLD = 50;
+
+/** 长按多选计时器：全局唯一（同一时刻只可能有一个手指在长按） */
+let longPressTimer: number | null = null;
 
 type DragHandlers = Pick<React.HTMLAttributes<HTMLElement>, "onDragStart" | "onDragEnd"> & { draggable?: boolean };
 type DropHandlers = Pick<React.HTMLAttributes<HTMLElement>, "onDragOver" | "onDragLeave" | "onDrop">;
@@ -328,11 +331,10 @@ export default function FileList({
       showTime={!!showTime}
     />
   );
-  const longPressTimer = useRef<number | null>(null);
   const cancelLongPress = () => {
-    if (longPressTimer.current !== null) {
-      window.clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
+    if (longPressTimer !== null) {
+      window.clearTimeout(longPressTimer);
+      longPressTimer = null;
     }
   };
   const touchSelectProps = (n: Node) =>
@@ -340,8 +342,8 @@ export default function FileList({
       ? {
           onTouchStart: () => {
             cancelLongPress();
-            longPressTimer.current = window.setTimeout(() => {
-              longPressTimer.current = null;
+            longPressTimer = window.setTimeout(() => {
+              longPressTimer = null;
               onToggle(n.id);
             }, 500);
           },
