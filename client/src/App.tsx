@@ -11,6 +11,7 @@ import { makeQueryClient } from "./shell/queryClient";
 import Browser from "./pages/Browser";
 import SettingsPage from "./pages/SettingsPage";
 import DesignPage from "./pages/DesignPage";
+import LibraryPage from "./pages/LibraryPage";
 import SharePage from "./pages/SharePage";
 import SharesPage from "./pages/SharesPage";
 import TrashPage from "./pages/TrashPage";
@@ -80,7 +81,10 @@ export default function App() {
             <Route path="/" element={<Browser />} />
             <Route path="/shares" element={<SharesPage />} />
             <Route path="/trash" element={<TrashPage />} />
-            <Route path="/design" element={<DesignPage />} />
+            <Route path="/favorites" element={<LibraryPage kind="favorites" />} />
+          <Route path="/recent" element={<LibraryPage kind="recent" />} />
+          <Route path="/tags" element={<LibraryPage kind="tags" />} />
+          <Route path="/design" element={<DesignPage />} />
           <Route path="/settings" element={<Navigate to="/settings/account" replace />} />
           <Route path="/settings/:tab" element={<SettingsRoute />} />
           </Route>
