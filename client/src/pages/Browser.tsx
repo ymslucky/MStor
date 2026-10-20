@@ -15,11 +15,11 @@ import PreviewModal from "../components/PreviewModal";
 import { BrowserToolbar } from "../components/BrowserToolbar";
 import { BatchProgress } from "../components/BatchProgress";
 import { UndoSnackbar } from "../components/UndoSnackbar";
-import { ConflictDialog, uniqueName } from "../components/ConflictDialog";
+import { ConflictDialog } from "../components/ConflictDialog";
+import { useBrowserUpload } from "../hooks/useBrowserUpload";
 import { PullToRefreshIndicator } from "../components/PullToRefreshIndicator";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { useMediaQuery } from "../hooks/useMediaQuery";
-import type { ConflictPolicy } from "../components/ConflictDialog";
 import { BrowserDialogs } from "../components/BrowserDialogs";
 import { NodeRowActions } from "../components/NodeRowActions";
 import { BatchBar } from "../components/BatchBar";
@@ -123,12 +123,6 @@ export default function Browser() {
     files.forEach((n, i) => window.setTimeout(() => triggerDownload(n.id), i * 300));
   };
 
-  // 同名冲突：入队前比对当前目录名称；记住的选择写 localStorage（mstor_upload_conflict）
-  const CONFLICT_KEY = "mstor_upload_conflict";
-  const [conflicts, setConflicts] = useState<{ files: File[]; names: string[] } | null>(null);
-  const [rememberConflict, setRememberConflict] = useState(() => getString(CONFLICT_KEY) !== "");
-
-  const takenNames = new Set(allNodes.map((n) => n.name));
 
   // 详情只有一种呈现：桌面 = 右侧布局列，窄屏 = 弹窗（不再用 CSS 隐藏 + Portal 的组合）
   const isDesktop = useMediaQuery("(min-width: 1024px)");
@@ -150,44 +144,13 @@ export default function Browser() {
       .catch((e) => toast(e instanceof Error ? e.message : "操作失败"));
   };
 
-  const applyPolicy = (policy: ConflictPolicy, files: File[]) => {
-    if (policy === "skip") {
-      queue.add(files.filter((f) => !takenNames.has(f.name)), dir);
-      return;
-    }
-    if (policy === "keepBoth") {
-      const used = new Set(takenNames);
-      const renamed = files.map((f) => {
-        if (!takenNames.has(f.name)) return f;
-        const name = uniqueName(f.name, used);
-        used.add(name);
-        return new File([f], name, { type: f.type });
-      });
-      queue.add(renamed, dir);
-      return;
-    }
-    // 覆盖：先彻底删除同名节点（软删会占着唯一名），再入队
-    const ids = allNodes.filter((n) => files.some((f) => f.name === n.name)).map((n) => n.id);
-    void Promise.all(ids.map((id) => purgeNow(id))).then(() => queue.add(files, dir));
-  };
-
-  const enqueue = (items: (File | { file: File; path?: string })[]) => {
-    const plain = items.filter((i): i is File => i instanceof File);
-    const withPath = items.filter((i) => !(i instanceof File));
-    if (withPath.length) queue.add(withPath, dir);
-    if (!plain.length) return;
-    const dup = plain.filter((f) => takenNames.has(f.name)).map((f) => f.name);
-    if (!dup.length) {
-      queue.add(plain, dir);
-      return;
-    }
-    const remembered = getString(CONFLICT_KEY);
-    if (remembered === "keepBoth" || remembered === "overwrite" || remembered === "skip") {
-      applyPolicy(remembered, plain);
-      return;
-    }
-    setConflicts({ files: plain, names: dup });
-  };
+  const upload = useBrowserUpload({
+    dir,
+    nodes: allNodes,
+    add: (items, parentId) => queue.add(items, parentId),
+    purge: purgeNow,
+  });
+  const { enqueue } = upload;
 
   const selectedNodes = allNodes.filter((n) => selection.selected.has(n.id));
   const hasFileSelected = selectedNodes.some((n) => !n.is_dir);
@@ -414,18 +377,13 @@ export default function Browser() {
       />
             {preview && <PreviewModal key={preview.id} node={preview} onClose={() => setPreview(null)} />}
       {batchProgress && <BatchProgress done={batchProgress.done} total={batchProgress.total} />}
-      {conflicts && (
+      {upload.conflicts && (
         <ConflictDialog
-          names={conflicts.names}
-          remember={rememberConflict}
-          onRememberChange={setRememberConflict}
-          onDecide={(policy) => {
-            if (rememberConflict) setString(CONFLICT_KEY, policy);
-            const files = conflicts.files;
-            setConflicts(null);
-            applyPolicy(policy, files);
-          }}
-          onCancel={() => setConflicts(null)}
+          names={upload.conflicts.names}
+          remember={upload.remember}
+          onRememberChange={upload.setRemember}
+          onDecide={upload.decide}
+          onCancel={upload.cancel}
         />
       )}
       <PullToRefreshIndicator pull={pull.pull} ready={pull.ready} refreshing={pull.refreshing} />
