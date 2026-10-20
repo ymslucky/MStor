@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Button, Dialog, Input } from "./ui";
+import { Button, Dialog, Field, Input } from "./ui";
 
 interface Props {
   title: string;
@@ -25,14 +25,15 @@ export default function NameDialog({ title, initial = "", onSubmit, onCancel, bu
         </>
       }
     >
+      <Field label="名称">
       <Input
         ref={ref}
-        aria-label="名称"
         value={name}
         onChange={(e) => setName(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && name.trim() && onSubmit(name.trim())}
         autoFocus
       />
+      </Field>
     </Dialog>
   );
 }
