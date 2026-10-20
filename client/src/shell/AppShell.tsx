@@ -8,6 +8,7 @@ import { setUploadLimits } from "../api/uploads";
 import { STORAGE_KEYS, getString, removeItem, setString } from "../lib/storage";
 import type { Me } from "../api/types";
 import { Badge, ConfirmDialog, IconButton } from "../components/ui";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 import SearchBox from "../components/SearchBox";
 import OfflineBar from "../components/OfflineBar";
 import StorageMeter from "../components/StorageMeter";
@@ -167,7 +168,10 @@ export default function AppShell() {
                 </button>
               </div>
             )}
-            <Outlet context={me} />
+            {/* 页面级兜底：页面崩溃时侧栏与导航仍在；key=pathname 使切页自动复位 */}
+            <ErrorBoundary key={pathname} compact title="这个页面出错了">
+              <Outlet context={me} />
+            </ErrorBoundary>
           </main>
         </div>
       </div>

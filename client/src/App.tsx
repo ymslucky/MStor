@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useOutletContext, useSearchParams } from "reac
 import { ApiError, handleSessionExpired, markSessionActive } from "./api/client";
 import { getMe } from "./api/me";
 import type { Me } from "./api/types";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Button } from "./components/ui";
 import { nextTarget, renewSession } from "./lib/renew";
 import AppShell, { makeQueryClient } from "./shell/AppShell";
@@ -68,18 +69,21 @@ function RenewRedirect() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Routes>
-        <Route path="/s/:token" element={<SharePage />} />
-        <Route path="/auth/renew" element={<RenewRedirect />} />
-        <Route element={<RequireAuth />}>
-          <Route path="/" element={<Browser />} />
-          <Route path="/shares" element={<SharesPage />} />
-          <Route path="/trash" element={<TrashPage />} />
-          <Route path="/settings" element={<SettingsRoute />} />
-        </Route>
-        {/* 兜底：任何未匹配路径（含陈旧 SW 缓存的 /cdn-cgi/* 授权回调）回首页，避免渲染空白页 */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      {/* 顶层兜底：任何未被内层接住的渲染异常都不会变成白屏 */}
+      <ErrorBoundary>
+        <Routes>
+          <Route path="/s/:token" element={<SharePage />} />
+          <Route path="/auth/renew" element={<RenewRedirect />} />
+          <Route element={<RequireAuth />}>
+            <Route path="/" element={<Browser />} />
+            <Route path="/shares" element={<SharesPage />} />
+            <Route path="/trash" element={<TrashPage />} />
+            <Route path="/settings" element={<SettingsRoute />} />
+          </Route>
+          {/* 兜底：任何未匹配路径（含陈旧 SW 缓存的 /cdn-cgi/* 授权回调）回首页，避免渲染空白页 */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </ErrorBoundary>
     </QueryClientProvider>
   );
 }
