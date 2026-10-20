@@ -242,6 +242,11 @@ CREATE UNIQUE INDEX idx_share_downloads_dedupe ON share_downloads(share_id, dedu
 
 必须先声明的硬阈值：**D1 单库 500MB / Free**。方案要求库体积达到 300MB（60%）告警、450MB（90%）进入拆分预案（升 Workers Paid 取更大库或按租户分库）——这条写进运维 runbook，不做事后补救。
 
+**P1.1 已落地**：`sql/v2/schema.sql`（与 1.x `sql/schema.sql` 并存，切换与 P1.2–1.5 代码同提交）+ `scripts/validate-schema-v2.mjs`（`npm run check:schema`，node:sqlite 内存库执行全量 DDL，12 项断言全绿，且已纳入 `npm run check` 与 CI）。校验过程中确认了两条设计约束：
+
+1. **`nodes` 刻意不设 `ON DELETE CASCADE`**：删除 workspace 会被外键挡住，必须先按应用流程清对象再删行。若加级联，D1 行会静默消失而 R2 对象变成无引用的孤儿——宁可报错，不可静默。根哨兵另有 `idx_nodes_root` 部分唯一索引保证每个 workspace 至多一行。
+2. **软删不触发 FTS `delete`**（external content 的正常语义）：回收站里的文件名仍在索引中，因此**所有搜索查询必须 `join nodes` 并过滤 `deleted_at IS NULL`**，否则会搜出已删除文件。已写成断言，实现时不许绕过。
+
 ---
 
 ### 4.2 树模型：物化路径、闭包表与 D1 500MB
