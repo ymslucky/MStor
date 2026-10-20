@@ -6,7 +6,7 @@ import type { SearchKind, SearchSort } from "../api/search";
 import { useDebounce } from "../hooks/useDebounce";
 import { NodeIcon } from "./NodeIcon";
 
-export default function SearchBox() {
+export default function SearchBox({ autoFocus, onNavigate }: { autoFocus?: boolean; onNavigate?: () => void } = {}) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [sort, setSort] = useState<SearchSort>("recent");
@@ -33,6 +33,7 @@ export default function SearchBox() {
     navigate(dirId ? `/?dir=${dirId}` : "/");
     setOpen(false);
     setQ("");
+    onNavigate?.();
   };
 
   return (
@@ -40,6 +41,7 @@ export default function SearchBox() {
       <input
         aria-label="搜索"
         placeholder="搜索文件名…"
+        autoFocus={autoFocus}
         className="w-40 rounded-xl border border-line bg-white px-2.5 py-1.5 text-sm text-ink placeholder:text-ink-faint focus:w-56 focus:border-accent focus:outline-none sm:w-56"
         value={q}
         onChange={(e) => {

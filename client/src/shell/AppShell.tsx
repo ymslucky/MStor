@@ -13,6 +13,8 @@ import { SidebarNav } from "./SidebarNav";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { AccountMenu } from "./AccountMenu";
 import { TopBar } from "./TopBar";
+import { CommandPalette } from "../components/CommandPalette";
+import { NotificationBell } from "../components/NotificationBell";
 import { NAV, PAGE_TITLES } from "./nav";
 import { useMe, useSidebarCollapsed } from "./hooks";
 import StorageMeter from "../components/StorageMeter";
@@ -97,6 +99,15 @@ function AppShellLayout() {
               <Outlet context={me} />
             </ErrorBoundary>
           </main>
+          {/* 桌面端浮动簇：搜索（⌘K）与通知气泡；移动端这些在顶栏与抽屉里 */}
+          <div className="pointer-events-none fixed right-5 bottom-14 z-overlay hidden flex-col items-end gap-2 md:flex">
+            <div className="pointer-events-auto">
+              <NotificationBell />
+            </div>
+            <div className="pointer-events-auto">
+              <CommandPalette />
+            </div>
+          </div>
           <StatusBar me={me} />
         </div>
       </div>
