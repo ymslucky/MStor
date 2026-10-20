@@ -268,13 +268,17 @@ export default function SettingsPage({ me }: { me: Me }) {
       <TabBar tabs={tabs} active={tab} />
       <div className="space-y-4">
         {tab === "account" && <AccountSection me={me} />}
-        {tab === "upload" && <UploadSection />}
+        {tab === "upload" && (
+          <>
+            <UploadSection />
+            {account.role === "admin" && <TrashRetentionSection />}
+          </>
+        )}
         {tab === "members" && workspaceRole !== "member" && <MemberPanel />}
         {tab === "admin" && account.role === "admin" && (
           <>
             <AdminOverviewSection />
             <AdminUsersSection selfId={account.id} />
-            <TrashRetentionSection />
           </>
         )}
       </div>

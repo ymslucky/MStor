@@ -14,9 +14,13 @@ const COPY: Record<Kind, { title: string; desc: string }> = {
   audit: { title: "日志审计", desc: "最近 20 条平台操作记录" },
 };
 
-/** 平台级页面：用户管理与日志审计（仅平台管理员）。审计页只放审计，不再夹带概览与用量。 */
-export default function PlatformPage({ kind }: { kind: Kind }) {
-  const me = useOutletContext<Me>();
+/**
+ * 平台级页面：用户管理与日志审计（仅平台管理员）。审计页只放审计，不再夹带概览与用量。
+ * me 可注入：直接渲染（测试/预览）时没有 Outlet context，注入值优先。
+ */
+export default function PlatformPage({ kind, me: injected }: { kind: Kind; me?: Me }) {
+  const fromOutlet = useOutletContext<Me>();
+  const me = injected ?? fromOutlet;
   const account = me.self ?? me;
   const meta = COPY[kind];
   const Icon = kind === "users" ? Users : ShieldCheck;
