@@ -11,6 +11,7 @@ import { makeQueryClient } from "./shell/queryClient";
 import Browser from "./pages/Browser";
 import SettingsPage from "./pages/SettingsPage";
 import DesignPage from "./pages/DesignPage";
+import PlatformPage from "./pages/PlatformPage";
 import LibraryPage from "./pages/LibraryPage";
 import SharePage from "./pages/SharePage";
 import SharesPage from "./pages/SharesPage";
@@ -87,6 +88,8 @@ export default function App() {
           <Route path="/design" element={<DesignPage />} />
           <Route path="/settings" element={<Navigate to="/settings/account" replace />} />
           <Route path="/settings/:tab" element={<SettingsRoute />} />
+          <Route path="/platform/users" element={<PlatformPage kind="users" />} />
+          <Route path="/platform/audit" element={<PlatformPage kind="audit" />} />
           </Route>
           {/* 兜底：任何未匹配路径（含陈旧 SW 缓存的 /cdn-cgi/* 授权回调）回首页，避免渲染空白页 */}
           <Route path="*" element={<Navigate to="/" replace />} />

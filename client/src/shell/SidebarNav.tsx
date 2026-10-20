@@ -1,10 +1,19 @@
 import { Cloud, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { IconButton, NavItem } from "../components/ui";
 import { cn } from "../lib/cn";
-import { SECTIONS } from "./nav";
+import { sectionsFor } from "./nav";
 
 /** 侧栏主体：品牌 + 折叠钮 + 分区导航（浏览 / 共享 / 系统） */
-export function SidebarNav({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+export function SidebarNav({
+  collapsed,
+  onToggle,
+  isPlatformAdmin = false,
+}: {
+  collapsed: boolean;
+  onToggle: () => void;
+  isPlatformAdmin?: boolean;
+}) {
+  const sections = sectionsFor(isPlatformAdmin);
   return (
     <>
       <div className={cn("flex items-center border-b border-line py-3.5", collapsed ? "flex-col gap-2 px-2" : "gap-2 px-3")}>
@@ -20,7 +29,7 @@ export function SidebarNav({ collapsed, onToggle }: { collapsed: boolean; onTogg
       </div>
 
       <nav aria-label="主导航" className="flex flex-1 flex-col gap-4 overflow-y-auto px-2 py-3">
-        {SECTIONS.map((section) => (
+        {sections.map((section) => (
           <div key={section.title}>
             {!collapsed && (
               <p className="px-3 pb-1 text-2xs font-medium tracking-wide text-ink-3 uppercase">{section.title}</p>

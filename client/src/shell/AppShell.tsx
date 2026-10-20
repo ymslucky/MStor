@@ -15,7 +15,7 @@ import { AccountMenu } from "./AccountMenu";
 import { TopBar } from "./TopBar";
 import { CommandPalette } from "../components/CommandPalette";
 import { NotificationBell } from "../components/NotificationBell";
-import { NAV, PAGE_TITLES } from "./nav";
+import { PAGE_TITLES, sectionsFor } from "./nav";
 import { useMe, useSidebarCollapsed } from "./hooks";
 import StorageMeter from "../components/StorageMeter";
 import OfflineBar from "../components/OfflineBar";
@@ -65,7 +65,7 @@ function AppShellLayout() {
             collapsed ? "md:w-16" : "md:w-60"
           }`}
         >
-          <SidebarNav collapsed={collapsed} onToggle={toggle} />
+          <SidebarNav collapsed={collapsed} onToggle={toggle} isPlatformAdmin={account.role === "admin"} />
           <div className={`space-y-3 border-t border-line py-4 ${collapsed ? "px-2" : "px-3"}`}>
             {!collapsed && (
               <WorkspaceSwitcher
@@ -123,9 +123,11 @@ function AppShellLayout() {
             className="anim-pop absolute inset-y-0 left-0 flex w-64 flex-col bg-surface-1 shadow-glass"
             onClick={(e) => e.stopPropagation()}
           >
-            <SidebarNav collapsed={false} onToggle={() => setMenuOpen(false)} />
+            <SidebarNav collapsed={false} onToggle={() => setMenuOpen(false)} isPlatformAdmin={account.role === "admin"} />
             <div className="space-y-1 border-t border-line px-2 py-3">
-              {NAV.map(({ to, label, Icon }) => (
+              {sectionsFor(account.role === "admin")
+                .flatMap((s) => s.items)
+                .map(({ to, label, Icon }) => (
                 <NavLink
                   key={to}
                   to={to}

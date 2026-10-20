@@ -223,7 +223,7 @@ function AdminRow({ u, selfId }: { u: AdminUser; selfId: string }) {
   );
 }
 
-function AdminUsersSection({ selfId }: { selfId: string }) {
+export function AdminUsersSection({ selfId }: { selfId: string }) {
   const users = useQuery({ queryKey: ["admin-users"], queryFn: listAdminUsers });
   return (
     <GlassCard className="p-4">

@@ -1,10 +1,12 @@
-import { Clock, FolderOpen, Share2, Star, Tag, Trash2 } from "lucide-react";
+import { Clock, FolderOpen, ShieldCheck, Share2, Star, Tag, Trash2, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export interface NavItem {
   to: string;
   label: string;
   Icon: LucideIcon;
+  /** 仅平台管理员可见 */
+  platformOnly?: boolean;
 }
 
 export interface NavSection {
@@ -12,7 +14,7 @@ export interface NavSection {
   items: NavItem[];
 }
 
-/** 侧栏分区（浏览 / 共享 / 系统）——移动端抽屉也用同一份结构 */
+/** 侧栏分区（浏览 / 管理 / 平台）——移动端抽屉与桌面侧栏共用同一份结构 */
 export const SECTIONS: NavSection[] = [
   {
     title: "浏览",
@@ -30,12 +32,27 @@ export const SECTIONS: NavSection[] = [
       { to: "/trash", label: "回收站", Icon: Trash2 },
     ],
   },
+  {
+    title: "平台",
+    items: [
+      { to: "/platform/users", label: "用户管理", Icon: Users, platformOnly: true },
+      { to: "/platform/audit", label: "日志审计", Icon: ShieldCheck, platformOnly: true },
+    ],
+  },
 ];
 
-/** 扁平视图（顶栏页名、移动端等只需顺序遍历的场景） */
+/** 扁平视图（移动端抽屉等只需顺序遍历的场景） */
 export const NAV: NavItem[] = SECTIONS.flatMap((s) => s.items);
 
-/** 顶栏左侧页名（文件页的面包屑由页内渲染，这里只放页名） */
+/** 按权限过滤后的分区：非平台管理员看不到「平台」组 */
+export function sectionsFor(isPlatformAdmin: boolean): NavSection[] {
+  return SECTIONS.map((s) => ({
+    ...s,
+    items: s.items.filter((i) => !i.platformOnly || isPlatformAdmin),
+  })).filter((s) => s.items.length > 0);
+}
+
+/** 顶栏页名（桌面无顶栏，移动端使用） */
 export const PAGE_TITLES: Record<string, string> = {
   "/": "文件",
   "/favorites": "收藏",
@@ -44,4 +61,6 @@ export const PAGE_TITLES: Record<string, string> = {
   "/trash": "回收站",
   "/shares": "分享",
   "/settings": "设置",
+  "/platform/users": "用户管理",
+  "/platform/audit": "日志审计",
 };
