@@ -57,7 +57,7 @@ function AppShellLayout() {
   return (
     <div className="relative min-h-dvh">
       <div className="glow-radial" aria-hidden />
-      <div className="relative z-10 md:flex">
+      <div className="relative z-10 md:flex md:h-dvh">
         <aside
           className={`glass sticky top-0 z-30 hidden h-dvh shrink-0 flex-col transition-[width] duration-200 ease-(--ease-spring) md:flex ${
             collapsed ? "md:w-16" : "md:w-60"
@@ -83,7 +83,7 @@ function AppShellLayout() {
             onLogout={() => setLogoutOpen(true)}
             onOpenMenu={() => setMenuOpen(true)}
           />
-          <main className="min-w-0 flex-1 px-4 py-4 pb-nav sm:px-6 sm:py-6 md:pb-6">
+          <main className="min-w-0 flex-1 px-4 py-4 pb-nav sm:px-6 sm:py-6 md:flex md:min-h-0 md:flex-col md:pb-6">
             {actAs && (
               <div className="mb-4 flex flex-wrap items-center gap-x-2 rounded-xl bg-warn-soft px-4 py-2 text-xs text-warn-text">
                 正在以管理员身份查看「{me.name}」的空间

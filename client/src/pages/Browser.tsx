@@ -261,6 +261,7 @@ export default function Browser() {
   return (
     <div
       data-testid="drop-zone"
+      className="md:flex md:min-h-0 md:flex-1 md:flex-col md:overflow-hidden"
       onDragEnter={(e) => {
         e.preventDefault();
         setDragDepth((d) => d + 1);
@@ -342,7 +343,7 @@ export default function Browser() {
         </GlassCard>
       )}
       {query.data && (
-        <GlassCard className="p-3 sm:p-4">
+        <GlassCard className="p-3 sm:p-4 md:flex md:min-h-0 md:flex-1 md:flex-col">
           <BrowserToolbar
             typeFilter={typeFilter}
             timeFilter={timeFilter}
@@ -355,7 +356,7 @@ export default function Browser() {
             onUploadFolder={pickFolder}
           />
           <div className="md:flex md:min-h-0 md:flex-1 md:gap-4">
-            <div className="md:flex md:min-h-0 md:min-w-0 md:flex-1 md:flex-col">
+            <div className="md:flex md:min-h-0 md:min-w-0 md:flex-1 md:flex-col md:overflow-hidden">
           <FileList
             nodes={nodes}
             view={view}
