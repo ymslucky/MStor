@@ -5,7 +5,7 @@ import { listFavorites, listRecent, listTags, listTagged } from "../api/library"
 import type { TagRow } from "../api/library";
 import { contentUrl } from "../api/nodes";
 import type { Node } from "../api/types";
-import { EmptyState, GlassCard, Skeleton } from "../components/ui";
+import { EmptyState, GlassCard, Pill, Skeleton } from "../components/ui";
 import { NodeIcon } from "../components/NodeIcon";
 import { formatBytes, formatDate } from "../lib/format";
 
@@ -54,33 +54,25 @@ export default function LibraryPage({ kind }: { kind: Kind }) {
   const nodes = (query.data as { nodes?: Node[] } | undefined)?.nodes ?? [];
 
   return (
-    <div className="mx-auto max-w-4xl md:pb-4">
-      <header className="mb-4">
-        <h1 className="flex items-center gap-2 font-display text-lg font-semibold text-ink">
-          <meta.icon size={18} aria-hidden className="text-primary" />
-          {meta.title}
-        </h1>
-        <p className="mt-1 text-sm text-ink-2">{meta.desc}</p>
+    <div className="md:pb-4">
+      <header className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <h1 className="text-lg font-semibold text-ink">{meta.title}</h1>
+        <p className="text-2xs text-ink-3">{meta.desc}</p>
       </header>
 
       {kind === "tags" && tags && tags.length > 0 && (
         <div className="mb-3 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setParams({})}
-            className={`rounded-full px-3 py-1 text-xs ${tagId ? "bg-bg-sub text-ink-2" : "bg-primary-soft text-primary-text"}`}
-          >
-            全部标签
-          </button>
-          {tags.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setParams({ tag: t.id })}
-              className={`rounded-full px-3 py-1 text-xs ${tagId === t.id ? "bg-primary-soft text-primary-text" : "bg-bg-sub text-ink-2"}`}
-            >
-              {t.name}
+          <Pill tone={tagId ? "neutral" : "accent"}>
+            <button type="button" onClick={() => setParams({})} className="px-1">
+              全部标签
             </button>
+          </Pill>
+          {tags.map((t) => (
+            <Pill key={t.id} tone={tagId === t.id ? "accent" : "neutral"}>
+              <button type="button" onClick={() => setParams({ tag: t.id })} className="px-1">
+                {t.name}
+              </button>
+            </Pill>
           ))}
         </div>
       )}
