@@ -10,17 +10,15 @@ import Breadcrumb from "../components/Breadcrumb";
 import ContextMenu from "../components/ContextMenu";
 import type { ContextMenuItem } from "../components/ContextMenu";
 import FileList, { RowAction } from "../components/FileList";
-import MoveDialog from "../components/MoveDialog";
-import NameDialog from "../components/NameDialog";
 import NodeDetailDialog from "../components/NodeDetailDialog";
 import PreviewModal from "../components/PreviewModal";
-import ShareDialog from "../components/ShareDialog";
 import { BrowserKpi } from "../components/BrowserKpi";
 import { BrowserToolbar } from "../components/BrowserToolbar";
 import { BatchProgress } from "../components/BatchProgress";
+import { BrowserDialogs } from "../components/BrowserDialogs";
 import UploadPanel from "../components/UploadPanel";
 import { toast } from "../components/Toaster";
-import { Button, ConfirmDialog, EmptyState, GlassCard, Skeleton } from "../components/ui";
+import { Button, EmptyState, GlassCard, Skeleton } from "../components/ui";
 import { useBatchOps } from "../hooks/useBatchOps";
 import { useBrowserDialogs } from "../hooks/useBrowserDialogs";
 import { useFiles } from "../hooks/useFiles";
@@ -43,7 +41,8 @@ export default function Browser() {
   const folderInput = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const queue = useUploadQueueContext();
-  const { creating, setCreating, renaming, setRenaming, moving, setMoving, preview, setPreview, sharing, setSharing, deleting, setDeleting, detail, setDetail } = useBrowserDialogs();
+  const dialogs = useBrowserDialogs();
+  const { preview, setPreview, detail, setDetail, setCreating, setRenaming, setMoving, setSharing, setDeleting } = dialogs;
   // 视图偏好持久化，缺省 list
   const [view, setView] = useState<"list" | "grid">(() => (getString(STORAGE_KEYS.view) === "grid" ? "grid" : "list"));
   // 拖拽上传：dragenter/leave 计数法防子元素闪烁，>0 时显示全屏覆盖层
@@ -429,71 +428,25 @@ export default function Browser() {
       )}
       {preview && <PreviewModal key={preview.id} node={preview} onClose={() => setPreview(null)} />}
       {batchProgress && <BatchProgress done={batchProgress.done} total={batchProgress.total} />}
-      {sharing && <ShareDialog node={sharing} onClose={() => setSharing(null)} />}
-      {creating && (
-        <NameDialog
-          title="新建文件夹"
-          busy={mkDir.isPending}
-          onSubmit={(name) => mkDir.mutate(name, { onSuccess: () => setCreating(false) })}
-          onCancel={() => setCreating(false)}
-        />
-      )}
-      {renaming && (
-        <NameDialog
-          title={`重命名「${renaming.name}」`}
-          initial={renaming.name}
-          busy={rename.isPending}
-          onSubmit={(name) => rename.mutate({ id: renaming.id, name }, { onSuccess: () => setRenaming(null) })}
-          onCancel={() => setRenaming(null)}
-        />
-      )}
-      {deleting && (
-        <ConfirmDialog
-          open
-          title={`删除「${deleting.name}」`}
-          description={`确定删除「${deleting.name}」？可在回收站恢复。`}
-          confirmText="删除"
-          danger
-          busy={deleteBusy}
-          extraAction={{ label: "彻底删除", onClick: () => void purgeNow(deleting.id) }}
-          onConfirm={() => {
-            remove.mutate(deleting.id);
-            setDeleting(null);
-          }}
-          onCancel={() => setDeleting(null)}
-        />
-      )}
-      {moving && (
-        <MoveDialog
-          title={`移动「${moving.name}」到…`}
-          excludeId={moving.is_dir ? moving.id : undefined}
-          busy={move.isPending}
-          onSubmit={(to) => move.mutate({ id: moving.id, to }, { onSuccess: () => setMoving(null) })}
-          onCancel={() => setMoving(null)}
-        />
-      )}
-      {batchDeleting && (
-        <ConfirmDialog
-          open
-          title={`删除选中的 ${selection.selected.size} 项`}
-          description={`确定删除选中的 ${selection.selected.size} 项？可在回收站恢复。`}
-          confirmText="删除"
-          danger
-          busy={batchBusy}
-          extraAction={{ label: "彻底删除", onClick: () => void runBatchDelete(true) }}
-          onConfirm={() => void runBatchDelete(false)}
-          onCancel={() => setBatchDeleting(false)}
-        />
-      )}
-      {batchMoving && (
-        <MoveDialog
-          title={`移动 ${selection.selected.size} 项到…`}
-          busy={batchBusy}
-          onSubmit={(to) => void runBatchMove(to)}
-          onCancel={() => setBatchMoving(false)}
-        />
-      )}
-      {/* 详情只读弹窗：名称/大小/类型/修改时间 */}
+      <BrowserDialogs
+        dialogs={dialogs}
+        ops={{
+          mkDir,
+          rename,
+          remove,
+          move,
+          purgeNow,
+          runBatchDelete,
+          runBatchMove,
+          deleteBusy,
+          batchBusy,
+          selectedCount: selection.selected.size,
+          batchDeleting,
+          setBatchDeleting,
+          batchMoving,
+          setBatchMoving,
+        }}
+      />      {/* 详情只读弹窗：名称/大小/类型/修改时间 */}
       {detail && <NodeDetailDialog node={detail} onClose={() => setDetail(null)} />}
       {/* 拖拽全屏覆盖层：白底 80% + 内嵌虚线框；drop/离开窗口后关闭（计数法归零） */}
       {dragDepth > 0 && (
