@@ -21,6 +21,7 @@ import UploadPanel from "../components/UploadPanel";
 import { toast } from "../components/Toaster";
 import { Button, ConfirmDialog, EmptyState, GlassCard, IconButton, Skeleton } from "../components/ui";
 import { useBatchOps } from "../hooks/useBatchOps";
+import { useBrowserDialogs } from "../hooks/useBrowserDialogs";
 import { useFiles } from "../hooks/useFiles";
 import { useFileSelection } from "../hooks/useFileSelection";
 import { useKeyboardNav } from "../hooks/useKeyboardNav";
@@ -42,13 +43,7 @@ export default function Browser() {
   const folderInput = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const queue = useUploadQueueContext();
-  const [creating, setCreating] = useState(false);
-  const [renaming, setRenaming] = useState<Node | null>(null);
-  const [moving, setMoving] = useState<Node | null>(null);
-  const [preview, setPreview] = useState<Node | null>(null);
-  const [sharing, setSharing] = useState<Node | null>(null);
-  const [deleting, setDeleting] = useState<Node | null>(null);
-  const [detail, setDetail] = useState<Node | null>(null);
+  const { creating, setCreating, renaming, setRenaming, moving, setMoving, preview, setPreview, sharing, setSharing, deleting, setDeleting, detail, setDetail } = useBrowserDialogs();
   // 视图偏好持久化，缺省 list
   const [view, setView] = useState<"list" | "grid">(() => (getString(STORAGE_KEYS.view) === "grid" ? "grid" : "list"));
   // 拖拽上传：dragenter/leave 计数法防子元素闪烁，>0 时显示全屏覆盖层
