@@ -128,3 +128,11 @@ npm run deploy      # predeploy 先校验 Access 配置，再 vite build && wran
   此时改用 `npm run test:server:local`：用 node:sqlite 垫片直接驱动真实 Worker，
   覆盖隔离/邀请/存储/分享/检索/批量等 25 项断言（不含组件与纯函数单测）。
 
+
+### workerd 启动失败（npm 11 的脚本门禁）
+
+npm 11 起对依赖的 install 脚本有 allowScripts 门禁，未批准时 `workerd` 包不会执行 postinstall，
+`node_modules/workerd/bin/workerd.exe` 缺失，Miniflare 会直接 `std::terminate()` / `ERR_RUNTIME_FAILURE`。
+`npm run dev` 与 `npm run test:server` 前会自动执行 `scripts/ensure-workerd.mjs` 补齐二进制；
+也可手动 `npm approve-scripts --allow-scripts-pending` 后 `npm rebuild workerd`。
+
