@@ -2,13 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
-import { Copy, Download, ExternalLink, FolderInput, Info, Pencil, Share2, Trash2, TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
 import { listShares } from "../api/shares";
 import type { Me, Node } from "../api/types";
-import { contentUrl } from "../api/nodes";
 import Breadcrumb from "../components/Breadcrumb";
 import ContextMenu from "../components/ContextMenu";
-import type { ContextMenuItem } from "../components/ContextMenu";
 import FileList from "../components/FileList";
 import NodeDetailDialog from "../components/NodeDetailDialog";
 import PreviewModal from "../components/PreviewModal";
@@ -23,6 +21,7 @@ import { toast } from "../components/Toaster";
 import { Button, EmptyState, GlassCard, Skeleton } from "../components/ui";
 import { useBatchOps } from "../hooks/useBatchOps";
 import { useBrowserDialogs } from "../hooks/useBrowserDialogs";
+import { useNodeActions } from "../hooks/useNodeActions";
 import { useFiles } from "../hooks/useFiles";
 import { useFileSelection } from "../hooks/useFileSelection";
 import { useKeyboardNav } from "../hooks/useKeyboardNav";
@@ -136,86 +135,17 @@ export default function Browser() {
     [sharesQuery.data],
   );
 
-  // 右键菜单项：Lucide 图标；文件加复制链接（content URL）与详情
-  const menuItemsFor = (n: Node): ContextMenuItem[] => [
-    {
-      label: "打开",
-      icon: <ExternalLink size={14} aria-hidden />,
-      onClick: () => {
-        setMenu(null);
-        if (n.is_dir) openDir(n.id);
-        else setPreview(n);
-      },
-    },
-    ...(n.is_dir
-      ? []
-      : [
-          {
-            label: "下载",
-            icon: <Download size={14} aria-hidden />,
-            onClick: () => {
-              setMenu(null);
-              downloadNode(n);
-            },
-          },
-        ]),
-    {
-      label: "分享",
-      icon: <Share2 size={14} aria-hidden />,
-      onClick: () => {
-        setMenu(null);
-        setSharing(n);
-      },
-    },
-    {
-      label: "重命名",
-      icon: <Pencil size={14} aria-hidden />,
-      onClick: () => {
-        setMenu(null);
-        setRenaming(n);
-      },
-    },
-    {
-      label: "移动",
-      icon: <FolderInput size={14} aria-hidden />,
-      onClick: () => {
-        setMenu(null);
-        setMoving(n);
-      },
-    },
-    ...(n.is_dir
-      ? []
-      : [
-          {
-            label: "复制链接",
-            icon: <Copy size={14} aria-hidden />,
-            onClick: () => {
-              setMenu(null);
-              const url = new URL(contentUrl(n.id), window.location.origin).href;
-              void navigator.clipboard?.writeText(url);
-              toast("链接已复制", "info");
-            },
-          },
-        ]),
-    {
-      label: "删除",
-      icon: <Trash2 size={14} aria-hidden />,
-      danger: true,
-      onClick: () => {
-        setMenu(null);
-        setDeleting(n);
-      },
-    },
-    {
-      label: "详情",
-      icon: <Info size={14} aria-hidden />,
-      onClick: () => {
-        setMenu(null);
-        setDetail(n);
-      },
-    },
-  ];
-
+  const menuItemsFor = useNodeActions({
+    closeMenu: () => setMenu(null),
+    onOpenDir: openDir,
+    onPreview: setPreview,
+    onDownload: downloadNode,
+    onShare: setSharing,
+    onRename: setRenaming,
+    onMove: setMoving,
+    onDelete: setDeleting,
+    onDetail: setDetail,
+  });
   // 行/卡片右键：打开于指针处（组件内越界翻转）
   const onNodeContextMenu = (e: ReactMouseEvent<HTMLElement>, node: Node) => {
     e.preventDefault();
