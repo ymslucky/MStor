@@ -37,7 +37,7 @@
 | `Dialog` | **Radix Dialog**（焦点陷阱/Esc/遮罩/aria-modal/滚动锁定/焦点还原） | ✅ 已迁移 |
 | `ConfirmDialog` | 复用 `Dialog` | ✅ 继承 |
 | `ContextMenu` | 自研 + **键盘可达**（↑↓/Home/End、Esc 关闭并还原焦点、open 时聚焦首项、glass 面板） | 🟡 无障碍已补齐，未迁 Radix |
-| `Toaster` | 自研（`toast()` API，单条覆盖式） | ⬜ 待迁 Radix Toast（队列化 + 手势） |
+| `Toaster` | **Radix Toast**（Provider/Viewport；队列仍在 `useSyncExternalStore` 外部 store，`toast()` 签名不变） | ✅ 已迁移（滑动关闭、时长暂停、关闭按钮） |
 | `ConflictDialog` / `UndoSnackbar` / `PullToRefreshIndicator` / `BatchBar` / `BatchProgress` | 自研，遵循本页契约 | ✅ |
 | `Button` / `Badge` / `IconButton` | 自研 + `cn` | ✅ |
 | `Input` | 自研 + `cn` | ✅ |

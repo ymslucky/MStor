@@ -135,5 +135,6 @@ test("download failure surfaces a toast", async () => {
   const { user } = renderWith(<><SharePage /><Toaster /></>);
   await screen.findByText("single.jpg");
   await user.click(screen.getByRole("button", { name: /下载 single.jpg/ }));
-  expect(await screen.findByRole("alert")).toHaveTextContent("下载失败");
+  // Radix Toast 由 Provider 决定 role（foreground/background），断言文案而非 role
+  expect(await screen.findByText(/下载失败/)).toBeInTheDocument();
 });
