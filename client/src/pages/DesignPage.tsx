@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Badge, Dialog, GlassCard, IconButton, Input, Skeleton } from "../components/ui";
+import { Badge, Button, Dialog, GlassCard, IconButton, Input, Pill, Skeleton, Surface } from "../components/ui";
 import { cn } from "../lib/cn";
 import { Cloud } from "lucide-react";
 
@@ -53,11 +53,11 @@ export default function DesignPage() {
         <h2 className="mb-3 text-sm font-semibold text-ink">颜色令牌</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {SWATCHES.map((s) => (
-            <div key={s.name} className="rounded-card border border-line bg-white/60 p-2">
+            <Surface key={s.name} className="bg-surface-1/60 p-2">
               <div className="h-10 rounded-btn border border-line" style={{ background: `var(${s.varName})` }} />
               <p className="mt-1.5 truncate text-xs font-medium text-ink">{s.name}</p>
               <p className="truncate text-2xs text-ink-3">{s.note}</p>
-            </div>
+            </Surface>
           ))}
         </div>
       </GlassCard>
@@ -119,6 +119,14 @@ export default function DesignPage() {
             <Badge tone="success">成功</Badge>
             <Badge tone="danger">危险</Badge>
           </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Pill>已过期</Pill>
+            <Pill tone="accent">已分享</Pill>
+            <Pill tone="success">已完成</Pill>
+            <Pill tone="warn">临近配额</Pill>
+            <Pill tone="danger">已用尽</Pill>
+          </div>
+          <Surface className="p-3 text-sm text-ink-2">Surface（卡片/面板唯一出处）</Surface>
           <div className="grid gap-2 sm:grid-cols-2">
             <Input placeholder="输入框（focus 主色描边）" aria-label="示例输入" />
             <div className="flex items-center gap-2">

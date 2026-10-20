@@ -7,3 +7,5 @@ export * from "./GlassCard";
 export * from "./IconButton";
 export * from "./Input";
 export * from "./Skeleton";
+export * from "./Pill";
+export * from "./Surface";

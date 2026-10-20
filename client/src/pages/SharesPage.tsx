@@ -5,7 +5,7 @@ import { batchRevokeShares, listShares, revokeShare } from "../api/shares";
 import type { Share } from "../api/types";
 import { NodeIcon } from "../components/NodeIcon";
 import { toast } from "../components/Toaster";
-import { Button, ConfirmDialog, EmptyState, GlassCard, IconButton } from "../components/ui";
+import { Button, ConfirmDialog, EmptyState, GlassCard, IconButton, Pill, Surface } from "../components/ui";
 import { useFileSelection } from "../hooks/useFileSelection";
 import { formatBytes, formatDate } from "../lib/format";
 
@@ -79,10 +79,10 @@ export default function SharesPage() {
                       <span className="truncate">{s.node_name}</span>
                       {/* 失效标记：纯展示（打开链接仍 410） */}
                       {s.expires_at != null && s.expires_at < Date.now() && (
-                        <span className="shrink-0 rounded-full bg-bg-sub px-1.5 py-0.5 text-[10px] text-ink-3">已过期</span>
+                        <Pill tone="neutral">已过期</Pill>
                       )}
                       {s.max_downloads != null && s.downloads >= s.max_downloads && (
-                        <span className="shrink-0 rounded-full bg-danger-soft px-1.5 py-0.5 text-[10px] text-danger-text">已用尽</span>
+                        <Pill tone="danger">已用尽</Pill>
                       )}
                     </div>
                     <div className="text-xs text-ink-3">/s/{s.token}</div>
@@ -111,7 +111,7 @@ export default function SharesPage() {
       {/* 批量操作条：移动端避让底部导航（bottom-20） */}
       {selection.count > 0 && !batchRevoking && (
         <div className="fixed inset-x-0 bottom-20 z-overlay flex justify-center px-4 sm:bottom-6">
-          <div className="flex items-center gap-1.5 rounded-card border border-line bg-white p-2 shadow-card">
+          <Surface className="flex items-center gap-1.5 p-2">
             <span className="whitespace-nowrap px-2 text-sm font-medium text-ink">已选 {selection.count} 项</span>
             <Button size="sm" variant="danger" disabled={busy} onClick={() => setBatchRevoking(true)}>
               撤销
@@ -119,7 +119,7 @@ export default function SharesPage() {
             <Button size="sm" variant="ghost" onClick={() => selection.clear()}>
               取消
             </Button>
-          </div>
+          </Surface>
         </div>
       )}
       {revoking && (

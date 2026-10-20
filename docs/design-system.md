@@ -41,7 +41,10 @@
 | `ConflictDialog` / `UndoSnackbar` / `PullToRefreshIndicator` / `BatchBar` / `BatchProgress` | 自研，遵循本页契约 | ✅ |
 | `Button` / `Badge` / `IconButton` | 自研 + `cn` | ✅ |
 | `Input` | 自研 + `cn` | ✅ |
-| `GlassCard` / `Skeleton` | 自研 | ✅ |
+| `GlassCard` | 自研（历史名，等价于 Surface） | ✅ |
+| `Surface` | 卡片/面板唯一出处（描边+圆角+投影） | ✅ 新增 |
+| `Pill` | 胶囊标签唯一出处（替代手写 rounded-full bg-*-soft） | ✅ 新增 |
+| `Skeleton` | 自研 | ✅ |
 
 迁移原则：**契约不变、视觉不变**，只换底座（无障碍与交互正确性），调用点尽量零改动；每迁一个原语必须跑 `tsc + eslint + 190 用例 + build`。
 

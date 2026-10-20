@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ChevronUp, Pause, RotateCw, X } from "lucide-react";
 import { useUploadQueueContext } from "../hooks/UploadQueueProvider";
+import { Surface } from "./ui";
 import { formatBytes } from "../lib/format";
 
 /**
@@ -18,7 +19,7 @@ export function GlobalUploadDock() {
 
   return (
     <div className="fixed bottom-20 right-4 z-overlay w-72 md:bottom-4" role="status" aria-live="polite">
-      <div className="overflow-hidden rounded-card border border-line bg-white shadow-card">
+      <Surface className="overflow-hidden">
         <button
           type="button"
           className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left"
@@ -78,7 +79,7 @@ export function GlobalUploadDock() {
             ))}
           </ul>
         )}
-      </div>
+      </Surface>
     </div>
   );
 }

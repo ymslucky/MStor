@@ -30,6 +30,18 @@ export default tseslint.config(
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
       ],
       "no-console": ["error", { allow: ["error", "warn"] }],
+      // 原语强制：卡片外观只能来自 ui/Surface，胶囊只能来自 ui/Pill / Badge
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "JSXAttribute > Literal[value=/rounded-card border border-line/]",
+          message: "手写卡片外观：请使用 components/ui 的 <Surface>",
+        },
+        {
+          selector: "JSXAttribute > Literal[value=/rounded-full bg-[a-z-]*soft px-/]",
+          message: "手写胶囊：请使用 components/ui 的 <Pill> 或 <Badge>",
+        },
+      ],
     },
   },
   {
