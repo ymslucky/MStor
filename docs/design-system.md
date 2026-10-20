@@ -36,8 +36,9 @@
 |---|---|---|
 | `Dialog` | **Radix Dialog**（焦点陷阱/Esc/遮罩/aria-modal/滚动锁定/焦点还原） | ✅ 已迁移 |
 | `ConfirmDialog` | 复用 `Dialog` | ✅ 继承 |
-| `ContextMenu` | 自研（自算坐标 + 越界翻转） | ⬜ 待迁 Radix ContextMenu |
-| `Toaster` | 自研（`toast()` API） | ⬜ 待迁 Radix Toast |
+| `ContextMenu` | 自研 + **键盘可达**（↑↓/Home/End、Esc 关闭并还原焦点、open 时聚焦首项、glass 面板） | 🟡 无障碍已补齐，未迁 Radix |
+| `Toaster` | 自研（`toast()` API，单条覆盖式） | ⬜ 待迁 Radix Toast（队列化 + 手势） |
+| `ConflictDialog` / `UndoSnackbar` / `PullToRefreshIndicator` / `BatchBar` / `BatchProgress` | 自研，遵循本页契约 | ✅ |
 | `Button` / `Badge` / `IconButton` | 自研 + `cn` | ✅ |
 | `Input` | 自研 + `cn` | ✅ |
 | `GlassCard` / `Skeleton` | 自研 | ✅ |
@@ -57,7 +58,11 @@
 底部状态栏（glass-subtle）：空间 · 用量 · 队列 · 未读
 ```
 
-设置走子路由（`/settings/{account,upload,members,admin}`），可深链、可后退。
+设置走子路由（`/settings/{account,upload,members,admin}`），可深链、可后退；设置入口在侧栏底部头像行（齿轮），移动端抽屉底部也有一处。
+
+**文件列表**：列定义/排序/列显隐/列宽收敛到 TanStack Table 列模型（`hooks/useFileTable.ts`），表头与行共用同一份 grid 模板；虚拟化仍是 `@tanstack/react-virtual`（固定行高 48，动态测量未做）。
+
+**移动端**：导航为左侧抽屉（非底部 Tab）、长按 500ms 进入多选、下拉 70px 松手刷新当前目录。
 
 ## 5. 组件契约（新增组件必须遵守）
 

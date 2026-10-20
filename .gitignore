@@ -1,8 +1,7 @@
 node_modules/
 .wrangler/
 client/node_modules/
-client/dist/*
-!client/dist/index.html
+client/dist/
 .dev.vars*
 .tmp-verify/
 .npm-cache/
