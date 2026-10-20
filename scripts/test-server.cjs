@@ -467,6 +467,62 @@ async function main() {
     assertEqual(members.json.members.length, 2, "空间应有 2 名成员");
   });
 
+  // —— 存储治理（P2 B1）：四分项 + 全局预算 + 507 ——
+  await check("HTTP：四分项随上传/软删/还原/彻底删除变化，且与 used_bytes 一致", async () => {
+    const db = makeD1(schema1x);
+    const env = makeEnv(db, makeR2());
+    const auth = { "x-dev-email": "a@example.com" };
+    const up = await call(env, "/api/files/upload?name=s.bin&parentId=", {
+      method: "PUT",
+      headers: { ...auth, "content-type": "application/octet-stream" },
+      body: new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]),
+    });
+    assertEqual(up.status, 201, "上传应 201");
+    const id = up.json.id;
+    const stat = () => db.prepare("SELECT active_bytes a, trash_bytes t FROM storage_stats").first();
+    assertEqual(stat().a, 8, "上传后 active_bytes 应为 8");
+    assertEqual(stat().t, 0, "上传后 trash_bytes 应为 0");
+    const me = await call(env, "/api/me", { headers: auth });
+    assertEqual(me.json.storage.activeBytes, 8, "/api/me 应返回 activeBytes");
+    assertEqual(me.json.storage.level, "ok", "水位应为 ok");
+    await call(env, "/api/files/" + id, { method: "DELETE", headers: auth });
+    assertEqual(stat().a, 0, "软删后 active 归零");
+    assertEqual(stat().t, 8, "软删后 trash 应为 8");
+    const restored = await call(env, "/api/trash/" + id + "/restore", { method: "POST", headers: auth });
+    assertEqual(restored.status, 200, "还原应 200，实际 " + restored.status + " " + restored.text.slice(0, 200));
+    assertEqual(stat().a, 8, "还原后 active 回到 8");
+    assertEqual(stat().t, 0, "还原后 trash 归零");
+    await call(env, "/api/trash/batch-purge", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ ids: [] }),
+    });
+    await call(env, "/api/files/" + id, { method: "DELETE", headers: auth });
+    await call(env, "/api/trash/batch-purge", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ ids: [id] }),
+    });
+    assertEqual(stat().a, 0, "彻底删除后 active 为 0");
+    assertEqual(stat().t, 0, "彻底删除后 trash 为 0");
+  });
+
+  await check("HTTP：全局预算超限返回 507 STORAGE_FULL（与个人配额 403 区分）", async () => {
+    const db = makeD1(schema1x);
+    const env = makeEnv(db, makeR2());
+    const auth = { "x-dev-email": "a@example.com" };
+    await call(env, "/api/me", { headers: auth }); // 建号 + 个人空间
+    db.prepare("INSERT INTO settings (key, value) VALUES ('global_quota_bytes', '10')").run();
+    const res = await call(env, "/api/files/upload?name=big.bin&parentId=", {
+      method: "PUT",
+      headers: { ...auth, "content-type": "application/octet-stream" },
+      body: new Uint8Array(20),
+    });
+    assertEqual(res.status, 507, "超出整站预算应 507，实际 " + res.status + " " + res.text.slice(0, 120));
+    assertEqual(res.json.error.code, "STORAGE_FULL", "错误码应为 STORAGE_FULL");
+    assertEqual(db.prepare("SELECT COUNT(*) c FROM nodes WHERE name = 'big.bin'").first().c, 0, "被拒上传不应留下节点");
+  });
+
   // —— 语句数预算（§4.6）：大批量下语句数必须与批次无关 ——
   await check("200 项批量：软删 ≤4 条语句、彻底删除 ≤5 条语句", async () => {
     const db = makeD1(schema1x);

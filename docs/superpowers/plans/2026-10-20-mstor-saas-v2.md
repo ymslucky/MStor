@@ -745,8 +745,11 @@ WHERE id = ?2 AND workspace_id = ?3
 
 > **P1.2–1.3 已落地**：`workspaceGuard`（认证后解析 workspace；首登先认领邮件邀请，无邀请才建个人空间 + 根哨兵）、`owner_id → workspace_id` 全量切流、schema 2.0 生效（`sql/schema.sql` + `migrations/0016_v2_rebuild`）、邀请/成员/审计 API（`/api/workspaces/*`，含 `invitation.create/accept/revoke` 审计事件与「未绑定成员」数据源）。`/api/me` 增加 `workspace` 与 `workspaces[]` 供切换器使用。验证：`npm run test:server:local` 15 项（含邀请认领与跨租户 IDOR 负例）。
 
+> **P2 进度**：存储治理已完成——`storage_stats` 四分项（active/trash）随上传增量、随删除/还原重算（低频路径用重算，天然不漂移），整站预算 `settings.global_quota_bytes`（缺省 10GiB）超限返回 **507 STORAGE_FULL** 且与个人配额 403 区分，`/api/me.storage` 暴露四分项与 `level`（ok/warn≥80%/critical≥95%/full≥100%）。
+> **版本管理暂不做**（用户决定）：`file_versions` 表与 `content_version` 字段保留但不在 1.0 范围内，`storage_stats.version_bytes` 恒为 0。
+
 ### P2 · 商业级 1.0 功能（5–6 周）
-存储治理与成本中心（四分项计量 + 全局预算 + 507 拒绝）→ 全局上传中心（AppShell 级队列 + IndexedDB 续传 + 幂等键）→ 分享 2.0（下载上限、一次性、审计、限流）→ 版本（`file_versions` + copy-on-write + 恢复 + `content_version`）→ 文件名检索 2.0（前缀 LIKE + FTS + 服务端过滤 + 游标分页 + 高亮；不做内容检索）→ 收藏/最近/标签 → 复制/撤销（8–30s Snackbar）→ 管理台（用户/存储/设置/审计/健康）→ 通知 → 缩略图与预览矩阵（客户端 WebP + PDF.js 按需 chunk + DOCX/XLSX 客户端预览 + Range/HEAD/ETag 消费端）。
+存储治理与成本中心（四分项计量 + 全局预算 + 507 拒绝）→ 全局上传中心（AppShell 级队列 + IndexedDB 续传 + 幂等键）→ 分享 2.0（下载上限、一次性、审计、限流）→ 文件名检索 2.0（前缀 LIKE + FTS + 服务端过滤 + 游标分页 + 高亮；不做内容检索）→ 收藏/最近/标签 → 复制/撤销（8–30s Snackbar）→ 管理台（用户/存储/设置/审计/健康）→ 通知 → 缩略图与预览矩阵（客户端 WebP + PDF.js 按需 chunk + DOCX/XLSX 客户端预览 + Range/HEAD/ETag 消费端）。
 退出标准：每项验收通过；预算不超（每请求 ≤40 子请求）；无 P0 缺陷。
 
 ### P3 · 质量、合规与发布（3–4 周）

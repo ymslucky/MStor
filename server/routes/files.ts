@@ -5,6 +5,7 @@ import { errors, HttpError } from "../lib/errors";
 import { assertQuota, adjustUsedBytes, breadcrumb, childPath, getNode, listChildren, moveNode, resolveParent, uniqueName, validateNodeName } from "../lib/nodes";
 import { serveObject } from "../lib/serve";
 import { isUniqueViolation } from "../lib/sql";
+import { assertGlobalBudget, recomputeStorageStats, storageDeltaStmt } from "../data/storage";
 import { moveMany, permanentDeleteMany, softDeleteMany, softDeleteNode, parseIds } from "../data/trash";
 
 export const files = new Hono<AppEnv>();
@@ -62,6 +63,7 @@ files.put("/upload", async (c) => {
     ).bind(c.get("workspace").id, normalizedSha, len).first<{ r2_key: string }>();
     if (hit) {
       // 秒传命中：size 由既有节点保证真实（非客户端声明），据此校验配额
+      await assertGlobalBudget(c.env, len);
       await assertQuota(c.env.DB, c.get("workspace").id, len, Number(c.env.DEFAULT_QUOTA_BYTES));
       const id = randomId();
       const insertDup = c.env.DB.prepare(
@@ -75,6 +77,7 @@ files.put("/upload", async (c) => {
         await insertDup.bind(id, c.get("workspace").id, parent.id, parentPath, finalName, hit.r2_key, len, mime, normalizedSha, now).run();
       }
       await adjustUsedBytes(c.env.DB, c.get("workspace").id, len);
+      await storageDeltaStmt(c.env.DB, c.get("workspace").id, { active: len }).run();
       return c.json({ id, name: finalName, size: len, deduplicated: true }, 201);
     }
   }
@@ -95,6 +98,7 @@ files.put("/upload", async (c) => {
     "INSERT INTO nodes (id, workspace_id, parent_id, path, name, is_dir, r2_key, size, mime, sha256, created_at, updated_at, deleted_at) VALUES (?1,?2,?3,?4,?5,0,?6,?7,?8,?9,?10,?10,NULL)"
   );
   try {
+    await assertGlobalBudget(c.env, obj.size);
     await assertQuota(c.env.DB, c.get("workspace").id, obj.size, Number(c.env.DEFAULT_QUOTA_BYTES));
     try {
       await insert.bind(id, c.get("workspace").id, parent.id, parentPath, finalName, key, obj.size, mime, normalizedSha, now).run();
@@ -109,11 +113,13 @@ files.put("/upload", async (c) => {
     throw e;
   }
   await adjustUsedBytes(c.env.DB, c.get("workspace").id, obj.size);
+  await storageDeltaStmt(c.env.DB, c.get("workspace").id, { active: obj.size }).run();
   return c.json({ id, name: finalName, size: obj.size }, 201);
 });
 
 files.delete("/:id", async (c) => {
   await softDeleteNode(c.env.DB, c.get("workspace").id, c.req.param("id"));
+  await recomputeStorageStats(c.env.DB, c.get("workspace").id);
   return c.json({ ok: true });
 });
 
@@ -137,6 +143,7 @@ files.post("/instant", async (c) => {
     "SELECT r2_key FROM nodes WHERE workspace_id = ?1 AND sha256 = ?2 AND size = ?3 AND deleted_at IS NULL AND is_dir = 0 LIMIT 1"
   ).bind(c.get("workspace").id, sha256.toLowerCase(), size).first<{ r2_key: string }>();
   if (!hit) throw new HttpError(404, "NO_DEDUP", "无相同内容文件");
+  await assertGlobalBudget(c.env, size);
   await assertQuota(c.env.DB, c.get("workspace").id, size, Number(c.env.DEFAULT_QUOTA_BYTES));
   const id = randomId();
   const now = Date.now();
@@ -152,6 +159,7 @@ files.post("/instant", async (c) => {
     await insert.bind(id, c.get("workspace").id, parent.id, childPath(parent), finalName, hit.r2_key, size, safeMime, sha256.toLowerCase(), now).run();
   }
   await adjustUsedBytes(c.env.DB, c.get("workspace").id, size);
+  await storageDeltaStmt(c.env.DB, c.get("workspace").id, { active: size }).run();
   return c.json({ id, name: finalName, size, deduplicated: true }, 201);
 });
 
@@ -162,6 +170,7 @@ files.post("/batch-delete", async (c) => {
   const deleted = permanent
     ? (await softDeleteMany(c.env.DB, c.get("workspace").id, list), await permanentDeleteMany(c.env, c.get("workspace").id, list))
     : await softDeleteMany(c.env.DB, c.get("workspace").id, list);
+  await recomputeStorageStats(c.env.DB, c.get("workspace").id);
   return c.json({ ok: true, deleted, failed: [] });
 });
 

@@ -19,6 +19,8 @@ export const errors = {
   badRequest: (m = "请求参数错误") => new HttpError(400, "BAD_REQUEST", m),
   rateLimited: (m = "操作过于频繁，请稍后再试") => new HttpError(429, "RATE_LIMITED", m),
   badGateway: (m = "上游服务暂时不可用，请稍后重试") => new HttpError(502, "BAD_GATEWAY", m),
+  // 整站存储满：与「个人配额不足 403」区分（507 语义见 RFC 4918）
+  storageFull: (m = "站点存储已满，请联系管理员") => new HttpError(507, "STORAGE_FULL", m),
 };
 
 export async function errorHandler(e: Error, c: Context<AppEnv>) {

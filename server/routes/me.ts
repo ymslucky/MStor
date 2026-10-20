@@ -8,6 +8,7 @@ import { PART_SIZE } from "../lib/constants";
 import { isUniqueViolation } from "../lib/sql";
 import { listMemberships } from "../data/workspaces";
 import { listUnboundUsers } from "../data/invitations";
+import { readStorageStats, storageLevel } from "../data/storage";
 
 export const me = new Hono<AppEnv>();
 
@@ -16,9 +17,10 @@ me.get("/", async (c) => {
   // self = 会话原始用户（登录账号）：act-as 查看他人空间时，前端据此区分「登录账号」与「当前空间」
   const s = c.get("selfUser");
   // used_bytes 与保留天数配置相互独立，并行降低 D1 串行往返（p99 优化）
-  const [used, configuredDays] = await Promise.all([
+  const [used, configuredDays, stats] = await Promise.all([
     usedBytes(c.env.DB, c.get("workspace").id),
     getSetting(c.env, "trash_retention_days"),
+    readStorageStats(c.env.DB, c.get("workspace").id),
   ]);
   return c.json({
     id: u.id,
@@ -33,6 +35,14 @@ me.get("/", async (c) => {
     limits: { smallFileLimit: Number(c.env.SMALL_FILE_LIMIT), partSize: PART_SIZE },
     // 空间列表与当前空间（前端切换器用；切空间 = 带 x-workspace 头）
     workspace: { id: c.get("workspace").id, name: c.get("workspace").name, role: c.get("role") },
+    // 存储四分项 + 水位（前端据此显示 80/95/100% 提示；配额真相仍是 workspaces.used_bytes）
+    storage: {
+      activeBytes: stats.active_bytes,
+      trashBytes: stats.trash_bytes,
+      usedBytes: c.get("workspace").used_bytes,
+      quotaBytes: c.get("workspace").quota_bytes,
+      level: storageLevel(c.get("workspace").used_bytes, c.get("workspace").quota_bytes),
+    },
     workspaces: (await listMemberships(c.env.DB, u.id)).map(({ workspace, role }) => ({ id: workspace.id, name: workspace.name, role })),
   });
 });

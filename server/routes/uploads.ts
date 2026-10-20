@@ -5,6 +5,7 @@ import { errors } from "../lib/errors";
 import { assertQuota, adjustUsedBytes, childPath, resolveParent, uniqueName, validateNodeName } from "../lib/nodes";
 import { abortMultipart, completeMultipart, createMultipart, presignPart } from "../lib/r2";
 import { isUniqueViolation } from "../lib/sql";
+import { assertGlobalBudget, storageDeltaStmt } from "../data/storage";
 
 import { PART_SIZE } from "../lib/constants";
 export { PART_SIZE }; // 兼容既有引用方（me.ts 已改为直接从 lib 取）
@@ -21,6 +22,7 @@ uploads.post("/", async (c) => {
   if (size <= limit) throw errors.badRequest("小文件请使用直传接口");
   const parent = await resolveParent(c.env.DB, c.get("workspace").id, parentId);
   if (!parent || !parent.is_dir) throw errors.notFound();
+  await assertGlobalBudget(c.env, size);
   await assertQuota(c.env.DB, c.get("workspace").id, size, Number(c.env.DEFAULT_QUOTA_BYTES));
   const id = randomId();
   const key = `${user.id}/${id}`;
@@ -79,6 +81,7 @@ uploads.post("/:id/complete", async (c) => {
     await c.env.DB.batch(buildBatch(finalName));
   }
   await adjustUsedBytes(c.env.DB, c.get("workspace").id, row.size);
+  await storageDeltaStmt(c.env.DB, c.get("workspace").id, { active: row.size }).run();
   return c.json({ nodeId: row.id, name: finalName }, 201);
 });
 

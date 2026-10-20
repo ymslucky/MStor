@@ -3,6 +3,7 @@ import type { Env } from "../env";
 import { errors, HttpError } from "../lib/errors";
 import { childPath, ensureRootDir, getNode, isDescendant, resolveParent, subtreePrefix, subtreeRange, uniqueName } from "../lib/nodes";
 import { chunk, DIRS_PER_STMT, isUniqueViolation, jsonList, jsonSet } from "../lib/sql";
+import { recomputeStorageStatsStmt } from "./storage";
 import type { NodeRow } from "../types";
 import { getSetting } from "../lib/settings";
 
@@ -231,6 +232,9 @@ export async function purgeExpiredTrash(env: Env): Promise<void> {
       console.warn("purgeExpiredTrash: 清理节点失败", r.id, e);
     }
   }
+  // 清理后按 workspace 重算四分项（租户数有界，一次 batch）
+  const { results: wsRows } = await env.DB.prepare("SELECT id FROM workspaces").all<{ id: string }>();
+  if (wsRows.length) await env.DB.batch(wsRows.map((w) => recomputeStorageStatsStmt(env.DB, w.id)));
 }
 
 export async function restoreTrashNode(db: D1Database, workspaceId: string, id: string): Promise<void> {
