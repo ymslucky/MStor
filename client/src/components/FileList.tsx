@@ -11,8 +11,7 @@ import type {
 import type { FileTableRow } from "../hooks/useFileTable";
 import { Copy, Download, FolderOpen } from "lucide-react";
 import { contentUrl } from "../api/nodes";
-import { thumbUrl } from "../api/thumbs";
-import { FileCard } from "./FileCard";
+import { FileGrid } from "./FileGrid";
 import { FileRowCells } from "./FileRow";
 import { FileListHeader } from "./FileListHeader";
 import type { Node } from "../api/types";
@@ -384,39 +383,20 @@ export default function FileList({
 
   if (view === "grid") {
     return (
-      // 网格视图（同一数据）：缩略区 h-28 + 名称/大小，checkbox 左上角浮层
-      <div
-        ref={containerRef}
-        data-testid="file-grid"
-        tabIndex={0}
-        onKeyDown={onContainerKeyDown}
-        className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 md:min-h-0 md:flex-1 md:overflow-y-auto"
-      >
-        {display.map((n, i) => {
-          const isImage = !n.is_dir && !!n.mime?.startsWith("image/");
-          return (
-            <div
-              key={n.id}
-              data-file-row={i}
-              tabIndex={-1}
-              className={`group relative overflow-hidden rounded-card border border-line bg-white shadow-card ${rowCls(i, n)} ${animate ? "anim-item-in" : ""}`}
-              style={{ ...animStyle(i), ...dropHoverStyle(n) }}
-              onClick={rowClick(n, i)}
-              onDoubleClick={rowDoubleClick(n, i)}
-              onContextMenu={(e) => onNodeContextMenu?.(e, n)}
-              {...dragProps(n)}
-              {...folderDropProps(n)}
-            >
-              {selectable && checkbox(n, "absolute top-2 left-2 z-content")}
-              <FileCard
-                node={n}
-                thumbSrc={n.is_dir ? null : n.thumb_key ? thumbUrl(n.id) : isImage ? contentUrl(n.id) : null}
-                badge={sharedBadge(n)}
-              />
-            </div>
-          );
-        })}
-      </div>
+      <FileGrid
+        nodes={display}
+        containerRef={containerRef}
+        onContainerKeyDown={onContainerKeyDown}
+        cellClass={(i, n) => `group relative overflow-hidden rounded-card border border-line bg-white shadow-card ${rowCls(i, n)} ${animate ? "anim-item-in" : ""}`}
+        cellStyle={(i, n) => ({ ...animStyle(i), ...dropHoverStyle(n) })}
+        onClick={rowClick}
+        onDoubleClick={rowDoubleClick}
+        onContextMenu={onNodeContextMenu}
+        dragProps={dragProps}
+        dropProps={folderDropProps}
+        overlay={(n) => (selectable ? checkbox(n, "absolute top-2 left-2 z-content") : null)}
+        badge={sharedBadge}
+      />
     );
   }
 
