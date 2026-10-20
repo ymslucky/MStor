@@ -119,3 +119,12 @@ npm run deploy      # predeploy 先校验 Access 配置，再 vite build && wran
 
 - 前端依赖与后端统一在根 `package.json` 管理（单包仓库），无独立 `client/package.json`。
 - 单文件直传上限、分片大小等由服务端下发的限制驱动，前端不硬编码。
+
+### 本机构建/测试的常见阻塞
+
+- `esbuild ... Access is denied` / `spawn EPERM`：把临时目录指到工作区内再跑，例如 PowerShell：
+  `New-Item -ItemType Directory -Force .tmp-build; $env:TEMP="$PWD\.tmp-build"; $env:TMP=$env:TEMP; npm run build`
+- 服务端 vitest 依赖 Miniflare 的 workerd，受限环境可能起不来（`ERR_RUNTIME_FAILURE`）。
+  此时改用 `npm run test:server:local`：用 node:sqlite 垫片直接驱动真实 Worker，
+  覆盖隔离/邀请/存储/分享/检索/批量等 25 项断言（不含组件与纯函数单测）。
+

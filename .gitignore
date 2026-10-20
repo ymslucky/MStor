@@ -6,3 +6,4 @@ client/dist/*
 .dev.vars*
 .tmp-verify/
 .npm-cache/
+.tmp-build/

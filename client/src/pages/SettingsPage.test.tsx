@@ -11,6 +11,13 @@ vi.mock("../api/me", () => ({
   patchAdminUser: vi.fn(),
   getAdminSettings: vi.fn(),
   patchAdminSettings: vi.fn(),
+  // 管理台概览：这些用例只验证管理操作，概览返回空数据即可
+  getAdminOverview: vi.fn(async () => ({
+    users: { total: 1, disabled: 0, unbound: 0 },
+    workspaces: { total: 1, usedBytes: 10 },
+    topWorkspaces: [],
+    recentAudit: [],
+  })),
 }));
 
 import { getAdminSettings, listAdminUsers, patchAdminSettings, patchAdminUser } from "../api/me";
