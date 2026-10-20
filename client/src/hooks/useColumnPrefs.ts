@@ -25,9 +25,12 @@ export function compareNodes(a: Node, b: Node, key: SortKey, dir: 1 | -1): numbe
   return v * dir;
 }
 
-/** 列偏好状态 + 持久化 + 排序切换/指示 */
+/** 列偏好状态 + localStorage 持久化壳（排序/列宽/列显隐的语义在 useFileTable 的列模型里） */
 export function useColumnPrefs() {
-  const [pref, setPref] = useState<ColPref>(() => ({ ...DEFAULT_PREF, ...getJSON<ColPref>(STORAGE_KEYS.filesTable, {}) }));
+  const [pref, setPref] = useState<ColPref>(() => ({
+    ...DEFAULT_PREF,
+    ...getJSON<ColPref>(STORAGE_KEYS.filesTable, {}),
+  }));
 
   const setPrefAndSave = (p: ColPref) => {
     setPref(p);
@@ -40,13 +43,5 @@ export function useColumnPrefs() {
       return next;
     });
 
-  // 表头排序切换：同列第三次点击取消排序
-  const toggleSort = (key: SortKey) => {
-    const cur = pref.sort;
-    const next =
-      !cur || cur.key !== key ? { key, dir: "asc" as const } : cur.dir === "asc" ? { key, dir: "desc" as const } : null;
-    setPrefAndSave({ ...pref, sort: next });
-  };
-
-  return { pref, setPrefAndSave, updatePref, toggleSort };
+  return { pref, setPrefAndSave, updatePref };
 }

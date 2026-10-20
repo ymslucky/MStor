@@ -8,6 +8,7 @@ import type {
   ReactNode,
   RefObject,
 } from "react";
+import type { FileTableRow } from "../hooks/useFileTable";
 import { Copy, Download, FolderOpen } from "lucide-react";
 import { contentUrl } from "../api/nodes";
 import { thumbUrl } from "../api/thumbs";
@@ -16,6 +17,7 @@ import { FileRowCells } from "./FileRow";
 import { FileListHeader } from "./FileListHeader";
 import type { Node } from "../api/types";
 import { compareNodes, useColumnPrefs } from "../hooks/useColumnPrefs";
+import { useFileTable } from "../hooks/useFileTable";
 import { hasNodeDrag, readNodeDrag, setNodeDrag } from "../lib/dnd";
 import { Badge, EmptyState } from "./ui";
 import { toast } from "./Toaster";
@@ -23,6 +25,9 @@ import VirtualizedList, { ROW_HEIGHT } from "./VirtualizedList";
 
 /** 列表 ≥50 行启用虚拟滚动 */
 const VIRTUAL_THRESHOLD = 50;
+
+/** 未受控时的空选择集（引用稳定：行选择状态由它派生，避免每次渲染重发布） */
+const EMPTY_SELECTED: ReadonlySet<string> = new Set();
 
 /** 长按多选计时器：全局唯一（同一时刻只可能有一个手指在长按） */
 let longPressTimer: number | null = null;
@@ -67,7 +72,10 @@ export function RowAction({
   tone = "neutral",
   className = "",
   ...rest
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { label: string; tone?: "neutral" | "blue" | "violet" | "amber" | "danger" }) {
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  label: string;
+  tone?: "neutral" | "blue" | "violet" | "amber" | "danger";
+}) {
   const tones: Record<string, string> = {
     neutral: "text-ink-2 hover:bg-bg-sub hover:text-ink",
     blue: "text-primary-text hover:bg-blue-50",
@@ -94,7 +102,7 @@ export default function FileList({
   emptyText = "该目录为空",
   emptyActions,
   selectable = false,
-  selected = new Set<string>(),
+  selected = EMPTY_SELECTED,
   onToggle,
   onSelectRange,
   onRowFocus,
@@ -110,14 +118,17 @@ export default function FileList({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   // 列偏好：名称列宽 / 大小、时间列显隐 / 排序（localStorage 持久化）
-  const { pref, setPrefAndSave, updatePref, toggleSort } = useColumnPrefs();
+  const { pref, setPrefAndSave, updatePref } = useColumnPrefs();
   const [colMenuOpen, setColMenuOpen] = useState(false);
   // 名称过滤（当前列表内即时过滤，会话级不持久化）
   const [nameFilter, setNameFilter] = useState("");
 
-  // 名称列拖拽调宽：mousedown 时挂载 window 监听（ref 变化不会触发 effect，故在事件内绑定）
   // 移动端（<sm）压缩为 [选择][图标][名称][操作]，隐藏大小/时间列
-  const [isSmall, setIsSmall] = useState(() => (typeof window !== "undefined" && typeof window.matchMedia === "function" ? window.matchMedia("(max-width: 639px)").matches : false));
+  const [isSmall, setIsSmall] = useState(() =>
+    typeof window !== "undefined" && typeof window.matchMedia === "function"
+      ? window.matchMedia("(max-width: 639px)").matches
+      : false,
+  );
   useEffect(() => {
     if (typeof window.matchMedia !== "function") return;
     const mq = window.matchMedia("(max-width: 639px)");
@@ -135,22 +146,17 @@ export default function FileList({
     return [...filtered].sort((a, b) => compareNodes(a, b, pref.sort!.key, dir));
   }, [nodes, nameFilter, pref.sort]);
 
-  // 网格模板：[选择][图标][名称(可调宽)][大小][时间][操作]；移动端折叠为紧凑四列
-  const showSize = pref.showSize && !isSmall;
-  const showTime = pref.showTime && !isSmall;
-  const gridTemplate = isSmall
-    ? [selectable ? "28px" : "", "26px", "minmax(0, 1fr)", "auto"].join(" ")
-    : [
-        selectable ? "28px" : "",
-        "26px",
-        `minmax(140px, ${pref.nameW ? `${pref.nameW}px` : "1fr"})`,
-        showSize ? "92px" : "",
-        showTime ? "170px" : "",
-        "auto",
-      ]
-        .filter(Boolean)
-        .join(" ");
-  const gridStyle: CSSProperties = { display: "grid", gridTemplateColumns: gridTemplate, alignItems: "center" };
+  // 列模型：列宽 / 排序 / 列显隐 / 选择收敛到 table，表头与行共用同一份 grid 模板
+  const { table, gridStyle } = useFileTable({
+    nodes: display,
+    pref,
+    onPrefChange: setPrefAndSave,
+    selected,
+    onToggle,
+    selectable: !!selectable,
+    compact: isSmall,
+  });
+  const rows = table.getRowModel().rows;
 
   if (!nodes.length) return <EmptyState icon={FolderOpen} title={emptyText} action={emptyActions} />;
 
@@ -196,11 +202,11 @@ export default function FileList({
     ) : null;
 
   // 表头全选：当前列表全选/清除（再次点击取反）
+  const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
   const toggleAll = () => {
     if (!onToggle || draggingId) return;
-    const all = display.every((n) => selected.has(n.id));
-    for (const n of display) {
-      if (all ? selected.has(n.id) : !selected.has(n.id)) onToggle(n.id);
+    for (const r of rows) {
+      if (allSelected ? selected.has(r.id) : !selected.has(r.id)) onToggle(r.id);
     }
   };
 
@@ -294,44 +300,40 @@ export default function FileList({
       columnsOpen={colMenuOpen}
       onToggleColumns={() => setColMenuOpen((v) => !v)}
       onCloseColumns={() => setColMenuOpen(false)}
-      pref={pref}
-      onChangePref={setPrefAndSave}
-      onWidthChange={updatePref}
-      onSort={toggleSort}
-      showSize={!!showSize}
-      showTime={!!showTime}
+      table={table}
       gridStyle={gridStyle}
-      selectable={selectable}
-      allSelected={display.length > 0 && display.every((n) => selected.has(n.id))}
+      onResetNameWidth={() => updatePref((p) => ({ ...p, nameW: undefined }))}
+      allSelected={allSelected}
       onToggleAll={toggleAll}
       dragging={!!draggingId}
     />
   );
   // 行内容（grid 子元素，与表头同模板对齐）
-  const rowCells = (n: Node) => (
-    <FileRowCells
-      node={n}
-      selectable={!!selectable}
-      checkboxEl={selectable ? checkbox(n) : null}
-      copyButton={
-        <RowAction
-          label={`复制文件名 ${n.name}`}
-          className="h-6 w-6 opacity-60 hover:opacity-100"
-          onClick={(e) => {
-            e.stopPropagation();
-            copyName(n);
-          }}
-          onDoubleClick={(e) => e.stopPropagation()}
-        >
-          <Copy size={12} aria-hidden />
-        </RowAction>
-      }
-      badge={sharedBadge(n)}
-      actionCell={actionCell(n)}
-      showSize={!!showSize}
-      showTime={!!showTime}
-    />
-  );
+  const rowCells = (row: FileTableRow) => {
+    const n = row.original;
+    return (
+      <FileRowCells
+        row={row}
+        selectable={!!selectable}
+        checkboxEl={selectable ? checkbox(n) : null}
+        copyButton={
+          <RowAction
+            label={`复制文件名 ${n.name}`}
+            className="h-6 w-6 opacity-60 hover:opacity-100"
+            onClick={(e) => {
+              e.stopPropagation();
+              copyName(n);
+            }}
+            onDoubleClick={(e) => e.stopPropagation()}
+          >
+            <Copy size={12} aria-hidden />
+          </RowAction>
+        }
+        badge={sharedBadge(n)}
+        actionCell={actionCell(n)}
+      />
+    );
+  };
   const cancelLongPress = () => {
     if (longPressTimer !== null) {
       window.clearTimeout(longPressTimer);
@@ -362,20 +364,23 @@ export default function FileList({
   });
 
   // 虚拟行内容（绝对定位 + translateY，同 grid 模板）
-  const virtualRow = (n: Node, i: number, top: number) => (
-    <div
-      data-file-row={i}
-      tabIndex={-1}
-      role="row"
-      className={`group absolute inset-x-0 top-0 rounded-lg px-2 text-sm hover:bg-bg-sub ${rowCls(i, n)}`}
-      style={{ height: ROW_HEIGHT, transform: `translateY(${top}px)`, ...gridStyle, ...dropHoverStyle(n) }}
-      onClick={rowClick(n, i)}
-      onDoubleClick={rowDoubleClick(n, i)}
-      {...rowEvents(n, i)}
-    >
-      {rowCells(n)}
-    </div>
-  );
+  const virtualRow = (row: FileTableRow, i: number, top: number) => {
+    const n = row.original;
+    return (
+      <div
+        data-file-row={i}
+        tabIndex={-1}
+        role="row"
+        className={`group absolute inset-x-0 top-0 rounded-lg px-2 text-sm hover:bg-bg-sub ${rowCls(i, n)}`}
+        style={{ height: ROW_HEIGHT, transform: `translateY(${top}px)`, ...gridStyle, ...dropHoverStyle(n) }}
+        onClick={rowClick(n, i)}
+        onDoubleClick={rowDoubleClick(n, i)}
+        {...rowEvents(n, i)}
+      >
+        {rowCells(row)}
+      </div>
+    );
+  };
 
   if (view === "grid") {
     return (
@@ -417,21 +422,24 @@ export default function FileList({
 
   const listBody = (
     <div className="relative">
-      {display.map((n, i) => (
-        <div
-          key={n.id}
-          data-file-row={i}
-          tabIndex={-1}
-          role="row"
-          className={`group border-b border-line/70 text-sm hover:bg-bg-sub ${i % 2 === 1 ? "bg-bg-sub/40" : ""} ${rowCls(i, n)} ${animate ? "anim-item-in" : ""}`}
-          style={{ ...gridStyle, height: ROW_HEIGHT, padding: "0 8px", ...animStyle(i), ...dropHoverStyle(n) }}
-          onClick={rowClick(n, i)}
-          onDoubleClick={rowDoubleClick(n, i)}
-          {...rowEvents(n, i)}
-        >
-          {rowCells(n)}
-        </div>
-      ))}
+      {rows.map((row, i) => {
+        const n = row.original;
+        return (
+          <div
+            key={row.id}
+            data-file-row={i}
+            tabIndex={-1}
+            role="row"
+            className={`group border-b border-line/70 text-sm hover:bg-bg-sub ${i % 2 === 1 ? "bg-bg-sub/40" : ""} ${rowCls(i, n)} ${animate ? "anim-item-in" : ""}`}
+            style={{ ...gridStyle, height: ROW_HEIGHT, padding: "0 8px", ...animStyle(i), ...dropHoverStyle(n) }}
+            onClick={rowClick(n, i)}
+            onDoubleClick={rowDoubleClick(n, i)}
+            {...rowEvents(n, i)}
+          >
+            {rowCells(row)}
+          </div>
+        );
+      })}
     </div>
   );
 
@@ -439,8 +447,12 @@ export default function FileList({
     return (
       <div ref={containerRef} data-testid="file-list-container" tabIndex={0} onKeyDown={onContainerKeyDown}>
         {listHeader}
-        
-        <VirtualizedList nodes={display} focusIndex={focusIndex} row={virtualRow} />
+
+        <VirtualizedList
+          nodes={display}
+          focusIndex={focusIndex}
+          row={(_n, index, top) => virtualRow(rows[index]!, index, top)}
+        />
       </div>
     );
   }
@@ -448,7 +460,7 @@ export default function FileList({
   return (
     <div ref={containerRef} data-testid="file-list-container" tabIndex={0} onKeyDown={onContainerKeyDown}>
       {listHeader}
-      
+
       {listBody}
     </div>
   );
