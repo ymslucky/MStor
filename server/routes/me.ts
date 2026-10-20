@@ -74,7 +74,7 @@ me.patch("/admin/settings", requireAdmin, async (c) => {
     throw errors.badRequest(`保留天数须为 ${TRASH_RETENTION_MIN}-${TRASH_RETENTION_MAX} 的整数`);
   }
   await c.env.DB.prepare(
-    "INSERT INTO settings (key, value) VALUES ('trash_retention_days', ?1) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    "INSERT INTO settings (scope, key, value) VALUES ('global', 'trash_retention_days', ?1) ON CONFLICT(scope, key) DO UPDATE SET value = excluded.value",
   )
     .bind(String(trash_retention_days))
     .run();

@@ -823,6 +823,29 @@ async function main() {
     assertEqual(db.prepare("SELECT COUNT(*) c FROM tags").first().c, 0, "标签应已删除");
   });
 
+  // —— 动态设置（settings 主键为 scope+key）——
+  await check("HTTP：admin settings 默认值 / PATCH 生效 / 非管理员 403", async () => {
+    const db = makeD1(schema1x);
+    const env = makeEnv(db, makeR2());
+    const admin = { "x-dev-email": "a@example.com" };
+    await call(env, "/api/me", { headers: admin });
+    const initial = await call(env, "/api/me/admin/settings", { headers: admin });
+    assertEqual(initial.status, 200, "GET 设置应 200，实际 " + initial.status + " " + initial.text.slice(0, 160));
+    assertEqual(initial.json.trash_retention_days, 30, "默认回收站天数应回退到 env（30）");
+    const patched = await call(env, "/api/me/admin/settings", {
+      method: "PATCH",
+      headers: { ...admin, "content-type": "application/json" },
+      body: JSON.stringify({ trash_retention_days: 7 }),
+    });
+    assertEqual(patched.status, 200, "PATCH 设置应 200，实际 " + patched.status + " " + patched.text.slice(0, 200));
+    const after = await call(env, "/api/me/admin/settings", { headers: admin });
+    assertEqual(after.json.trash_retention_days, 7, "PATCH 后应读到 7");
+    const member = { "x-dev-email": "m@example.com" };
+    await call(env, "/api/me", { headers: member });
+    const forbidden = await call(env, "/api/me/admin/settings", { headers: member });
+    assertEqual(forbidden.status, 403, "普通成员应 403，实际 " + forbidden.status);
+  });
+
   // —— 语句数预算（§4.6）：大批量下语句数必须与批次无关 ——
   await check("200 项批量：软删 ≤4 条语句、彻底删除 ≤5 条语句", async () => {
     const db = makeD1(schema1x);

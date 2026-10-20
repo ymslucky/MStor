@@ -11,7 +11,7 @@ async function assertPathConsistent(ownerId: string, nodeId: string) {
   const node = (await getNode(env.DB, ownerId, nodeId))!;
   const hi = `${node.path}${node.id}/g`;
   const { results } = await env.DB.prepare(
-    "SELECT id, parent_id, path FROM nodes WHERE owner_id = ?1 AND path >= ?2 AND path < ?3"
+    "SELECT id, parent_id, path FROM nodes WHERE workspace_id = ?1 AND path >= ?2 AND path < ?3"
   ).bind(ownerId, `${node.path}${node.id}/`, hi).all<{ id: string; parent_id: string; path: string }>();
   expect(results.length).toBeGreaterThan(0);
   for (const row of results) {
