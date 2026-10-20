@@ -3,7 +3,7 @@ import { expect, test } from "vitest";
 import { sessionHeaders, seedUser } from "./helpers";
 
 async function usedOf(userId: string): Promise<number> {
-  const row = await env.DB.prepare("SELECT used_bytes FROM users WHERE id = ?1").bind(userId).first<{ used_bytes: number }>();
+  const row = await env.DB.prepare("SELECT used_bytes FROM workspaces WHERE id = ?1").bind(userId).first<{ used_bytes: number }>();
   return row!.used_bytes;
 }
 

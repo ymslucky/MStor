@@ -24,7 +24,8 @@ export async function seedUser(overrides: Partial<UserRow> & { quota_bytes?: num
     .bind(user.id, user.access_sub, user.email, user.access_bound_at, user.name, user.platform_admin, user.created_at, user.disabled_at)
     .run();
   // 2.0：每个用户配一个个人空间（路由按 workspace 解析，缺空间会 404）
-  const wsId = randomId();
+  // 测试夹具约定：workspace id 与 user id 相同，数据层用例可直接用 u.id 当隔离维度
+  const wsId = user.id;
   const now = Date.now();
   await env.DB.batch([
     env.DB.prepare("INSERT INTO workspaces (id, name, slug, quota_bytes, created_at) VALUES (?1, ?2, ?3, ?4, ?5)")

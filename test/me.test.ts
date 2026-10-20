@@ -60,7 +60,7 @@ test("admin endpoints enforce role", async () => {
     body: JSON.stringify({ quota_bytes: 2048 }),
   });
   expect(patched.status).toBe(200);
-  const row = await env.DB.prepare("SELECT quota_bytes FROM users WHERE id = ?1")
+  const row = await env.DB.prepare("SELECT quota_bytes FROM workspaces WHERE id = ?1")
     .bind(member.id)
     .first<{ quota_bytes: number }>();
   expect(row!.quota_bytes).toBe(2048);
@@ -121,7 +121,7 @@ test("admin can still update own quota", async () => {
     body: JSON.stringify({ quota_bytes: 4096 }),
   });
   expect(res.status).toBe(200);
-  const row = await env.DB.prepare("SELECT quota_bytes FROM users WHERE id = ?1")
+  const row = await env.DB.prepare("SELECT quota_bytes FROM workspaces WHERE id = ?1")
     .bind(admin.id)
     .first<{ quota_bytes: number }>();
   expect(row!.quota_bytes).toBe(4096);

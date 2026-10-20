@@ -127,11 +127,11 @@ test("softDeleteNode via path keeps used_bytes and marks subtree", async () => {
   const dir = await createDir(env.DB, u.id, root.id, "dir");
   const f1 = await seedNode({ owner_id: u.id, parent_id: dir.id, name: "a.txt", size: 100 });
   const f2 = await seedNode({ owner_id: u.id, parent_id: root.id, name: "b.txt", size: 50 });
-  await env.DB.prepare("UPDATE users SET used_bytes = 150 WHERE id = ?1").bind(u.id).run();
+  await env.DB.prepare("UPDATE workspaces SET used_bytes = 150 WHERE id = ?1").bind(u.id).run();
 
   await softDeleteNode(env.DB, u.id, dir.id);
   expect((await getNode(env.DB, u.id, f1.id))!.deleted_at).not.toBeNull();
   expect((await getNode(env.DB, u.id, f2.id))!.deleted_at).toBeNull();
-  const row = await env.DB.prepare("SELECT used_bytes FROM users WHERE id = ?1").bind(u.id).first<{ used_bytes: number }>();
+  const row = await env.DB.prepare("SELECT used_bytes FROM workspaces WHERE id = ?1").bind(u.id).first<{ used_bytes: number }>();
   expect(row!.used_bytes).toBe(50);
 });

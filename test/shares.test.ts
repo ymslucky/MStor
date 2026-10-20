@@ -27,7 +27,7 @@ test("create share → public meta → raw download increments counter", async (
   expect(meta.status).toBe(200);
   expect(((await meta.json()) as { name: string }).name).toBe("share.txt");
 
-  const raw = await SELF.fetch(`https://example.com/api/s/${token}/raw/${fid}`);
+  const raw = await SELF.fetch(`https://example.com/api/s/${token}/raw/${fid}?dl=1`);
   expect(raw.status).toBe(200);
   expect(await raw.text()).toBe("shared-data");
   const row = await env.DB.prepare("SELECT downloads FROM shares WHERE token = ?1").bind(token).first<{ downloads: number }>();

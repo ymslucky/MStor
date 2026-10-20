@@ -1,0 +1,120 @@
+
+> test:server
+> vitest run
+
+
+ RUN  v3.2.7 C:/Users/YMS/Documents/Code/cf-storage
+
+Using vars defined in .dev.vars
+[vpw:info] Starting isolated runtimes for vitest.config.ts...
+*** std::terminate() called with no exception
+stack: 7ffd69111249 7ff794fb4615 7ffd6912baff 7ffd69113a9c 7ffd6912ae8c 7ffd69112ce1 7ffd6912b8f7 7ffd8d24481e 7ffd8d122102 7ffd6912b3d5 7ffd69111c1f 7ffd69112dd7 7ffd6912b8f7 7ffd8d24479e 7ffd8d125e96 7ffd8d16d010 7ffd8aac1ad9 7ffd691155a8 7ff79646636b 7ff794fb43c6 7ff79646acd2 7ff796472396 7ff79646b1ed 7ff796472396 7ff796468992 7ff794fa2012 7ff797edf0c3 7ffd8c2be956 7ffd8d18ad6b
+*** std::terminate() called with no exception
+stack: 7ffd69111249 7ff794fb4615 7ffd6912baff 7ffd69113a9c 7ffd6912ae8c 7ffd69112ce1 7ffd6912b8f7 7ffd8d24481e 7ffd8d122102 7ffd6912b3d5 7ffd69111c1f 7ffd69112dd7 7ffd6912b8f7 7ffd8d24479e 7ffd8d125e96 7ffd8d16d010 7ffd8aac1ad9 7ffd691155a8 7ff79646636b 7ff794fb43c6 7ff79646acd2 7ff796472396 7ff79646b1ed 7ff796472396 7ff796468992 7ff794fa2012 7ff797edf0c3 7ffd8c2be956 7ffd8d18ad6b
+*** std::terminate() called with no exception
+stack: 7ffd69111249 7ff794fb4615 7ffd6912baff 7ffd69113a9c 7ffd6912ae8c 7ffd69112ce1 7ffd6912b8f7 7ffd8d24481e 7ffd8d122102 7ffd6912b3d5 7ffd69111c1f 7ffd69112dd7 7ffd6912b8f7 7ffd8d24479e 7ffd8d125e96 7ffd8d16d010 7ffd8aac1ad9 7ffd691155a8 7ff79646636b 7ff794fb43c6 7ff79646acd2 7ff796472396 7ff79646b1ed 7ff796472396 7ff796468992 7ff794fa2012 7ff797edf0c3 7ffd8c2be956 7ffd8d18ad6b
+*** std::terminate() called with no exception
+stack: 7ffd69111249 7ff794fb4615 7ffd6912baff 7ffd69113a9c 7ffd6912ae8c 7ffd69112ce1 7ffd6912b8f7 7ffd8d24481e 7ffd8d122102 7ffd6912b3d5 7ffd69111c1f 7ffd69112dd7 7ffd6912b8f7 7ffd8d24479e 7ffd8d125e96 7ffd8d16d010 7ffd8aac1ad9 7ffd691155a8 7ff79646636b 7ff794fb43c6 7ff79646acd2 7ff796472396 7ff79646b1ed 7ff796472396 7ff796468992 7ff794fa2012 7ff797edf0c3 7ffd8c2be956 7ffd8d18ad6b
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+MiniflareCoreError [ERR_RUNTIME_FAILURE]: The Workers runtime failed to start. There is likely additional logging output above.
+ ❯ #assembleAndUpdateConfig node_modules/miniflare/dist/src/index.js:61621:13
+ ❯ process.processTicksAndRejections node:internal/process/task_queues:104:5
+ ❯ Mutex.runWith node_modules/miniflare/dist/src/index.js:38853:48
+ ❯ #waitForReady node_modules/miniflare/dist/src/index.js:61708:5
+ ❯ getProjectMiniflare node_modules/@cloudflare/vitest-pool-workers/dist/pool/index.mjs:1571:5
+ ❯ executeMethod node_modules/@cloudflare/vitest-pool-workers/dist/pool/index.mjs:1840:16
+ ❯ Object.runTests node_modules/@cloudflare/vitest-pool-workers/dist/pool/index.mjs:1895:7
+ ❯ executeTests node_modules/vitest/dist/chunks/coverage.DfSpMS-b.js:3421:4
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { code: 'ERR_RUNTIME_FAILURE' }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+
+ Test Files  no tests
+      Tests  no tests
+     Errors  1 error
+   Start at  13:57:14
+   Duration  1.35s (transform 0ms, setup 0ms, collect 0ms, tests 0ms, environment 0ms, prepare 0ms)
+
+[vpw:debug] Shutting down runtimes...
+*** std::terminate() called with no exception
+stack: 7ffd69111249 7ff794fb4615 7ffd6912baff 7ffd69113a9c 7ffd6912ae8c 7ffd69112ce1 7ffd6912b8f7 7ffd8d24481e 7ffd8d122102 7ffd6912b3d5 7ffd69111c1f 7ffd69112dd7 7ffd6912b8f7 7ffd8d24479e 7ffd8d125e96 7ffd8d16d010 7ffd8aac1ad9 7ffd691155a8 7ff79646636b 7ff794fb43c6 7ff79646acd2 7ff796472396 7ff79646b1ed 7ff796472396 7ff796468992 7ff794fa2012 7ff797edf0c3 7ffd8c2be956 7ffd8d18ad6b
+*** std::terminate() called with no exception
+stack: 7ffd69111249 7ff794fb4615 7ffd6912baff 7ffd69113a9c 7ffd6912ae8c 7ffd69112ce1 7ffd6912b8f7 7ffd8d24481e 7ffd8d122102 7ffd6912b3d5 7ffd69111c1f 7ffd69112dd7 7ffd6912b8f7 7ffd8d24479e 7ffd8d125e96 7ffd8d16d010 7ffd8aac1ad9 7ffd691155a8 7ff79646636b 7ff794fb43c6 7ff79646acd2 7ff796472396 7ff79646b1ed 7ff796472396 7ff796468992 7ff794fa2012 7ff797edf0c3 7ffd8c2be956 7ffd8d18ad6b
+*** std::terminate() called with no exception
+stack: 7ffd69111249 7ff794fb4615 7ffd6912baff 7ffd69113a9c 7ffd6912ae8c 7ffd69112ce1 7ffd6912b8f7 7ffd8d24481e 7ffd8d122102 7ffd6912b3d5 7ffd69111c1f 7ffd69112dd7 7ffd6912b8f7 7ffd8d24479e 7ffd8d125e96 7ffd8d16d010 7ffd8aac1ad9 7ffd691155a8 7ff79646636b 7ff794fb43c6 7ff79646acd2 7ff796472396 7ff79646b1ed 7ff796472396 7ff796468992 7ff794fa2012 7ff797edf0c3 7ffd8c2be956 7ffd8d18ad6b
+*** std::terminate() called with no exception
+stack: 7ffd69111249 7ff794fb4615 7ffd6912baff 7ffd69113a9c 7ffd6912ae8c 7ffd69112ce1 7ffd6912b8f7 7ffd8d24481e 7ffd8d122102 7ffd6912b3d5 7ffd69111c1f 7ffd69112dd7 7ffd6912b8f7 7ffd8d24479e 7ffd8d125e96 7ffd8d16d010 7ffd8aac1ad9 7ffd691155a8 7ff79646636b 7ff794fb43c6 7ff79646acd2 7ff796472396 7ff79646b1ed 7ff796472396 7ff796468992 7ff794fa2012 7ff797edf0c3 7ffd8c2be956 7ffd8d18ad6b
+*** std::terminate() called with no exception
+stack: 7ffd69111249 7ff794fb4615 7ffd6912baff 7ffd69113a9c 7ffd6912ae8c 7ffd69112ce1 7ffd6912b8f7 7ffd8d24481e 7ffd8d122102 7ffd6912b3d5 7ffd69111c1f 7ffd69112dd7 7ffd6912b8f7 7ffd8d24479e 7ffd8d125e96 7ffd8d16d010 7ffd8aac1ad9 7ffd691155a8 7ff79646636b 7ff794fb43c6 7ff79646acd2 7ff796472396 7ff79646b1ed 7ff796472396 7ff796468992 7ff794fa2012 7ff797edf0c3 7ffd8c2be956 7ffd8d18ad6b
+error during close MiniflareCoreError [ERR_RUNTIME_FAILURE]: The Workers runtime failed to start. There is likely additional logging output above.
+    at #assembleAndUpdateConfig (C:\Users\YMS\Documents\Code\cf-storage\node_modules\miniflare\dist\src\index.js:61621:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Mutex.runWith (C:\Users\YMS\Documents\Code\cf-storage\node_modules\miniflare\dist\src\index.js:38853:48)
+    at async #waitForReady (C:\Users\YMS\Documents\Code\cf-storage\node_modules\miniflare\dist\src\index.js:61708:5)
+    at async Promise.all (index 7)
+    at async getProjectMiniflare (file:///C:/Users/YMS/Documents/Code/cf-storage/node_modules/@cloudflare/vitest-pool-workers/dist/pool/index.mjs:1571:5)
+    at async executeMethod (file:///C:/Users/YMS/Documents/Code/cf-storage/node_modules/@cloudflare/vitest-pool-workers/dist/pool/index.mjs:1840:16)
+    at async Object.runTests (file:///C:/Users/YMS/Documents/Code/cf-storage/node_modules/@cloudflare/vitest-pool-workers/dist/pool/index.mjs:1895:7)
+    at async Promise.all (index 5)
+    at async executeTests (file:///C:/Users/YMS/Documents/Code/cf-storage/node_modules/vitest/dist/chunks/coverage.DfSpMS-b.js:3421:4) {
+  code: 'ERR_RUNTIME_FAILURE',
+  cause: undefined,
+  type: 'Unhandled Error',
+  stacks: [
+    {
+      method: '#assembleAndUpdateConfig',
+      file: 'C:/Users/YMS/Documents/Code/cf-storage/node_modules/miniflare/dist/src/index.js',
+      line: 61621,
+      column: 13
+    },
+    {
+      method: 'process.processTicksAndRejections',
+      file: 'node:internal/process/task_queues',
+      line: 104,
+      column: 5
+    },
+    {
+      method: 'Mutex.runWith',
+      file: 'C:/Users/YMS/Documents/Code/cf-storage/node_modules/miniflare/dist/src/index.js',
+      line: 38853,
+      column: 48
+    },
+    {
+      method: '#waitForReady',
+      file: 'C:/Users/YMS/Documents/Code/cf-storage/node_modules/miniflare/dist/src/index.js',
+      line: 61708,
+      column: 5
+    },
+    {
+      method: 'getProjectMiniflare',
+      file: 'C:/Users/YMS/Documents/Code/cf-storage/node_modules/@cloudflare/vitest-pool-workers/dist/pool/index.mjs',
+      line: 1571,
+      column: 5
+    },
+    {
+      method: 'executeMethod',
+      file: 'C:/Users/YMS/Documents/Code/cf-storage/node_modules/@cloudflare/vitest-pool-workers/dist/pool/index.mjs',
+      line: 1840,
+      column: 16
+    },
+    {
+      method: 'Object.runTests',
+      file: 'C:/Users/YMS/Documents/Code/cf-storage/node_modules/@cloudflare/vitest-pool-workers/dist/pool/index.mjs',
+      line: 1895,
+      column: 7
+    },
+    {
+      method: 'executeTests',
+      file: 'C:/Users/YMS/Documents/Code/cf-storage/node_modules/vitest/dist/chunks/coverage.DfSpMS-b.js',
+      line: 3421,
+      column: 4
+    }
+  ]
+}

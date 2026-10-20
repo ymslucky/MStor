@@ -1,0 +1,1220 @@
+﻿2026-10-20T05:53:08.0820401Z Current runner version: '2.337.0'
+2026-10-20T05:53:08.0841122Z ##[group]Runner Image Provisioner
+2026-10-20T05:53:08.0841688Z Hosted Compute Agent
+2026-10-20T05:53:08.0842150Z Version: 20261015.610
+2026-10-20T05:53:08.0842584Z Commit: 267fdb4e8bbec4ab5ea31367f3a00d5c480c7656
+2026-10-20T05:53:08.0843059Z Build Date: 2026-10-14T17:06:54Z
+2026-10-20T05:53:08.0843498Z Worker ID: {faa8f434-2250-46e0-ad1b-fe8aff4e122e}
+2026-10-20T05:53:08.0843947Z Region: centralus
+2026-10-20T05:53:08.0844334Z Cloud: Azure
+2026-10-20T05:53:08.0844743Z ##[endgroup]
+2026-10-20T05:53:08.0845575Z ##[group]Operating System
+2026-10-20T05:53:08.0845971Z Ubuntu
+2026-10-20T05:53:08.0846300Z 24.04.5
+2026-10-20T05:53:08.0846671Z LTS
+2026-10-20T05:53:08.0847035Z ##[endgroup]
+2026-10-20T05:53:08.0847371Z ##[group]Runner Image
+2026-10-20T05:53:08.0847939Z Image: ubuntu-24.04
+2026-10-20T05:53:08.0848297Z Version: 20261018.339.1
+2026-10-20T05:53:08.0849146Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261018.339/images/ubuntu/Ubuntu2404-Readme.md
+2026-10-20T05:53:08.0850094Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261018.339
+2026-10-20T05:53:08.0850739Z ##[endgroup]
+2026-10-20T05:53:08.0851479Z ##[group]GITHUB_TOKEN Permissions
+2026-10-20T05:53:08.0852974Z Contents: read
+2026-10-20T05:53:08.0853405Z Metadata: read
+2026-10-20T05:53:08.0853814Z Packages: read
+2026-10-20T05:53:08.0854171Z ##[endgroup]
+2026-10-20T05:53:08.0855652Z Secret source: Actions
+2026-10-20T05:53:08.0856407Z Cache mode: write
+2026-10-20T05:53:08.0856868Z Prepare workflow directory
+2026-10-20T05:53:08.1094525Z Prepare all required actions
+2026-10-20T05:53:08.1138838Z Getting action download info
+2026-10-20T05:53:08.3719360Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-10-20T05:53:08.4614979Z Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+2026-10-20T05:53:08.6342957Z Complete job name: test
+2026-10-20T05:53:08.6911421Z ##[group]Run actions/checkout@v4
+2026-10-20T05:53:08.6912064Z with:
+2026-10-20T05:53:08.6912443Z   repository: ymslucky/MStor
+2026-10-20T05:53:08.6916306Z   token: ***
+2026-10-20T05:53:08.6916729Z   ssh-strict: true
+2026-10-20T05:53:08.6917111Z   ssh-user: git
+2026-10-20T05:53:08.6917668Z   persist-credentials: true
+2026-10-20T05:53:08.6918092Z   clean: true
+2026-10-20T05:53:08.6918485Z   sparse-checkout-cone-mode: true
+2026-10-20T05:53:08.6918950Z   fetch-depth: 1
+2026-10-20T05:53:08.6919331Z   fetch-tags: false
+2026-10-20T05:53:08.6919726Z   show-progress: true
+2026-10-20T05:53:08.6920116Z   lfs: false
+2026-10-20T05:53:08.6920473Z   submodules: false
+2026-10-20T05:53:08.6920923Z   set-safe-directory: true
+2026-10-20T05:53:08.6921342Z   allow-unsafe-pr-checkout: false
+2026-10-20T05:53:08.6921929Z ##[endgroup]
+2026-10-20T05:53:08.7715439Z Syncing repository: ymslucky/MStor
+2026-10-20T05:53:08.7717090Z ##[group]Getting Git version info
+2026-10-20T05:53:08.7717908Z Working directory is '/home/runner/work/MStor/MStor'
+2026-10-20T05:53:08.7718461Z [command]/usr/bin/git version
+2026-10-20T05:53:08.7798972Z git version 2.55.0
+2026-10-20T05:53:08.7815525Z ##[endgroup]
+2026-10-20T05:53:08.7835797Z Temporarily overriding HOME='/home/runner/work/_temp/da2cdeb6-88eb-4f38-a4fa-96e7b8b9ac90' before making global git config changes
+2026-10-20T05:53:08.7836937Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-20T05:53:08.7839205Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/MStor/MStor
+2026-10-20T05:53:08.7888917Z Deleting the contents of '/home/runner/work/MStor/MStor'
+2026-10-20T05:53:08.7892864Z ##[group]Initializing the repository
+2026-10-20T05:53:08.7896836Z [command]/usr/bin/git init /home/runner/work/MStor/MStor
+2026-10-20T05:53:08.7983328Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-20T05:53:08.7984778Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-20T05:53:08.7986484Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-20T05:53:08.7988060Z hint: call:
+2026-10-20T05:53:08.7988575Z hint:
+2026-10-20T05:53:08.7989207Z hint: 	git config --global init.defaultBranch <name>
+2026-10-20T05:53:08.7989908Z hint:
+2026-10-20T05:53:08.7990568Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-20T05:53:08.7991591Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-20T05:53:08.7992418Z hint:
+2026-10-20T05:53:08.7992925Z hint: 	git branch -m <name>
+2026-10-20T05:53:08.7993479Z hint:
+2026-10-20T05:53:08.7994201Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-20T05:53:08.7995391Z Initialized empty Git repository in /home/runner/work/MStor/MStor/.git/
+2026-10-20T05:53:08.7997556Z [command]/usr/bin/git remote add origin https://github.com/ymslucky/MStor
+2026-10-20T05:53:08.8045473Z ##[endgroup]
+2026-10-20T05:53:08.8046325Z ##[group]Disabling automatic garbage collection
+2026-10-20T05:53:08.8054876Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-20T05:53:08.8093476Z ##[endgroup]
+2026-10-20T05:53:08.8094202Z ##[group]Setting up auth
+2026-10-20T05:53:08.8100014Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-20T05:53:08.8148985Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-20T05:53:08.8471204Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-20T05:53:08.8510732Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-20T05:53:08.8719325Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-20T05:53:08.8758300Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-20T05:53:08.8962100Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-20T05:53:08.9007310Z ##[endgroup]
+2026-10-20T05:53:08.9008018Z ##[group]Fetching the repository
+2026-10-20T05:53:08.9014884Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +eb5888354e95d444f7c14b6f1e0a8aab3e679bfd:refs/remotes/pull/1/merge
+2026-10-20T05:53:09.3804265Z From https://github.com/ymslucky/MStor
+2026-10-20T05:53:09.3805523Z  * [new ref]         eb5888354e95d444f7c14b6f1e0a8aab3e679bfd -> pull/1/merge
+2026-10-20T05:53:09.3810442Z ##[endgroup]
+2026-10-20T05:53:09.3811168Z ##[group]Determining the checkout info
+2026-10-20T05:53:09.3813305Z ##[endgroup]
+2026-10-20T05:53:09.3818850Z [command]/usr/bin/git sparse-checkout disable
+2026-10-20T05:53:09.3876927Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-20T05:53:09.3920773Z ##[group]Checking out the ref
+2026-10-20T05:53:09.3923912Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/1/merge
+2026-10-20T05:53:09.4091319Z Note: switching to 'refs/remotes/pull/1/merge'.
+2026-10-20T05:53:09.4091874Z 
+2026-10-20T05:53:09.4092197Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-10-20T05:53:09.4092772Z changes and commit them, and you can discard any commits you make in this
+2026-10-20T05:53:09.4093302Z state without impacting any branches by switching back to a branch.
+2026-10-20T05:53:09.4093624Z 
+2026-10-20T05:53:09.4093855Z If you want to create a new branch to retain commits you create, you may
+2026-10-20T05:53:09.4094392Z do so (now or later) by using -c with the switch command. Example:
+2026-10-20T05:53:09.4094691Z 
+2026-10-20T05:53:09.4094828Z   git switch -c <new-branch-name>
+2026-10-20T05:53:09.4095049Z 
+2026-10-20T05:53:09.4095457Z Or undo this operation with:
+2026-10-20T05:53:09.4095657Z 
+2026-10-20T05:53:09.4095777Z   git switch -
+2026-10-20T05:53:09.4095954Z 
+2026-10-20T05:53:09.4096198Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-10-20T05:53:09.4096540Z 
+2026-10-20T05:53:09.4096929Z HEAD is now at eb58883 Merge f3075ba06fdd8ca3a5751c9d578a635a2c651f75 into 3f3da7529f2ca9cccaaf3e24e6a716faca1ddf05
+2026-10-20T05:53:09.4099371Z ##[endgroup]
+2026-10-20T05:53:09.4149922Z [command]/usr/bin/git log -1 --format=%H
+2026-10-20T05:53:09.4182802Z eb5888354e95d444f7c14b6f1e0a8aab3e679bfd
+2026-10-20T05:53:09.5711220Z ##[group]Run actions/setup-node@v4
+2026-10-20T05:53:09.5711610Z with:
+2026-10-20T05:53:09.5711877Z   node-version: 22
+2026-10-20T05:53:09.5712150Z   cache: npm
+2026-10-20T05:53:09.5712414Z   always-auth: false
+2026-10-20T05:53:09.5712698Z   check-latest: false
+2026-10-20T05:53:09.5715101Z   token: ***
+2026-10-20T05:53:09.5715380Z ##[endgroup]
+2026-10-20T05:53:09.6755959Z Found in cache @ /opt/hostedtoolcache/node/22.23.3/x64
+2026-10-20T05:53:09.6758703Z (node:2092) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-20T05:53:09.6759544Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-20T05:53:09.6760768Z ##[group]Environment details
+2026-10-20T05:53:09.9561927Z node: v22.23.3
+2026-10-20T05:53:09.9562637Z npm: 10.9.9
+2026-10-20T05:53:09.9563178Z yarn: 1.22.22
+2026-10-20T05:53:09.9564512Z ##[endgroup]
+2026-10-20T05:53:09.9574900Z [command]/opt/hostedtoolcache/node/22.23.3/x64/bin/npm config get cache
+2026-10-20T05:53:10.0390153Z /home/runner/.npm
+2026-10-20T05:53:10.1710693Z npm cache is not found
+2026-10-20T05:53:10.1872852Z ##[group]Run npm ci
+2026-10-20T05:53:10.1873609Z [36;1mnpm ci[0m
+2026-10-20T05:53:10.2013659Z shell: /usr/bin/bash -e {0}
+2026-10-20T05:53:10.2014426Z ##[endgroup]
+2026-10-20T05:53:14.7006020Z npm warn deprecated glob@11.1.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-10-20T05:53:14.9628221Z npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-10-20T05:53:22.3439548Z npm warn deprecated eslint@9.39.5: This version is no longer supported. Please see https://eslint.org/version-support for other options.
+2026-10-20T05:53:27.0993994Z 
+2026-10-20T05:53:27.0995214Z added 683 packages, and audited 684 packages in 17s
+2026-10-20T05:53:27.0995853Z 
+2026-10-20T05:53:27.0996097Z 192 packages are looking for funding
+2026-10-20T05:53:27.0996419Z   run `npm fund` for details
+2026-10-20T05:53:27.1615232Z 
+2026-10-20T05:53:27.1616268Z 11 vulnerabilities (2 moderate, 7 high, 2 critical)
+2026-10-20T05:53:27.1616699Z 
+2026-10-20T05:53:27.1616907Z To address issues that do not require attention, run:
+2026-10-20T05:53:27.1617208Z   npm audit fix
+2026-10-20T05:53:27.1617322Z 
+2026-10-20T05:53:27.1617686Z To address all issues (including breaking changes), run:
+2026-10-20T05:53:27.1619199Z   npm audit fix --force
+2026-10-20T05:53:27.1619376Z 
+2026-10-20T05:53:27.1619522Z Run `npm audit` for details.
+2026-10-20T05:53:27.3434081Z ##[group]Run npm run test:ci
+2026-10-20T05:53:27.3434409Z [36;1mnpm run test:ci[0m
+2026-10-20T05:53:27.4864372Z shell: /usr/bin/bash -e {0}
+2026-10-20T05:53:27.4864706Z ##[endgroup]
+2026-10-20T05:53:27.5928071Z 
+2026-10-20T05:53:27.5928787Z > test:ci
+2026-10-20T05:53:27.5929130Z > npm run test && npm run build
+2026-10-20T05:53:27.5929280Z 
+2026-10-20T05:53:27.6670758Z 
+2026-10-20T05:53:27.6671490Z > test
+2026-10-20T05:53:27.6671993Z > npm run test:client && npm run test:server
+2026-10-20T05:53:27.6672274Z 
+2026-10-20T05:53:27.7450220Z 
+2026-10-20T05:53:27.7451317Z > test:client
+2026-10-20T05:53:27.7451791Z > vitest run --config vitest.client.config.ts
+2026-10-20T05:53:27.7452095Z 
+2026-10-20T05:53:27.9987114Z 
+2026-10-20T05:53:27.9988664Z [1m[46m RUN [49m[22m [36mv3.2.7 [39m[90m/home/runner/work/MStor/MStor/client[39m
+2026-10-20T05:53:27.9989040Z 
+2026-10-20T05:53:29.2813452Z  [32m✓[39m src/api/uploads.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+2026-10-20T05:53:30.3432191Z  [32m✓[39m src/hooks/useUploadQueue.test.tsx [2m([22m[2m22 tests[22m[2m)[22m[33m 1089[2mms[22m[39m
+2026-10-20T05:53:31.2241619Z  [32m✓[39m src/pages/TrashPage.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[33m 942[2mms[22m[39m
+2026-10-20T05:53:32.2017818Z  [32m✓[39m src/components/FileList.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[33m 671[2mms[22m[39m
+2026-10-20T05:53:33.2141397Z  [32m✓[39m src/pages/SharePage.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 744[2mms[22m[39m
+2026-10-20T05:53:33.6146077Z  [32m✓[39m src/pages/Browser.test.tsx [2m([22m[2m32 tests[22m[2m)[22m[33m 3956[2mms[22m[39m
+2026-10-20T05:53:33.6148833Z    [33m[2m✓[22m[39m batch delete shows progress (处理中 i/n) while running [33m 319[2mms[22m[39m
+2026-10-20T05:53:34.1800198Z  [32m✓[39m src/shell/AppShell.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 675[2mms[22m[39m
+2026-10-20T05:53:34.3078346Z  [32m✓[39m src/api/client.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+2026-10-20T05:53:34.7911068Z  [32m✓[39m src/hooks/useKeyboardNav.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[32m 78[2mms[22m[39m
+2026-10-20T05:53:35.3946258Z  [32m✓[39m src/lib/dirscan.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+2026-10-20T05:53:35.7680131Z [90mstderr[2m | src/pages/SettingsPage.test.tsx[2m > [22m[2madmin edits quota via PATCH
+2026-10-20T05:53:35.7690697Z [22m[39mQuery data cannot be undefined. Please make sure to return a value other than undefined from your query function. Affected query key: ["admin-settings"]
+2026-10-20T05:53:35.7691609Z 
+2026-10-20T05:53:35.9752754Z [90mstderr[2m | src/pages/SettingsPage.test.tsx[2m > [22m[2madmin toggles disable and enters user space
+2026-10-20T05:53:35.9769738Z [22m[39mQuery data cannot be undefined. Please make sure to return a value other than undefined from your query function. Affected query key: ["admin-settings"]
+2026-10-20T05:53:35.9811262Z 
+2026-10-20T05:53:36.1807821Z  [32m✓[39m src/pages/SettingsPage.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 659[2mms[22m[39m
+2026-10-20T05:53:36.1808723Z    [33m[2m✓[22m[39m admin edits quota via PATCH [33m 373[2mms[22m[39m
+2026-10-20T05:53:36.3125999Z  [32m✓[39m src/pages/SharesPage.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 318[2mms[22m[39m
+2026-10-20T05:53:36.4055270Z  [32m✓[39m src/hooks/useFileSelection.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 45[2mms[22m[39m
+2026-10-20T05:53:37.5289476Z  [32m✓[39m src/components/ui/ConfirmDialog.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 245[2mms[22m[39m
+2026-10-20T05:53:37.8733953Z  [32m✓[39m src/components/ShareDialog.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 321[2mms[22m[39m
+2026-10-20T05:53:38.6177305Z  [32m✓[39m src/components/ui/ui.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 148[2mms[22m[39m
+2026-10-20T05:53:38.8658431Z  [32m✓[39m src/components/ui/Dialog.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 181[2mms[22m[39m
+2026-10-20T05:53:38.9992335Z  [32m✓[39m src/components/SearchBox.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 1431[2mms[22m[39m
+2026-10-20T05:53:38.9993857Z    [33m[2m✓[22m[39m debounces input then shows results with paths [33m 499[2mms[22m[39m
+2026-10-20T05:53:38.9994633Z    [33m[2m✓[22m[39m navigates to parent dir on file click [33m 396[2mms[22m[39m
+2026-10-20T05:53:38.9995404Z    [33m[2m✓[22m[39m does not search for empty/whitespace query [33m 536[2mms[22m[39m
+2026-10-20T05:53:39.7679534Z  [32m✓[39m src/lib/resume.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+2026-10-20T05:53:39.8926355Z  [32m✓[39m src/components/PreviewModal.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 220[2mms[22m[39m
+2026-10-20T05:53:40.1691039Z  [32m✓[39m src/components/ErrorBoundary.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 182[2mms[22m[39m
+2026-10-20T05:53:40.8807890Z  [32m✓[39m src/lib/speed.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+2026-10-20T05:53:41.1298743Z  [32m✓[39m src/api/nodes.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+2026-10-20T05:53:41.3773025Z  [32m✓[39m src/App.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 207[2mms[22m[39m
+2026-10-20T05:53:41.9195373Z  [32m✓[39m src/lib/settings.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+2026-10-20T05:53:42.1669732Z  [32m✓[39m src/lib/service-worker-navigation.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+2026-10-20T05:53:42.3646259Z  [32m✓[39m src/lib/renew.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+2026-10-20T05:53:42.8743611Z  [32m✓[39m src/lib/preview.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 2[2mms[22m[39m
+2026-10-20T05:53:43.1880685Z  [32m✓[39m src/main.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 180[2mms[22m[39m
+2026-10-20T05:53:43.2110918Z 
+2026-10-20T05:53:43.2118203Z [2m Test Files [22m [1m[32m29 passed[39m[22m[90m (29)[39m
+2026-10-20T05:53:43.2118901Z [2m      Tests [22m [1m[32m190 passed[39m[22m[90m (190)[39m
+2026-10-20T05:53:43.2119337Z [2m   Start at [22m 05:53:27
+2026-10-20T05:53:43.2120059Z [2m   Duration [22m 15.21s[2m (transform 961ms, setup 3.65s, collect 3.70s, tests 12.38s, environment 17.72s, prepare 2.25s)[22m
+2026-10-20T05:53:43.2123002Z 
+2026-10-20T05:53:43.3806256Z 
+2026-10-20T05:53:43.3807068Z > test:server
+2026-10-20T05:53:43.3807333Z > vitest run
+2026-10-20T05:53:43.3807413Z 
+2026-10-20T05:53:44.0152710Z 
+2026-10-20T05:53:44.0154053Z [1m[46m RUN [49m[22m [36mv3.2.7 [39m[90m/home/runner/work/MStor/MStor[39m
+2026-10-20T05:53:44.0154387Z 
+2026-10-20T05:53:44.1165605Z [vpw:info] Starting isolated runtimes for vitest.config.ts...
+2026-10-20T05:53:51.3132876Z  [32m✓[39m test/health.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 105[2mms[22m[39m
+2026-10-20T05:53:51.4425047Z [90mstderr[2m | test/errors.test.ts[2m > [22m[2munknown errors become 500 envelope
+2026-10-20T05:53:51.4462040Z [22m[39m{"level":"error","message":"unhandled error","route":"GET /boom","code":"INTERNAL","status":500,"error":"x","stack":"Error: x\n    at Array.<anonymous> (/home/runner/work/MStor/MStor/test/errors.test.ts:20:34)\n    at Hono.#dispatch (home/runner/work/MStor/MStor/node_modules/hono/dist/hono-base.js:295:38)\n    at Hono.fetch (home/runner/work/MStor/MStor/node_modules/hono/dist/hono-base.js:332:26)\n    at Hono.request (home/runner/work/MStor/MStor/node_modules/hono/dist/hono-base.js:351:17)\n    at /home/runner/work/MStor/MStor/test/errors.test.ts:21:25\n    at home/runner/work/MStor/MStor/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\n    at home/runner/work/MStor/MStor/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\n    at home/runner/work/MStor/MStor/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (home/runner/work/MStor/MStor/node_modules/@vitest/runner/dist/chunk-hooks.js:1863:10)"}
+2026-10-20T05:53:51.4464897Z 
+2026-10-20T05:53:51.5710536Z workerd/io/io-context.c++:389: info: uncaught exception; exception = workerd/api/global-scope.c++:42: failed: jsg.TypeError: Can't read from request stream after response has been sent.
+2026-10-20T05:53:51.5740935Z stack: /home/runner/work/MStor/MStor/node_modules/@cloudflare/workerd-linux-64/bin/workerd@1d772a0 /home/runner/work/MStor/MStor/node_modules/@cloudflare/workerd-linux-64/bin/workerd@2a8c081 /home/runner/work/MStor/MStor/node_modules/@cloudflare/workerd-linux-64/bin/workerd@2a8c19d
+2026-10-20T05:53:51.8429186Z  [32m✓[39m test/schema-parity.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 760[2mms[22m[39m
+2026-10-20T05:53:51.8430085Z    [33m[2m✓[22m[39m schema.sql 与 migrations 建出的表结构一致 [33m 339[2mms[22m[39m
+2026-10-20T05:53:51.9938217Z [90mstderr[2m | test/auth.test.ts[2m > [22m[2memail 锚点：命中存量账号 → 复用同一 id 并回填 access_sub
+2026-10-20T05:53:51.9938859Z [22m[39m{"level":"warn","message":"access_bind","userId":"05b127fd-ced0-4c58-890c-eaaedacff388","email":"alice@example.com"}
+2026-10-20T05:53:51.9939119Z 
+2026-10-20T05:53:52.1009882Z  [31m❯[39m test/used-bytes.test.ts [2m([22m[2m3 tests[22m[2m | [22m[31m3 failed[39m[2m)[22m[33m 906[2mms[22m[39m
+2026-10-20T05:53:52.1019512Z [31m   [31m×[31m 直传上传后 used_bytes 增加，/api/me 返回值一致[39m[32m 287[2mms[22m[39m
+2026-10-20T05:53:52.1020658Z [31m     → D1_ERROR: no such column: used_bytes at offset 7: SQLITE_ERROR[39m
+2026-10-20T05:53:52.1022733Z [31m   [31m×[31m 秒传副本计入配额；软删扣减、还原加回[39m[32m 172[2mms[22m[39m
+2026-10-20T05:53:52.1023451Z [31m     → D1_ERROR: no such column: used_bytes at offset 7: SQLITE_ERROR[39m
+2026-10-20T05:53:52.1024134Z [31m   [31m×[31m 目录软删扣减整棵子树文件大小；彻底删除不再重复扣减[39m[32m 117[2mms[22m[39m
+2026-10-20T05:53:52.1024804Z [31m     → D1_ERROR: no such column: used_bytes at offset 7: SQLITE_ERROR[39m
+2026-10-20T05:53:52.1490358Z [90mstderr[2m | test/auth.test.ts[2m > [22m[2m未知身份 + ACCESS_PROVISION=off → 403 ACCOUNT_NOT_PROVISIONED
+2026-10-20T05:53:52.1491872Z [22m[39m{"level":"warn","message":"access_unknown_identity","sub":"s-unknown","email":"who@example.com"}
+2026-10-20T05:53:52.1492514Z 
+2026-10-20T05:53:52.1903688Z  [32m✓[39m test/errors.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 847[2mms[22m[39m
+2026-10-20T05:53:52.2016559Z  [32m✓[39m test/crypto.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 1129[2mms[22m[39m
+2026-10-20T05:53:52.3826724Z  [31m❯[39m test/upload-small.test.ts [2m([22m[2m4 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 1209[2mms[22m[39m
+2026-10-20T05:53:52.3827946Z [31m   [31m×[31m PUT /api/files/upload streams to R2 and creates node[39m[33m 307[2mms[22m[39m
+2026-10-20T05:53:52.3829222Z [31m     → expected undefined to be 'hello' // Object.is equality[39m
+2026-10-20T05:53:52.3830224Z    [33m[2m✓[22m[39m duplicate name auto-renames to 'a (2).txt' [33m 376[2mms[22m[39m
+2026-10-20T05:53:52.3830931Z    [32m✓[39m quota exceeded returns 403 QUOTA_EXCEEDED 且不残留 R2 对象[32m 246[2mms[22m[39m
+2026-10-20T05:53:52.3831558Z    [32m✓[39m oversize Content-Length rejected before reading body[32m 149[2mms[22m[39m
+2026-10-20T05:53:52.3851125Z  [32m✓[39m test/uploads.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 1208[2mms[22m[39m
+2026-10-20T05:53:52.3852397Z    [33m[2m✓[22m[39m multipart init → part urls → complete creates node [33m 433[2mms[22m[39m
+2026-10-20T05:53:52.3954922Z  [32m✓[39m test/search.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 1217[2mms[22m[39m
+2026-10-20T05:53:52.3968807Z    [33m[2m✓[22m[39m search by name prefix with owner isolation and trash exclusion [33m 336[2mms[22m[39m
+2026-10-20T05:53:52.3970379Z    [33m[2m✓[22m[39m fts match on substring of long query [33m 315[2mms[22m[39m
+2026-10-20T05:53:52.5125687Z  [32m✓[39m test/dirs-ensure.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 1304[2mms[22m[39m
+2026-10-20T05:53:52.5126763Z    [33m[2m✓[22m[39m ensure creates then reuses the same directory (idempotent) [33m 526[2mms[22m[39m
+2026-10-20T05:53:52.5127400Z    [33m[2m✓[22m[39m ensure nests under an existing parent [33m 317[2mms[22m[39m
+2026-10-20T05:53:52.5128207Z    [33m[2m✓[22m[39m ensure reuses name freed by trash (trash does not occupy names) [33m 306[2mms[22m[39m
+2026-10-20T05:53:52.5209947Z  [31m❯[39m test/nodes.test.ts [2m([22m[2m8 tests[22m[2m | [22m[31m7 failed[39m[2m)[22m[33m 1324[2mms[22m[39m
+2026-10-20T05:53:52.5211007Z [31m   [31m×[31m ensureRootDir creates once and reuses[39m[32m 159[2mms[22m[39m
+2026-10-20T05:53:52.5212031Z [31m     → D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:52.5212625Z [31m   [31m×[31m createDir + listChildren + breadcrumb[39m[32m 157[2mms[22m[39m
+2026-10-20T05:53:52.5213186Z [31m     → D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:52.5213782Z [31m   [31m×[31m duplicate name in same dir throws conflict[39m[32m 46[2mms[22m[39m
+2026-10-20T05:53:52.5214377Z [31m     → D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:52.5214913Z [31m   [31m×[31m uniqueName appends (2)[39m[32m 46[2mms[22m[39m
+2026-10-20T05:53:52.5215304Z [31m     → D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:52.5215709Z [31m   [31m×[31m moveNode rejects moving dir into its own descendant[39m[32m 45[2mms[22m[39m
+2026-10-20T05:53:52.5216084Z [31m     → D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:52.5216441Z    [32m✓[39m quota check reads workspaces.used_bytes column[32m 152[2mms[22m[39m
+2026-10-20T05:53:52.5216834Z [31m   [31m×[31m subtreeIds returns self and descendants[39m[32m 46[2mms[22m[39m
+2026-10-20T05:53:52.5217191Z [31m     → D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:52.5217864Z [31m   [31m×[31m cross-user isolation[39m[32m 57[2mms[22m[39m
+2026-10-20T05:53:52.5218392Z [31m     → D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:52.5544202Z  [31m❯[39m test/path.test.ts [2m([22m[2m8 tests[22m[2m | [22m[31m8 failed[39m[2m)[22m[33m 1228[2mms[22m[39m
+2026-10-20T05:53:52.5545449Z [31m   [31m×[31m createDir writes materialized path (root child / nested)[39m[32m 96[2mms[22m[39m
+2026-10-20T05:53:52.5579179Z [31m     → D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:52.5614734Z [31m   [31m×[31m breadcrumb built from materialized path[39m[32m 134[2mms[22m[39m
+2026-10-20T05:53:52.5615443Z [31m     → D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:52.5616113Z [31m   [31m×[31m moveNode shifts whole subtree path in one batch[39m[32m 136[2mms[22m[39m
+2026-10-20T05:53:52.5616713Z [31m     → D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:52.5617254Z [31m   [31m×[31m subtreeIds via path prefix[39m[32m 29[2mms[22m[39m
+2026-10-20T05:53:52.5618409Z [31m     → D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:52.5619358Z [31m   [31m×[31m softDeleteMany + restore keep subtree paths consistent[39m[32m 52[2mms[22m[39m
+2026-10-20T05:53:52.5619971Z [31m     → D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:52.5620622Z [31m   [31m×[31m restore to root when parent deleted recomputes subtree path[39m[32m 67[2mms[22m[39m
+2026-10-20T05:53:52.5621236Z [31m     → D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:52.5621860Z [31m   [31m×[31m moveMany batch-updates dir subtree paths[39m[32m 29[2mms[22m[39m
+2026-10-20T05:53:52.5622421Z [31m     → D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:52.5623037Z [31m   [31m×[31m softDeleteNode via path keeps used_bytes and marks subtree[39m[32m 64[2mms[22m[39m
+2026-10-20T05:53:52.5623864Z [31m     → D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:52.6644692Z  [32m✓[39m test/trash-batch.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 1517[2mms[22m[39m
+2026-10-20T05:53:52.6649029Z    [33m[2m✓[22m[39m batch restore restores all ids [33m 820[2mms[22m[39m
+2026-10-20T05:53:52.6649854Z    [33m[2m✓[22m[39m batch purge removes nodes and R2 blobs, tolerates subtree repeats [33m 329[2mms[22m[39m
+2026-10-20T05:53:52.8240808Z workerd/io/io-context.c++:389: info: uncaught exception; exception = workerd/api/global-scope.c++:42: failed: jsg.TypeError: Can't read from request stream after response has been sent.
+2026-10-20T05:53:52.8242933Z stack: /home/runner/work/MStor/MStor/node_modules/@cloudflare/workerd-linux-64/bin/workerd@1d772a0 /home/runner/work/MStor/MStor/node_modules/@cloudflare/workerd-linux-64/bin/workerd@2a8c081 /home/runner/work/MStor/MStor/node_modules/@cloudflare/workerd-linux-64/bin/workerd@2a8c19d
+2026-10-20T05:53:52.8469430Z  [31m❯[39m test/trash.test.ts [2m([22m[2m5 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 1740[2mms[22m[39m
+2026-10-20T05:53:52.8469940Z    [33m[2m✓[22m[39m delete → trash list → restore → permanent [33m 840[2mms[22m[39m
+2026-10-20T05:53:52.8470352Z    [33m[2m✓[22m[39m deleting a directory trashes the whole subtree [33m 383[2mms[22m[39m
+2026-10-20T05:53:52.8470722Z [31m   [31m×[31m root cannot be trashed[39m[32m 43[2mms[22m[39m
+2026-10-20T05:53:52.8471062Z [31m     → D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:52.8471491Z    [33m[2m✓[22m[39m restore renames when the target parent holds a sibling with the same name [33m 319[2mms[22m[39m
+2026-10-20T05:53:52.8471953Z    [32m✓[39m purgeExpiredTrash removes entries older than retention[32m 100[2mms[22m[39m
+2026-10-20T05:53:52.8733518Z  [32m✓[39m test/files.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 1753[2mms[22m[39m
+2026-10-20T05:53:52.8734661Z    [33m[2m✓[22m[39m mkdir + list with breadcrumb [33m 562[2mms[22m[39m
+2026-10-20T05:53:52.8735492Z    [33m[2m✓[22m[39m duplicate dir name returns 409 [33m 304[2mms[22m[39m
+2026-10-20T05:53:52.9376179Z  [32m✓[39m test/auth.test.ts [2m([22m[2m16 tests[22m[2m)[22m[33m 1592[2mms[22m[39m
+2026-10-20T05:53:52.9643925Z  [32m✓[39m test/dedup.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 1813[2mms[22m[39m
+2026-10-20T05:53:52.9645383Z    [33m[2m✓[22m[39m 同 hash 同 size 二次直传秒传：deduplicated 且 R2 无新对象 [33m 629[2mms[22m[39m
+2026-10-20T05:53:53.0653233Z  [32m✓[39m test/download.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 1944[2mms[22m[39m
+2026-10-20T05:53:53.0654012Z    [33m[2m✓[22m[39m GET content returns full body inline [33m 430[2mms[22m[39m
+2026-10-20T05:53:53.0654692Z    [33m[2m✓[22m[39m image content caches immutable, other types keep no-cache [33m 397[2mms[22m[39m
+2026-10-20T05:53:53.2114557Z [90mstderr[2m | test/me.test.ts[2m > [22m[2madmin settings: GET 返回默认（env 回退），PATCH 后生效
+2026-10-20T05:53:53.2120704Z [22m[39m{"level":"error","message":"unhandled error","route":"PATCH /api/me/admin/settings","userId":"874ad6ad-862e-4b68-be6f-22f246ac2a8d","code":"INTERNAL","status":500,"error":"D1_ERROR: ON CONFLICT clause does not match any PRIMARY KEY or UNIQUE constraint: SQLITE_ERROR","stack":"Error: D1_ERROR: ON CONFLICT clause does not match any PRIMARY KEY or UNIQUE constraint: SQLITE_ERROR\n    at D1DatabaseSessionAlwaysPrimary._sendOrThrow (cloudflare-internal:d1-api:127:19)\n    at D1PreparedStatement.run (cloudflare-internal:d1-api:311:29)\n    at /home/runner/work/MStor/MStor/server/routes/me.ts:76:3\n    at dispatch (home/runner/work/MStor/MStor/node_modules/hono/dist/compose.js:22:17)\n    at requireAdmin (/home/runner/work/MStor/MStor/server/middleware/admin.ts:7:3)\n    at dispatch (home/runner/work/MStor/MStor/node_modules/hono/dist/compose.js:22:17)\n    at accessMiddleware (/home/runner/work/MStor/MStor/server/middleware/access.ts:122:3)\n    at dispatch (home/runner/work/MStor/MStor/node_modules/hono/dist/compose.js:22:17)\n    at home/runner/work/MStor/MStor/node_modules/hono/dist/hono-base.js:308:25"}
+2026-10-20T05:53:53.2124465Z 
+2026-10-20T05:53:53.2544226Z  [31m❯[39m test/shares.test.ts [2m([22m[2m10 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 2010[2mms[22m[39m
+2026-10-20T05:53:53.2545085Z [31m   [31m×[31m create share → public meta → raw download increments counter[39m[33m 395[2mms[22m[39m
+2026-10-20T05:53:53.2545674Z [31m     → expected +0 to be 1 // Object.is equality[39m
+2026-10-20T05:53:53.2546272Z    [33m[2m✓[22m[39m password-protected share requires x-share-password [33m 320[2mms[22m[39m
+2026-10-20T05:53:53.2547278Z    [32m✓[39m expired share returns 410; revoked returns 404[32m 245[2mms[22m[39m
+2026-10-20T05:53:53.2547970Z    [32m✓[39m raw outside subtree is 404[32m 194[2mms[22m[39m
+2026-10-20T05:53:53.2548585Z    [32m✓[39m soft-deleted descendant is not downloadable; R2 miss does not bump counter[32m 240[2mms[22m[39m
+2026-10-20T05:53:53.2549223Z    [32m✓[39m public share children browses subtree[32m 122[2mms[22m[39m
+2026-10-20T05:53:53.2549689Z    [32m✓[39m invalid expiresInDays is rejected[32m 99[2mms[22m[39m
+2026-10-20T05:53:53.2550239Z    [32m✓[39m batch-revoke revokes own shares and public access dies[32m 119[2mms[22m[39m
+2026-10-20T05:53:53.2550825Z    [32m✓[39m batch-revoke skips shares owned by others[32m 105[2mms[22m[39m
+2026-10-20T05:53:53.2551305Z    [32m✓[39m batch-revoke validates ids[32m 33[2mms[22m[39m
+2026-10-20T05:53:53.2551854Z  [32m✓[39m test/batch-ops.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 2134[2mms[22m[39m
+2026-10-20T05:53:53.2552496Z    [33m[2m✓[22m[39m POST /api/files/batch-delete 软删：全部进回收站 [33m 646[2mms[22m[39m
+2026-10-20T05:53:53.2553029Z    [33m[2m✓[22m[39m POST /api/files/batch-move 移入目标目录 [33m 399[2mms[22m[39m
+2026-10-20T05:53:53.2553676Z    [33m[2m✓[22m[39m POST /api/files/batch-move 100 项：修复 D1 绑定参数上限（曾 ≥50 项整体 500） [33m 616[2mms[22m[39m
+2026-10-20T05:53:53.2920039Z  [31m❯[39m test/me.test.ts [2m([22m[2m21 tests[22m[2m | [22m[31m3 failed[39m[2m)[22m[33m 2176[2mms[22m[39m
+2026-10-20T05:53:53.2920771Z    [33m[2m✓[22m[39m GET /api/me returns profile with usage [33m 310[2mms[22m[39m
+2026-10-20T05:53:53.2921284Z    [32m✓[39m GET /api/me without session is 401[32m 158[2mms[22m[39m
+2026-10-20T05:53:53.2921754Z    [32m✓[39m forged assertion token is 401[32m 180[2mms[22m[39m
+2026-10-20T05:53:53.2922155Z    [32m✓[39m PUT /api/me/webdav-password is removed[32m 166[2mms[22m[39m
+2026-10-20T05:53:53.2922507Z [31m   [31m×[31m admin endpoints enforce role[39m[32m 172[2mms[22m[39m
+2026-10-20T05:53:53.2922880Z [31m     → D1_ERROR: no such column: quota_bytes at offset 7: SQLITE_ERROR[39m
+2026-10-20T05:53:53.2923228Z    [32m✓[39m admin can disable and re-enable a user via PATCH[32m 222[2mms[22m[39m
+2026-10-20T05:53:53.2923542Z    [32m✓[39m admin cannot disable self[32m 108[2mms[22m[39m
+2026-10-20T05:53:53.2923817Z    [32m✓[39m admin cannot demote self[32m 83[2mms[22m[39m
+2026-10-20T05:53:53.2924137Z [31m   [31m×[31m admin can still update own quota[39m[32m 60[2mms[22m[39m
+2026-10-20T05:53:53.2924479Z [31m     → D1_ERROR: no such column: quota_bytes at offset 7: SQLITE_ERROR[39m
+2026-10-20T05:53:53.2924795Z    [32m✓[39m disabled flag persists in admin list[32m 102[2mms[22m[39m
+2026-10-20T05:53:53.2925097Z    [32m✓[39m disabled user session is rejected[32m 59[2mms[22m[39m
+2026-10-20T05:53:53.2925418Z    [32m✓[39m admin can act as another user; member cannot[32m 121[2mms[22m[39m
+2026-10-20T05:53:53.2925715Z    [32m✓[39m admin can rename a user[32m 48[2mms[22m[39m
+2026-10-20T05:53:53.2925969Z    [32m✓[39m admin can rename self[32m 59[2mms[22m[39m
+2026-10-20T05:53:53.2926259Z    [32m✓[39m rename rejects blank and oversized names[32m 38[2mms[22m[39m
+2026-10-20T05:53:53.2926560Z    [32m✓[39m rename rejects non-string name[32m 23[2mms[22m[39m
+2026-10-20T05:53:53.2927136Z    [32m✓[39m GET /api/me when acting as returns target user plus self[32m 55[2mms[22m[39m
+2026-10-20T05:53:53.2927657Z    [32m✓[39m GET /api/me self mirrors user when not acting as[32m 25[2mms[22m[39m
+2026-10-20T05:53:53.2928230Z [31m   [31m×[31m admin settings: GET 返回默认（env 回退），PATCH 后生效[39m[32m 25[2mms[22m[39m
+2026-10-20T05:53:53.2928553Z [31m     → expected 500 to be 200 // Object.is equality[39m
+2026-10-20T05:53:53.2928850Z    [32m✓[39m admin settings: 非法天数 400，member 403[32m 44[2mms[22m[39m
+2026-10-20T05:53:53.2929223Z    [32m✓[39m admin email binding is normalized to lowercase like Access JWT email[32m 21[2mms[22m[39m
+2026-10-20T05:53:53.3927261Z 
+2026-10-20T05:53:53.3928865Z [31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 24 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+2026-10-20T05:53:53.3929302Z 
+2026-10-20T05:53:53.3930136Z [41m[1m FAIL [22m[49m test/me.test.ts[2m > [22madmin endpoints enforce role
+2026-10-20T05:53:53.3942636Z [31m[1mError[22m: D1_ERROR: no such column: quota_bytes at offset 7: SQLITE_ERROR[39m
+2026-10-20T05:53:53.3943649Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m127:19[22m[39m
+2026-10-20T05:53:53.3944490Z [90m [2m❯[22m D1PreparedStatement.first cloudflare-internal:d1-api:[2m291:35[22m[39m
+2026-10-20T05:53:53.3945073Z [36m [2m❯[22m test/me.test.ts:[2m63:15[22m[39m
+2026-10-20T05:53:53.3999637Z     [90m 61| [39m  })[33m;[39m
+2026-10-20T05:53:53.4000274Z     [90m 62| [39m  [34mexpect[39m(patched[33m.[39mstatus)[33m.[39m[34mtoBe[39m([34m200[39m)[33m;[39m
+2026-10-20T05:53:53.4001068Z     [90m 63| [39m  const row = await env.DB.prepare("SELECT quota_bytes FROM users WHER…
+2026-10-20T05:53:53.4001530Z     [90m   | [39m              [31m^[39m
+2026-10-20T05:53:53.4001933Z     [90m 64| [39m    [33m.[39m[34mbind[39m(member[33m.[39mid)
+2026-10-20T05:53:53.4002526Z     [90m 65| [39m    [33m.[39mfirst[33m<[39m{ quota_bytes[33m:[39m number }[33m>[39m()[33m;[39m
+2026-10-20T05:53:53.4002874Z 
+2026-10-20T05:53:53.4003264Z [31m[1mCaused by: Error[22m: no such column: quota_bytes at offset 7: SQLITE_ERROR[39m
+2026-10-20T05:53:53.4004098Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m128:24[22m[39m
+2026-10-20T05:53:53.4004903Z [90m [2m❯[22m D1PreparedStatement.first cloudflare-internal:d1-api:[2m291:35[22m[39m
+2026-10-20T05:53:53.4005442Z [36m [2m❯[22m test/me.test.ts:[2m63:15[22m[39m
+2026-10-20T05:53:53.4005649Z 
+2026-10-20T05:53:53.4005881Z [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/24]⎯[22m[39m
+2026-10-20T05:53:53.4006082Z 
+2026-10-20T05:53:53.4006430Z [41m[1m FAIL [22m[49m test/me.test.ts[2m > [22madmin can still update own quota
+2026-10-20T05:53:53.4007088Z [31m[1mError[22m: D1_ERROR: no such column: quota_bytes at offset 7: SQLITE_ERROR[39m
+2026-10-20T05:53:53.4008018Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m127:19[22m[39m
+2026-10-20T05:53:53.4008829Z [90m [2m❯[22m D1PreparedStatement.first cloudflare-internal:d1-api:[2m291:35[22m[39m
+2026-10-20T05:53:53.4009365Z [36m [2m❯[22m test/me.test.ts:[2m124:15[22m[39m
+2026-10-20T05:53:53.4009806Z     [90m122| [39m  })[33m;[39m
+2026-10-20T05:53:53.4010370Z     [90m123| [39m  [34mexpect[39m(res[33m.[39mstatus)[33m.[39m[34mtoBe[39m([34m200[39m)[33m;[39m
+2026-10-20T05:53:53.4011017Z     [90m124| [39m  const row = await env.DB.prepare("SELECT quota_bytes FROM users WHER…
+2026-10-20T05:53:53.4011482Z     [90m   | [39m              [31m^[39m
+2026-10-20T05:53:53.4011894Z     [90m125| [39m    [33m.[39m[34mbind[39m(admin[33m.[39mid)
+2026-10-20T05:53:53.4012470Z     [90m126| [39m    [33m.[39mfirst[33m<[39m{ quota_bytes[33m:[39m number }[33m>[39m()[33m;[39m
+2026-10-20T05:53:53.4012783Z 
+2026-10-20T05:53:53.4013153Z [31m[1mCaused by: Error[22m: no such column: quota_bytes at offset 7: SQLITE_ERROR[39m
+2026-10-20T05:53:53.4014665Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m128:24[22m[39m
+2026-10-20T05:53:53.4015438Z [90m [2m❯[22m D1PreparedStatement.first cloudflare-internal:d1-api:[2m291:35[22m[39m
+2026-10-20T05:53:53.4015955Z [36m [2m❯[22m test/me.test.ts:[2m124:15[22m[39m
+2026-10-20T05:53:53.4016148Z 
+2026-10-20T05:53:53.4016374Z [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/24]⎯[22m[39m
+2026-10-20T05:53:53.4016557Z 
+2026-10-20T05:53:53.4016989Z [41m[1m FAIL [22m[49m test/me.test.ts[2m > [22madmin settings: GET 返回默认（env 回退），PATCH 后生效
+2026-10-20T05:53:53.4019077Z [31m[1mAssertionError[22m: expected 500 to be 200 // Object.is equality[39m
+2026-10-20T05:53:53.4019566Z 
+2026-10-20T05:53:53.4019655Z - Expected
+2026-10-20T05:53:53.4019855Z + Received
+2026-10-20T05:53:53.4019954Z 
+2026-10-20T05:53:53.4020031Z - 200
+2026-10-20T05:53:53.4020200Z + 500
+2026-10-20T05:53:53.4020293Z 
+2026-10-20T05:53:53.4020536Z [36m [2m❯[22m test/me.test.ts:[2m275:23[22m[39m
+2026-10-20T05:53:53.4021262Z     [90m273| [39m    body[33m:[39m [33mJSON[39m[33m.[39m[34mstringify[39m({ trash_retention_days[33m:[39m [34m7[39m })[33m,[39m
+2026-10-20T05:53:53.4021830Z     [90m274| [39m  })[33m;[39m
+2026-10-20T05:53:53.4022358Z     [90m275| [39m  [34mexpect[39m(res2[33m.[39mstatus)[33m.[39m[34mtoBe[39m([34m200[39m)[33m;[39m
+2026-10-20T05:53:53.4022856Z     [90m   | [39m                      [31m^[39m
+2026-10-20T05:53:53.4023375Z     [90m276| [39m  const res3 = await SELF.fetch("https://example.com/api/me/admin/sett…
+2026-10-20T05:53:53.4023991Z     [90m277| [39m  const body3 = (await res3.json()) as { trash_retention_days: number …
+2026-10-20T05:53:53.4024292Z 
+2026-10-20T05:53:53.4024522Z [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/24]⎯[22m[39m
+2026-10-20T05:53:53.4024709Z 
+2026-10-20T05:53:53.4025093Z [41m[1m FAIL [22m[49m test/nodes.test.ts[2m > [22mensureRootDir creates once and reuses
+2026-10-20T05:53:53.4025788Z [31m[1mError[22m: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4026605Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m127:19[22m[39m
+2026-10-20T05:53:53.4027428Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4039466Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4040252Z     [90m 30| [39m  [35mconst[39m id [33m=[39m [34mrandomId[39m()[33m;[39m
+2026-10-20T05:53:53.4040838Z     [90m 31| [39m  [35mtry[39m {
+2026-10-20T05:53:53.4041321Z     [90m 32| [39m    [35mawait[39m db[33m.[39m[34mprepare[39m(
+2026-10-20T05:53:53.4041797Z     [90m   | [39m    [31m^[39m
+2026-10-20T05:53:53.4042372Z     [90m 33| [39m      "INSERT INTO nodes (id, workspace_id, parent_id, path, name, is_…
+2026-10-20T05:53:53.4043234Z     [90m 34| [39m    )[33m.[39m[34mbind[39m(id[33m,[39m workspaceId[33m,[39m [34mnow[39m())[33m.[39m[34mrun[39m()[33m;[39m
+2026-10-20T05:53:53.4043987Z [90m [2m❯[22m test/nodes.test.ts:[2m11:14[22m[39m
+2026-10-20T05:53:53.4044290Z 
+2026-10-20T05:53:53.4044766Z [31m[1mCaused by: Error[22m: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4045679Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m128:24[22m[39m
+2026-10-20T05:53:53.4046599Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4047274Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4048303Z [90m [2m❯[22m test/nodes.test.ts:[2m11:14[22m[39m
+2026-10-20T05:53:53.4048612Z 
+2026-10-20T05:53:53.4048916Z [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/24]⎯[22m[39m
+2026-10-20T05:53:53.4049226Z 
+2026-10-20T05:53:53.4049706Z [41m[1m FAIL [22m[49m test/nodes.test.ts[2m > [22mcreateDir + listChildren + breadcrumb
+2026-10-20T05:53:53.4050570Z [31m[1mError[22m: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4051751Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m127:19[22m[39m
+2026-10-20T05:53:53.4052657Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4053348Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4053982Z     [90m 30| [39m  [35mconst[39m id [33m=[39m [34mrandomId[39m()[33m;[39m
+2026-10-20T05:53:53.4068042Z     [90m 31| [39m  [35mtry[39m {
+2026-10-20T05:53:53.4070292Z     [90m 32| [39m    [35mawait[39m db[33m.[39m[34mprepare[39m(
+2026-10-20T05:53:53.4071083Z     [90m   | [39m    [31m^[39m
+2026-10-20T05:53:53.4071657Z     [90m 33| [39m      "INSERT INTO nodes (id, workspace_id, parent_id, path, name, is_…
+2026-10-20T05:53:53.4072526Z     [90m 34| [39m    )[33m.[39m[34mbind[39m(id[33m,[39m workspaceId[33m,[39m [34mnow[39m())[33m.[39m[34mrun[39m()[33m;[39m
+2026-10-20T05:53:53.4073272Z [90m [2m❯[22m test/nodes.test.ts:[2m19:16[22m[39m
+2026-10-20T05:53:53.4073579Z 
+2026-10-20T05:53:53.4074030Z [31m[1mCaused by: Error[22m: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4074926Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m128:24[22m[39m
+2026-10-20T05:53:53.4075798Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4076503Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4077041Z [90m [2m❯[22m test/nodes.test.ts:[2m19:16[22m[39m
+2026-10-20T05:53:53.4077331Z 
+2026-10-20T05:53:53.4078037Z [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/24]⎯[22m[39m
+2026-10-20T05:53:53.4078327Z 
+2026-10-20T05:53:53.4078809Z [41m[1m FAIL [22m[49m test/nodes.test.ts[2m > [22mduplicate name in same dir throws conflict
+2026-10-20T05:53:53.4083170Z [31m[1mError[22m: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4084113Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m127:19[22m[39m
+2026-10-20T05:53:53.4084993Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4085681Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4086295Z     [90m 30| [39m  [35mconst[39m id [33m=[39m [34mrandomId[39m()[33m;[39m
+2026-10-20T05:53:53.4086787Z     [90m 31| [39m  [35mtry[39m {
+2026-10-20T05:53:53.4087259Z     [90m 32| [39m    [35mawait[39m db[33m.[39m[34mprepare[39m(
+2026-10-20T05:53:53.4087925Z     [90m   | [39m    [31m^[39m
+2026-10-20T05:53:53.4088469Z     [90m 33| [39m      "INSERT INTO nodes (id, workspace_id, parent_id, path, name, is_…
+2026-10-20T05:53:53.4089330Z     [90m 34| [39m    )[33m.[39m[34mbind[39m(id[33m,[39m workspaceId[33m,[39m [34mnow[39m())[33m.[39m[34mrun[39m()[33m;[39m
+2026-10-20T05:53:53.4090069Z [90m [2m❯[22m test/nodes.test.ts:[2m29:16[22m[39m
+2026-10-20T05:53:53.4090358Z 
+2026-10-20T05:53:53.4090788Z [31m[1mCaused by: Error[22m: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4091658Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m128:24[22m[39m
+2026-10-20T05:53:53.4092523Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4093218Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4093764Z [90m [2m❯[22m test/nodes.test.ts:[2m29:16[22m[39m
+2026-10-20T05:53:53.4094060Z 
+2026-10-20T05:53:53.4094355Z [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/24]⎯[22m[39m
+2026-10-20T05:53:53.4094624Z 
+2026-10-20T05:53:53.4095076Z [41m[1m FAIL [22m[49m test/nodes.test.ts[2m > [22muniqueName appends (2)
+2026-10-20T05:53:53.4095908Z [31m[1mError[22m: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4121752Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m127:19[22m[39m
+2026-10-20T05:53:53.4122659Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4123273Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4123814Z     [90m 30| [39m  [35mconst[39m id [33m=[39m [34mrandomId[39m()[33m;[39m
+2026-10-20T05:53:53.4124229Z     [90m 31| [39m  [35mtry[39m {
+2026-10-20T05:53:53.4124626Z     [90m 32| [39m    [35mawait[39m db[33m.[39m[34mprepare[39m(
+2026-10-20T05:53:53.4125170Z     [90m   | [39m    [31m^[39m
+2026-10-20T05:53:53.4125646Z     [90m 33| [39m      "INSERT INTO nodes (id, workspace_id, parent_id, path, name, is_…
+2026-10-20T05:53:53.4126395Z     [90m 34| [39m    )[33m.[39m[34mbind[39m(id[33m,[39m workspaceId[33m,[39m [34mnow[39m())[33m.[39m[34mrun[39m()[33m;[39m
+2026-10-20T05:53:53.4127000Z [90m [2m❯[22m test/nodes.test.ts:[2m36:16[22m[39m
+2026-10-20T05:53:53.4127225Z 
+2026-10-20T05:53:53.4127917Z [31m[1mCaused by: Error[22m: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4128710Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m128:24[22m[39m
+2026-10-20T05:53:53.4129480Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4130076Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4130550Z [90m [2m❯[22m test/nodes.test.ts:[2m36:16[22m[39m
+2026-10-20T05:53:53.4130761Z 
+2026-10-20T05:53:53.4130983Z [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/24]⎯[22m[39m
+2026-10-20T05:53:53.4131177Z 
+2026-10-20T05:53:53.4131621Z [41m[1m FAIL [22m[49m test/nodes.test.ts[2m > [22mmoveNode rejects moving dir into its own descendant
+2026-10-20T05:53:53.4132300Z [31m[1mError[22m: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4133122Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m127:19[22m[39m
+2026-10-20T05:53:53.4133919Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4134534Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4135077Z     [90m 30| [39m  [35mconst[39m id [33m=[39m [34mrandomId[39m()[33m;[39m
+2026-10-20T05:53:53.4135489Z     [90m 31| [39m  [35mtry[39m {
+2026-10-20T05:53:53.4135895Z     [90m 32| [39m    [35mawait[39m db[33m.[39m[34mprepare[39m(
+2026-10-20T05:53:53.4136284Z     [90m   | [39m    [31m^[39m
+2026-10-20T05:53:53.4136768Z     [90m 33| [39m      "INSERT INTO nodes (id, workspace_id, parent_id, path, name, is_…
+2026-10-20T05:53:53.4167843Z     [90m 34| [39m    )[33m.[39m[34mbind[39m(id[33m,[39m workspaceId[33m,[39m [34mnow[39m())[33m.[39m[34mrun[39m()[33m;[39m
+2026-10-20T05:53:53.4168619Z [90m [2m❯[22m test/nodes.test.ts:[2m45:16[22m[39m
+2026-10-20T05:53:53.4169107Z 
+2026-10-20T05:53:53.4169489Z [31m[1mCaused by: Error[22m: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4170273Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m128:24[22m[39m
+2026-10-20T05:53:53.4171028Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4171584Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4172037Z [90m [2m❯[22m test/nodes.test.ts:[2m45:16[22m[39m
+2026-10-20T05:53:53.4172411Z 
+2026-10-20T05:53:53.4172634Z [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/24]⎯[22m[39m
+2026-10-20T05:53:53.4172826Z 
+2026-10-20T05:53:53.4173196Z [41m[1m FAIL [22m[49m test/nodes.test.ts[2m > [22msubtreeIds returns self and descendants
+2026-10-20T05:53:53.4173844Z [31m[1mError[22m: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4174631Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m127:19[22m[39m
+2026-10-20T05:53:53.4175400Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4175981Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4176498Z     [90m 30| [39m  [35mconst[39m id [33m=[39m [34mrandomId[39m()[33m;[39m
+2026-10-20T05:53:53.4176898Z     [90m 31| [39m  [35mtry[39m {
+2026-10-20T05:53:53.4177290Z     [90m 32| [39m    [35mawait[39m db[33m.[39m[34mprepare[39m(
+2026-10-20T05:53:53.4177835Z     [90m   | [39m    [31m^[39m
+2026-10-20T05:53:53.4178318Z     [90m 33| [39m      "INSERT INTO nodes (id, workspace_id, parent_id, path, name, is_…
+2026-10-20T05:53:53.4179082Z     [90m 34| [39m    )[33m.[39m[34mbind[39m(id[33m,[39m workspaceId[33m,[39m [34mnow[39m())[33m.[39m[34mrun[39m()[33m;[39m
+2026-10-20T05:53:53.4179718Z [90m [2m❯[22m test/nodes.test.ts:[2m62:16[22m[39m
+2026-10-20T05:53:53.4179930Z 
+2026-10-20T05:53:53.4180314Z [31m[1mCaused by: Error[22m: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4181120Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m128:24[22m[39m
+2026-10-20T05:53:53.4181903Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4182506Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4182971Z [90m [2m❯[22m test/nodes.test.ts:[2m62:16[22m[39m
+2026-10-20T05:53:53.4183183Z 
+2026-10-20T05:53:53.4183412Z [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/24]⎯[22m[39m
+2026-10-20T05:53:53.4183597Z 
+2026-10-20T05:53:53.4183907Z [41m[1m FAIL [22m[49m test/nodes.test.ts[2m > [22mcross-user isolation
+2026-10-20T05:53:53.4184888Z [31m[1mError[22m: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4185705Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m127:19[22m[39m
+2026-10-20T05:53:53.4186489Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4187087Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4187741Z     [90m 30| [39m  [35mconst[39m id [33m=[39m [34mrandomId[39m()[33m;[39m
+2026-10-20T05:53:53.4188159Z     [90m 31| [39m  [35mtry[39m {
+2026-10-20T05:53:53.4188550Z     [90m 32| [39m    [35mawait[39m db[33m.[39m[34mprepare[39m(
+2026-10-20T05:53:53.4188913Z     [90m   | [39m    [31m^[39m
+2026-10-20T05:53:53.4189395Z     [90m 33| [39m      "INSERT INTO nodes (id, workspace_id, parent_id, path, name, is_…
+2026-10-20T05:53:53.4190159Z     [90m 34| [39m    )[33m.[39m[34mbind[39m(id[33m,[39m workspaceId[33m,[39m [34mnow[39m())[33m.[39m[34mrun[39m()[33m;[39m
+2026-10-20T05:53:53.4190784Z [90m [2m❯[22m test/nodes.test.ts:[2m73:18[22m[39m
+2026-10-20T05:53:53.4190991Z 
+2026-10-20T05:53:53.4191569Z [31m[1mCaused by: Error[22m: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4192372Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m128:24[22m[39m
+2026-10-20T05:53:53.4193153Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4193756Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4194224Z [90m [2m❯[22m test/nodes.test.ts:[2m73:18[22m[39m
+2026-10-20T05:53:53.4194430Z 
+2026-10-20T05:53:53.4194652Z [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/24]⎯[22m[39m
+2026-10-20T05:53:53.4195013Z 
+2026-10-20T05:53:53.4195496Z [41m[1m FAIL [22m[49m test/path.test.ts[2m > [22mcreateDir writes materialized path (root child / nested)
+2026-10-20T05:53:53.4196221Z [31m[1mError[22m: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4197039Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m127:19[22m[39m
+2026-10-20T05:53:53.4197985Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4198583Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4199106Z     [90m 30| [39m  [35mconst[39m id [33m=[39m [34mrandomId[39m()[33m;[39m
+2026-10-20T05:53:53.4199518Z     [90m 31| [39m  [35mtry[39m {
+2026-10-20T05:53:53.4199905Z     [90m 32| [39m    [35mawait[39m db[33m.[39m[34mprepare[39m(
+2026-10-20T05:53:53.4200277Z     [90m   | [39m    [31m^[39m
+2026-10-20T05:53:53.4200757Z     [90m 33| [39m      "INSERT INTO nodes (id, workspace_id, parent_id, path, name, is_…
+2026-10-20T05:53:53.4201517Z     [90m 34| [39m    )[33m.[39m[34mbind[39m(id[33m,[39m workspaceId[33m,[39m [34mnow[39m())[33m.[39m[34mrun[39m()[33m;[39m
+2026-10-20T05:53:53.4202150Z [90m [2m❯[22m test/path.test.ts:[2m25:16[22m[39m
+2026-10-20T05:53:53.4202360Z 
+2026-10-20T05:53:53.4202731Z [31m[1mCaused by: Error[22m: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4203541Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m128:24[22m[39m
+2026-10-20T05:53:53.4204313Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4204925Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4205380Z [90m [2m❯[22m test/path.test.ts:[2m25:16[22m[39m
+2026-10-20T05:53:53.4205585Z 
+2026-10-20T05:53:53.4205807Z [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/24]⎯[22m[39m
+2026-10-20T05:53:53.4206005Z 
+2026-10-20T05:53:53.4206401Z [41m[1m FAIL [22m[49m test/path.test.ts[2m > [22mbreadcrumb built from materialized path
+2026-10-20T05:53:53.4207088Z [31m[1mError[22m: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4208063Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m127:19[22m[39m
+2026-10-20T05:53:53.4208841Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4209450Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4209990Z     [90m 30| [39m  [35mconst[39m id [33m=[39m [34mrandomId[39m()[33m;[39m
+2026-10-20T05:53:53.4210400Z     [90m 31| [39m  [35mtry[39m {
+2026-10-20T05:53:53.4210808Z     [90m 32| [39m    [35mawait[39m db[33m.[39m[34mprepare[39m(
+2026-10-20T05:53:53.4211184Z     [90m   | [39m    [31m^[39m
+2026-10-20T05:53:53.4211663Z     [90m 33| [39m      "INSERT INTO nodes (id, workspace_id, parent_id, path, name, is_…
+2026-10-20T05:53:53.4212381Z     [90m 34| [39m    )[33m.[39m[34mbind[39m(id[33m,[39m workspaceId[33m,[39m [34mnow[39m())[33m.[39m[34mrun[39m()[33m;[39m
+2026-10-20T05:53:53.4212963Z [90m [2m❯[22m test/path.test.ts:[2m35:16[22m[39m
+2026-10-20T05:53:53.4213172Z 
+2026-10-20T05:53:53.4213721Z [31m[1mCaused by: Error[22m: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4214494Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m128:24[22m[39m
+2026-10-20T05:53:53.4215258Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4215861Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4216323Z [90m [2m❯[22m test/path.test.ts:[2m35:16[22m[39m
+2026-10-20T05:53:53.4216502Z 
+2026-10-20T05:53:53.4216710Z [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/24]⎯[22m[39m
+2026-10-20T05:53:53.4217095Z 
+2026-10-20T05:53:53.4217669Z [41m[1m FAIL [22m[49m test/path.test.ts[2m > [22mmoveNode shifts whole subtree path in one batch
+2026-10-20T05:53:53.4218318Z [31m[1mError[22m: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4219056Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m127:19[22m[39m
+2026-10-20T05:53:53.4219813Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4220380Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4220880Z     [90m 30| [39m  [35mconst[39m id [33m=[39m [34mrandomId[39m()[33m;[39m
+2026-10-20T05:53:53.4221257Z     [90m 31| [39m  [35mtry[39m {
+2026-10-20T05:53:53.4221638Z     [90m 32| [39m    [35mawait[39m db[33m.[39m[34mprepare[39m(
+2026-10-20T05:53:53.4221986Z     [90m   | [39m    [31m^[39m
+2026-10-20T05:53:53.4222447Z     [90m 33| [39m      "INSERT INTO nodes (id, workspace_id, parent_id, path, name, is_…
+2026-10-20T05:53:53.4223178Z     [90m 34| [39m    )[33m.[39m[34mbind[39m(id[33m,[39m workspaceId[33m,[39m [34mnow[39m())[33m.[39m[34mrun[39m()[33m;[39m
+2026-10-20T05:53:53.4223745Z [90m [2m❯[22m test/path.test.ts:[2m46:16[22m[39m
+2026-10-20T05:53:53.4223943Z 
+2026-10-20T05:53:53.4224298Z [31m[1mCaused by: Error[22m: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4225021Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m128:24[22m[39m
+2026-10-20T05:53:53.4225472Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4225818Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4226087Z [90m [2m❯[22m test/path.test.ts:[2m46:16[22m[39m
+2026-10-20T05:53:53.4226206Z 
+2026-10-20T05:53:53.4226340Z [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/24]⎯[22m[39m
+2026-10-20T05:53:53.4226461Z 
+2026-10-20T05:53:53.4226656Z [41m[1m FAIL [22m[49m test/path.test.ts[2m > [22msubtreeIds via path prefix
+2026-10-20T05:53:53.4227025Z [31m[1mError[22m: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4227662Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m127:19[22m[39m
+2026-10-20T05:53:53.4228399Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4228928Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4229393Z     [90m 30| [39m  [35mconst[39m id [33m=[39m [34mrandomId[39m()[33m;[39m
+2026-10-20T05:53:53.4229770Z     [90m 31| [39m  [35mtry[39m {
+2026-10-20T05:53:53.4230129Z     [90m 32| [39m    [35mawait[39m db[33m.[39m[34mprepare[39m(
+2026-10-20T05:53:53.4230464Z     [90m   | [39m    [31m^[39m
+2026-10-20T05:53:53.4230882Z     [90m 33| [39m      "INSERT INTO nodes (id, workspace_id, parent_id, path, name, is_…
+2026-10-20T05:53:53.4231582Z     [90m 34| [39m    )[33m.[39m[34mbind[39m(id[33m,[39m workspaceId[33m,[39m [34mnow[39m())[33m.[39m[34mrun[39m()[33m;[39m
+2026-10-20T05:53:53.4232139Z [90m [2m❯[22m test/path.test.ts:[2m68:16[22m[39m
+2026-10-20T05:53:53.4232321Z 
+2026-10-20T05:53:53.4232841Z [31m[1mCaused by: Error[22m: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4233572Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m128:24[22m[39m
+2026-10-20T05:53:53.4234294Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4234860Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4235363Z [90m [2m❯[22m test/path.test.ts:[2m68:16[22m[39m
+2026-10-20T05:53:53.4235553Z 
+2026-10-20T05:53:53.4235777Z [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/24]⎯[22m[39m
+2026-10-20T05:53:53.4236133Z 
+2026-10-20T05:53:53.4236582Z [41m[1m FAIL [22m[49m test/path.test.ts[2m > [22msoftDeleteMany + restore keep subtree paths consistent
+2026-10-20T05:53:53.4237263Z [31m[1mError[22m: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4238196Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m127:19[22m[39m
+2026-10-20T05:53:53.4238966Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4239515Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4239990Z     [90m 30| [39m  [35mconst[39m id [33m=[39m [34mrandomId[39m()[33m;[39m
+2026-10-20T05:53:53.4240387Z     [90m 31| [39m  [35mtry[39m {
+2026-10-20T05:53:53.4240774Z     [90m 32| [39m    [35mawait[39m db[33m.[39m[34mprepare[39m(
+2026-10-20T05:53:53.4241132Z     [90m   | [39m    [31m^[39m
+2026-10-20T05:53:53.4241588Z     [90m 33| [39m      "INSERT INTO nodes (id, workspace_id, parent_id, path, name, is_…
+2026-10-20T05:53:53.4242341Z     [90m 34| [39m    )[33m.[39m[34mbind[39m(id[33m,[39m workspaceId[33m,[39m [34mnow[39m())[33m.[39m[34mrun[39m()[33m;[39m
+2026-10-20T05:53:53.4242958Z [90m [2m❯[22m test/path.test.ts:[2m78:16[22m[39m
+2026-10-20T05:53:53.4243164Z 
+2026-10-20T05:53:53.4243522Z [31m[1mCaused by: Error[22m: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4244305Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m128:24[22m[39m
+2026-10-20T05:53:53.4245025Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4245601Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4246061Z [90m [2m❯[22m test/path.test.ts:[2m78:16[22m[39m
+2026-10-20T05:53:53.4246256Z 
+2026-10-20T05:53:53.4246475Z [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/24]⎯[22m[39m
+2026-10-20T05:53:53.4246667Z 
+2026-10-20T05:53:53.4247128Z [41m[1m FAIL [22m[49m test/path.test.ts[2m > [22mrestore to root when parent deleted recomputes subtree path
+2026-10-20T05:53:53.4247973Z [31m[1mError[22m: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4248722Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m127:19[22m[39m
+2026-10-20T05:53:53.4249468Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4250049Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4250550Z     [90m 30| [39m  [35mconst[39m id [33m=[39m [34mrandomId[39m()[33m;[39m
+2026-10-20T05:53:53.4250951Z     [90m 31| [39m  [35mtry[39m {
+2026-10-20T05:53:53.4251330Z     [90m 32| [39m    [35mawait[39m db[33m.[39m[34mprepare[39m(
+2026-10-20T05:53:53.4251567Z     [90m   | [39m    [31m^[39m
+2026-10-20T05:53:53.4251845Z     [90m 33| [39m      "INSERT INTO nodes (id, workspace_id, parent_id, path, name, is_…
+2026-10-20T05:53:53.4252295Z     [90m 34| [39m    )[33m.[39m[34mbind[39m(id[33m,[39m workspaceId[33m,[39m [34mnow[39m())[33m.[39m[34mrun[39m()[33m;[39m
+2026-10-20T05:53:53.4252663Z [90m [2m❯[22m test/path.test.ts:[2m93:16[22m[39m
+2026-10-20T05:53:53.4252789Z 
+2026-10-20T05:53:53.4253161Z [31m[1mCaused by: Error[22m: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4253622Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m128:24[22m[39m
+2026-10-20T05:53:53.4254065Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4254406Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4254674Z [90m [2m❯[22m test/path.test.ts:[2m93:16[22m[39m
+2026-10-20T05:53:53.4254792Z 
+2026-10-20T05:53:53.4254925Z [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/24]⎯[22m[39m
+2026-10-20T05:53:53.4255132Z 
+2026-10-20T05:53:53.4255366Z [41m[1m FAIL [22m[49m test/path.test.ts[2m > [22mmoveMany batch-updates dir subtree paths
+2026-10-20T05:53:53.4255758Z [31m[1mError[22m: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4256209Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m127:19[22m[39m
+2026-10-20T05:53:53.4256655Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4256997Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4257298Z     [90m 30| [39m  [35mconst[39m id [33m=[39m [34mrandomId[39m()[33m;[39m
+2026-10-20T05:53:53.4257752Z     [90m 31| [39m  [35mtry[39m {
+2026-10-20T05:53:53.4257990Z     [90m 32| [39m    [35mawait[39m db[33m.[39m[34mprepare[39m(
+2026-10-20T05:53:53.4258209Z     [90m   | [39m    [31m^[39m
+2026-10-20T05:53:53.4258488Z     [90m 33| [39m      "INSERT INTO nodes (id, workspace_id, parent_id, path, name, is_…
+2026-10-20T05:53:53.4258932Z     [90m 34| [39m    )[33m.[39m[34mbind[39m(id[33m,[39m workspaceId[33m,[39m [34mnow[39m())[33m.[39m[34mrun[39m()[33m;[39m
+2026-10-20T05:53:53.4259301Z [90m [2m❯[22m test/path.test.ts:[2m111:16[22m[39m
+2026-10-20T05:53:53.4259429Z 
+2026-10-20T05:53:53.4259640Z [31m[1mCaused by: Error[22m: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4260089Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m128:24[22m[39m
+2026-10-20T05:53:53.4260531Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4260872Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4261145Z [90m [2m❯[22m test/path.test.ts:[2m111:16[22m[39m
+2026-10-20T05:53:53.4261265Z 
+2026-10-20T05:53:53.4261492Z [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/24]⎯[22m[39m
+2026-10-20T05:53:53.4261611Z 
+2026-10-20T05:53:53.4261884Z [41m[1m FAIL [22m[49m test/path.test.ts[2m > [22msoftDeleteNode via path keeps used_bytes and marks subtree
+2026-10-20T05:53:53.4262299Z [31m[1mError[22m: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4262751Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m127:19[22m[39m
+2026-10-20T05:53:53.4263195Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4263534Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4263832Z     [90m 30| [39m  [35mconst[39m id [33m=[39m [34mrandomId[39m()[33m;[39m
+2026-10-20T05:53:53.4264069Z     [90m 31| [39m  [35mtry[39m {
+2026-10-20T05:53:53.4264304Z     [90m 32| [39m    [35mawait[39m db[33m.[39m[34mprepare[39m(
+2026-10-20T05:53:53.4264520Z     [90m   | [39m    [31m^[39m
+2026-10-20T05:53:53.4264790Z     [90m 33| [39m      "INSERT INTO nodes (id, workspace_id, parent_id, path, name, is_…
+2026-10-20T05:53:53.4265229Z     [90m 34| [39m    )[33m.[39m[34mbind[39m(id[33m,[39m workspaceId[33m,[39m [34mnow[39m())[33m.[39m[34mrun[39m()[33m;[39m
+2026-10-20T05:53:53.4265587Z [90m [2m❯[22m test/path.test.ts:[2m126:16[22m[39m
+2026-10-20T05:53:53.4265709Z 
+2026-10-20T05:53:53.4266035Z [31m[1mCaused by: Error[22m: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4266485Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m128:24[22m[39m
+2026-10-20T05:53:53.4266923Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4267263Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4267711Z [90m [2m❯[22m test/path.test.ts:[2m126:16[22m[39m
+2026-10-20T05:53:53.4267830Z 
+2026-10-20T05:53:53.4267961Z [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/24]⎯[22m[39m
+2026-10-20T05:53:53.4268186Z 
+2026-10-20T05:53:53.4268480Z [41m[1m FAIL [22m[49m test/shares.test.ts[2m > [22mcreate share → public meta → raw download increments counter
+2026-10-20T05:53:53.4268896Z [31m[1mAssertionError[22m: expected +0 to be 1 // Object.is equality[39m
+2026-10-20T05:53:53.4269062Z 
+2026-10-20T05:53:53.4269116Z - Expected
+2026-10-20T05:53:53.4269235Z + Received
+2026-10-20T05:53:53.4269299Z 
+2026-10-20T05:53:53.4269354Z - 1
+2026-10-20T05:53:53.4269462Z + 0
+2026-10-20T05:53:53.4269522Z 
+2026-10-20T05:53:53.4269661Z [36m [2m❯[22m test/shares.test.ts:[2m34:26[22m[39m
+2026-10-20T05:53:53.4270077Z     [90m 32| [39m  [34mexpect[39m([35mawait[39m raw[33m.[39m[34mtext[39m())[33m.[39m[34mtoBe[39m([32m"shared-data"[39m)[33m;[39m
+2026-10-20T05:53:53.4270519Z     [90m 33| [39m  const row = await env.DB.prepare("SELECT downloads FROM shares WHERE…
+2026-10-20T05:53:53.4270960Z     [90m 34| [39m  [34mexpect[39m(row[33m![39m[33m.[39mdownloads)[33m.[39m[34mtoBe[39m([34m1[39m)[33m;[39m
+2026-10-20T05:53:53.4271296Z     [90m   | [39m                         [31m^[39m
+2026-10-20T05:53:53.4271495Z     [90m 35| [39m})[33m;[39m
+2026-10-20T05:53:53.4271651Z     [90m 36| [39m
+2026-10-20T05:53:53.4271726Z 
+2026-10-20T05:53:53.4271860Z [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/24]⎯[22m[39m
+2026-10-20T05:53:53.4271972Z 
+2026-10-20T05:53:53.4272169Z [41m[1m FAIL [22m[49m test/trash.test.ts[2m > [22mroot cannot be trashed
+2026-10-20T05:53:53.4272533Z [31m[1mError[22m: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4272998Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m127:19[22m[39m
+2026-10-20T05:53:53.4273455Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4273802Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4274105Z     [90m 30| [39m  [35mconst[39m id [33m=[39m [34mrandomId[39m()[33m;[39m
+2026-10-20T05:53:53.4274356Z     [90m 31| [39m  [35mtry[39m {
+2026-10-20T05:53:53.4274589Z     [90m 32| [39m    [35mawait[39m db[33m.[39m[34mprepare[39m(
+2026-10-20T05:53:53.4274810Z     [90m   | [39m    [31m^[39m
+2026-10-20T05:53:53.4275082Z     [90m 33| [39m      "INSERT INTO nodes (id, workspace_id, parent_id, path, name, is_…
+2026-10-20T05:53:53.4275533Z     [90m 34| [39m    )[33m.[39m[34mbind[39m(id[33m,[39m workspaceId[33m,[39m [34mnow[39m())[33m.[39m[34mrun[39m()[33m;[39m
+2026-10-20T05:53:53.4275930Z [90m [2m❯[22m test/trash.test.ts:[2m68:16[22m[39m
+2026-10-20T05:53:53.4276057Z 
+2026-10-20T05:53:53.4276263Z [31m[1mCaused by: Error[22m: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT[39m
+2026-10-20T05:53:53.4276718Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m128:24[22m[39m
+2026-10-20T05:53:53.4277152Z [90m [2m❯[22m D1PreparedStatement.run cloudflare-internal:d1-api:[2m311:29[22m[39m
+2026-10-20T05:53:53.4277575Z [36m [2m❯[22m ensureRootDir server/lib/nodes.ts:[2m32:5[22m[39m
+2026-10-20T05:53:53.4277843Z [90m [2m❯[22m test/trash.test.ts:[2m68:16[22m[39m
+2026-10-20T05:53:53.4277965Z 
+2026-10-20T05:53:53.4278091Z [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/24]⎯[22m[39m
+2026-10-20T05:53:53.4278202Z 
+2026-10-20T05:53:53.4278588Z [41m[1m FAIL [22m[49m test/upload-small.test.ts[2m > [22mPUT /api/files/upload streams to R2 and creates node
+2026-10-20T05:53:53.4279029Z [31m[1mAssertionError[22m: expected undefined to be 'hello' // Object.is equality[39m
+2026-10-20T05:53:53.4279217Z 
+2026-10-20T05:53:53.4279272Z - Expected: 
+2026-10-20T05:53:53.4279394Z "hello"
+2026-10-20T05:53:53.4279459Z 
+2026-10-20T05:53:53.4279508Z + Received: 
+2026-10-20T05:53:53.4279625Z undefined
+2026-10-20T05:53:53.4279691Z 
+2026-10-20T05:53:53.4279850Z [36m [2m❯[22m test/upload-small.test.ts:[2m16:29[22m[39m
+2026-10-20T05:53:53.4280193Z     [90m 14| [39m  [34mexpect[39m(name)[33m.[39m[34mtoBe[39m([32m"hello.txt"[39m)[33m;[39m
+2026-10-20T05:53:53.4280962Z     [90m 15| [39m  [35mconst[39m obj [33m=[39m [35mawait[39m env[33m.[39m[33mBUCKET[39m[33m.[39m[35mget[39m([32m`[39m[36m${[39mu[33m.[39mid[36m}[39m[32m/[39m[36m${[39mid[36m}[39m[32m`[39m)[33m;[39m
+2026-10-20T05:53:53.4282828Z     [90m 16| [39m  [34mexpect[39m([35mawait[39m obj[33m?.[39m[34mtext[39m())[33m.[39m[34mtoBe[39m([32m"hello"[39m)[33m;[39m
+2026-10-20T05:53:53.4283173Z     [90m   | [39m                            [31m^[39m
+2026-10-20T05:53:53.4283429Z     [90m 17| [39m  [35mconst[39m list [33m=[39m [35mawait[39m (
+2026-10-20T05:53:53.4283762Z     [90m 18| [39m    await SELF.fetch("https://example.com/api/files", { headers: await…
+2026-10-20T05:53:53.4283940Z 
+2026-10-20T05:53:53.4284076Z [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[21/24]⎯[22m[39m
+2026-10-20T05:53:53.4284185Z 
+2026-10-20T05:53:53.4284467Z [41m[1m FAIL [22m[49m test/used-bytes.test.ts[2m > [22m直传上传后 used_bytes 增加，/api/me 返回值一致
+2026-10-20T05:53:53.4285035Z [31m[1mError[22m: D1_ERROR: no such column: used_bytes at offset 7: SQLITE_ERROR[39m
+2026-10-20T05:53:53.4285776Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m127:19[22m[39m
+2026-10-20T05:53:53.4286518Z [90m [2m❯[22m D1PreparedStatement.first cloudflare-internal:d1-api:[2m291:35[22m[39m
+2026-10-20T05:53:53.4287074Z [36m [2m❯[22m usedOf test/used-bytes.test.ts:[2m6:15[22m[39m
+2026-10-20T05:53:53.4287400Z     [90m  4| [39m
+2026-10-20T05:53:53.4288177Z     [90m  5| [39m[35masync[39m [35mfunction[39m [34musedOf[39m(userId[33m:[39m string)[33m:[39m [33mPromise[39m[33m<[39mnumber[33m>[39m {
+2026-10-20T05:53:53.4288916Z     [90m  6| [39m  const row = await env.DB.prepare("SELECT used_bytes FROM users WHERE…
+2026-10-20T05:53:53.4289340Z     [90m   | [39m              [31m^[39m
+2026-10-20T05:53:53.4289772Z     [90m  7| [39m  [35mreturn[39m row[33m![39m[33m.[39mused_bytes[33m;[39m
+2026-10-20T05:53:53.4290148Z     [90m  8| [39m}
+2026-10-20T05:53:53.4290509Z [90m [2m❯[22m test/used-bytes.test.ts:[2m18:10[22m[39m
+2026-10-20T05:53:53.4290719Z 
+2026-10-20T05:53:53.4291079Z [31m[1mCaused by: Error[22m: no such column: used_bytes at offset 7: SQLITE_ERROR[39m
+2026-10-20T05:53:53.4292052Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m128:24[22m[39m
+2026-10-20T05:53:53.4292844Z [90m [2m❯[22m D1PreparedStatement.first cloudflare-internal:d1-api:[2m291:35[22m[39m
+2026-10-20T05:53:53.4293415Z [36m [2m❯[22m usedOf test/used-bytes.test.ts:[2m6:15[22m[39m
+2026-10-20T05:53:53.4293869Z [90m [2m❯[22m test/used-bytes.test.ts:[2m18:10[22m[39m
+2026-10-20T05:53:53.4294080Z 
+2026-10-20T05:53:53.4294295Z [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22/24]⎯[22m[39m
+2026-10-20T05:53:53.4294470Z 
+2026-10-20T05:53:53.4294828Z [41m[1m FAIL [22m[49m test/used-bytes.test.ts[2m > [22m秒传副本计入配额；软删扣减、还原加回
+2026-10-20T05:53:53.4295615Z [31m[1mError[22m: D1_ERROR: no such column: used_bytes at offset 7: SQLITE_ERROR[39m
+2026-10-20T05:53:53.4296356Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m127:19[22m[39m
+2026-10-20T05:53:53.4297120Z [90m [2m❯[22m D1PreparedStatement.first cloudflare-internal:d1-api:[2m291:35[22m[39m
+2026-10-20T05:53:53.4297874Z [36m [2m❯[22m usedOf test/used-bytes.test.ts:[2m6:15[22m[39m
+2026-10-20T05:53:53.4298207Z     [90m  4| [39m
+2026-10-20T05:53:53.4298853Z     [90m  5| [39m[35masync[39m [35mfunction[39m [34musedOf[39m(userId[33m:[39m string)[33m:[39m [33mPromise[39m[33m<[39mnumber[33m>[39m {
+2026-10-20T05:53:53.4299545Z     [90m  6| [39m  const row = await env.DB.prepare("SELECT used_bytes FROM users WHERE…
+2026-10-20T05:53:53.4299949Z     [90m   | [39m              [31m^[39m
+2026-10-20T05:53:53.4300352Z     [90m  7| [39m  [35mreturn[39m row[33m![39m[33m.[39mused_bytes[33m;[39m
+2026-10-20T05:53:53.4300707Z     [90m  8| [39m}
+2026-10-20T05:53:53.4301075Z [90m [2m❯[22m test/used-bytes.test.ts:[2m36:10[22m[39m
+2026-10-20T05:53:53.4301286Z 
+2026-10-20T05:53:53.4301631Z [31m[1mCaused by: Error[22m: no such column: used_bytes at offset 7: SQLITE_ERROR[39m
+2026-10-20T05:53:53.4302413Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m128:24[22m[39m
+2026-10-20T05:53:53.4303221Z [90m [2m❯[22m D1PreparedStatement.first cloudflare-internal:d1-api:[2m291:35[22m[39m
+2026-10-20T05:53:53.4303781Z [36m [2m❯[22m usedOf test/used-bytes.test.ts:[2m6:15[22m[39m
+2026-10-20T05:53:53.4304242Z [90m [2m❯[22m test/used-bytes.test.ts:[2m36:10[22m[39m
+2026-10-20T05:53:53.4304455Z 
+2026-10-20T05:53:53.4304673Z [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[23/24]⎯[22m[39m
+2026-10-20T05:53:53.4304851Z 
+2026-10-20T05:53:53.4305265Z [41m[1m FAIL [22m[49m test/used-bytes.test.ts[2m > [22m目录软删扣减整棵子树文件大小；彻底删除不再重复扣减
+2026-10-20T05:53:53.4305906Z [31m[1mError[22m: D1_ERROR: no such column: used_bytes at offset 7: SQLITE_ERROR[39m
+2026-10-20T05:53:53.4306673Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m127:19[22m[39m
+2026-10-20T05:53:53.4307369Z [90m [2m❯[22m D1PreparedStatement.first cloudflare-internal:d1-api:[2m291:35[22m[39m
+2026-10-20T05:53:53.4308112Z [36m [2m❯[22m usedOf test/used-bytes.test.ts:[2m6:15[22m[39m
+2026-10-20T05:53:53.4308468Z     [90m  4| [39m
+2026-10-20T05:53:53.4309182Z     [90m  5| [39m[35masync[39m [35mfunction[39m [34musedOf[39m(userId[33m:[39m string)[33m:[39m [33mPromise[39m[33m<[39mnumber[33m>[39m {
+2026-10-20T05:53:53.4309980Z     [90m  6| [39m  const row = await env.DB.prepare("SELECT used_bytes FROM users WHERE…
+2026-10-20T05:53:53.4310418Z     [90m   | [39m              [31m^[39m
+2026-10-20T05:53:53.4310861Z     [90m  7| [39m  [35mreturn[39m row[33m![39m[33m.[39mused_bytes[33m;[39m
+2026-10-20T05:53:53.4311227Z     [90m  8| [39m}
+2026-10-20T05:53:53.4311584Z [90m [2m❯[22m test/used-bytes.test.ts:[2m56:10[22m[39m
+2026-10-20T05:53:53.4311805Z 
+2026-10-20T05:53:53.4312166Z [31m[1mCaused by: Error[22m: no such column: used_bytes at offset 7: SQLITE_ERROR[39m
+2026-10-20T05:53:53.4312938Z [90m [2m❯[22m D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:[2m128:24[22m[39m
+2026-10-20T05:53:53.4313870Z [90m [2m❯[22m D1PreparedStatement.first cloudflare-internal:d1-api:[2m291:35[22m[39m
+2026-10-20T05:53:53.4314456Z [36m [2m❯[22m usedOf test/used-bytes.test.ts:[2m6:15[22m[39m
+2026-10-20T05:53:53.4314924Z [90m [2m❯[22m test/used-bytes.test.ts:[2m56:10[22m[39m
+2026-10-20T05:53:53.4315145Z 
+2026-10-20T05:53:53.4315367Z [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[24/24]⎯[22m[39m
+2026-10-20T05:53:53.4315543Z 
+2026-10-20T05:53:53.4315584Z 
+2026-10-20T05:53:53.4315988Z [2m Test Files [22m [1m[31m7 failed[39m[22m[2m | [22m[1m[32m13 passed[39m[22m[90m (20)[39m
+2026-10-20T05:53:53.4316690Z [2m      Tests [22m [1m[31m24 failed[39m[22m[2m | [22m[1m[32m118 passed[39m[22m[90m (142)[39m
+2026-10-20T05:53:53.4317262Z [2m   Start at [22m 05:53:43
+2026-10-20T05:53:53.4317965Z [2m   Duration [22m 9.38s[2m (transform 726ms, setup 40.40s, collect 4.03s, tests 27.92s, environment 4ms, prepare 17.01s)[22m
+2026-10-20T05:53:53.4318214Z 
+2026-10-20T05:53:53.4318218Z 
+2026-10-20T05:53:53.4336785Z ##[error]Error: D1_ERROR: no such column: quota_bytes at offset 7: SQLITE_ERROR
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:127:19
+ ❯ D1PreparedStatement.first cloudflare-internal:d1-api:291:35
+ ❯ test/me.test.ts:63:15
+
+Caused by: Caused by: Error: no such column: quota_bytes at offset 7: SQLITE_ERROR
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:128:24
+ ❯ D1PreparedStatement.first cloudflare-internal:d1-api:291:35
+ ❯ test/me.test.ts:63:15
+
+
+2026-10-20T05:53:53.4345626Z 
+2026-10-20T05:53:53.4349872Z ##[error]Error: D1_ERROR: no such column: quota_bytes at offset 7: SQLITE_ERROR
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:127:19
+ ❯ D1PreparedStatement.first cloudflare-internal:d1-api:291:35
+ ❯ test/me.test.ts:124:15
+
+Caused by: Caused by: Error: no such column: quota_bytes at offset 7: SQLITE_ERROR
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:128:24
+ ❯ D1PreparedStatement.first cloudflare-internal:d1-api:291:35
+ ❯ test/me.test.ts:124:15
+
+
+2026-10-20T05:53:53.4352053Z 
+2026-10-20T05:53:53.4353700Z ##[error]AssertionError: expected 500 to be 200 // Object.is equality
+
+- Expected
++ Received
+
+- 200
++ 500
+
+ ❯ test/me.test.ts:275:23
+
+
+2026-10-20T05:53:53.4354494Z 
+2026-10-20T05:53:53.4357907Z ##[error]Error: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:127:19
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/nodes.test.ts:11:14
+
+Caused by: Caused by: Error: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:128:24
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/nodes.test.ts:11:14
+
+
+2026-10-20T05:53:53.4359720Z 
+2026-10-20T05:53:53.4363481Z ##[error]Error: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:127:19
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/nodes.test.ts:19:16
+
+Caused by: Caused by: Error: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:128:24
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/nodes.test.ts:19:16
+
+
+2026-10-20T05:53:53.4365756Z 
+2026-10-20T05:53:53.4370083Z ##[error]Error: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:127:19
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/nodes.test.ts:29:16
+
+Caused by: Caused by: Error: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:128:24
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/nodes.test.ts:29:16
+
+
+2026-10-20T05:53:53.4372351Z 
+2026-10-20T05:53:53.4376458Z ##[error]Error: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:127:19
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/nodes.test.ts:36:16
+
+Caused by: Caused by: Error: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:128:24
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/nodes.test.ts:36:16
+
+
+2026-10-20T05:53:53.4378946Z 
+2026-10-20T05:53:53.4383077Z ##[error]Error: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:127:19
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/nodes.test.ts:45:16
+
+Caused by: Caused by: Error: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:128:24
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/nodes.test.ts:45:16
+
+
+2026-10-20T05:53:53.4385412Z 
+2026-10-20T05:53:53.4389609Z ##[error]Error: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:127:19
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/nodes.test.ts:62:16
+
+Caused by: Caused by: Error: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:128:24
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/nodes.test.ts:62:16
+
+
+2026-10-20T05:53:53.4391813Z 
+2026-10-20T05:53:53.4395642Z ##[error]Error: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:127:19
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/nodes.test.ts:73:18
+
+Caused by: Caused by: Error: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:128:24
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/nodes.test.ts:73:18
+
+
+2026-10-20T05:53:53.4401632Z 
+2026-10-20T05:53:53.4404892Z ##[error]Error: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:127:19
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/path.test.ts:25:16
+
+Caused by: Caused by: Error: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:128:24
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/path.test.ts:25:16
+
+
+2026-10-20T05:53:53.4406372Z 
+2026-10-20T05:53:53.4409925Z ##[error]Error: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:127:19
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/path.test.ts:35:16
+
+Caused by: Caused by: Error: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:128:24
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/path.test.ts:35:16
+
+
+2026-10-20T05:53:53.4411876Z 
+2026-10-20T05:53:53.4415827Z ##[error]Error: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:127:19
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/path.test.ts:46:16
+
+Caused by: Caused by: Error: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:128:24
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/path.test.ts:46:16
+
+
+2026-10-20T05:53:53.4418256Z 
+2026-10-20T05:53:53.4422324Z ##[error]Error: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:127:19
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/path.test.ts:68:16
+
+Caused by: Caused by: Error: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:128:24
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/path.test.ts:68:16
+
+
+2026-10-20T05:53:53.4424751Z 
+2026-10-20T05:53:53.4428953Z ##[error]Error: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:127:19
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/path.test.ts:78:16
+
+Caused by: Caused by: Error: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:128:24
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/path.test.ts:78:16
+
+
+2026-10-20T05:53:53.4431293Z 
+2026-10-20T05:53:53.4435330Z ##[error]Error: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:127:19
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/path.test.ts:93:16
+
+Caused by: Caused by: Error: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:128:24
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/path.test.ts:93:16
+
+
+2026-10-20T05:53:53.4441357Z 
+2026-10-20T05:53:53.4445531Z ##[error]Error: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:127:19
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/path.test.ts:111:16
+
+Caused by: Caused by: Error: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:128:24
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/path.test.ts:111:16
+
+
+2026-10-20T05:53:53.4449180Z 
+2026-10-20T05:53:53.4453372Z ##[error]Error: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:127:19
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/path.test.ts:126:16
+
+Caused by: Caused by: Error: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:128:24
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/path.test.ts:126:16
+
+
+2026-10-20T05:53:53.4455639Z 
+2026-10-20T05:53:53.4456909Z ##[error]AssertionError: expected +0 to be 1 // Object.is equality
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ test/shares.test.ts:34:26
+
+
+2026-10-20T05:53:53.4457893Z 
+2026-10-20T05:53:53.4462146Z ##[error]Error: D1_ERROR: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:127:19
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/trash.test.ts:68:16
+
+Caused by: Caused by: Error: FOREIGN KEY constraint failed: SQLITE_CONSTRAINT
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:128:24
+ ❯ D1PreparedStatement.run cloudflare-internal:d1-api:311:29
+ ❯ ensureRootDir server/lib/nodes.ts:32:5
+ ❯ test/trash.test.ts:68:16
+
+
+2026-10-20T05:53:53.4464407Z 
+2026-10-20T05:53:53.4465760Z ##[error]AssertionError: expected undefined to be 'hello' // Object.is equality
+
+- Expected: 
+"hello"
+
++ Received: 
+undefined
+
+ ❯ test/upload-small.test.ts:16:29
+
+
+2026-10-20T05:53:53.4466835Z 
+2026-10-20T05:53:53.4471069Z ##[error]Error: D1_ERROR: no such column: used_bytes at offset 7: SQLITE_ERROR
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:127:19
+ ❯ D1PreparedStatement.first cloudflare-internal:d1-api:291:35
+ ❯ usedOf test/used-bytes.test.ts:6:15
+ ❯ test/used-bytes.test.ts:18:10
+
+Caused by: Caused by: Error: no such column: used_bytes at offset 7: SQLITE_ERROR
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:128:24
+ ❯ D1PreparedStatement.first cloudflare-internal:d1-api:291:35
+ ❯ usedOf test/used-bytes.test.ts:6:15
+ ❯ test/used-bytes.test.ts:18:10
+
+
+2026-10-20T05:53:53.4473473Z 
+2026-10-20T05:53:53.4489692Z ##[error]Error: D1_ERROR: no such column: used_bytes at offset 7: SQLITE_ERROR
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:127:19
+ ❯ D1PreparedStatement.first cloudflare-internal:d1-api:291:35
+ ❯ usedOf test/used-bytes.test.ts:6:15
+ ❯ test/used-bytes.test.ts:36:10
+
+Caused by: Caused by: Error: no such column: used_bytes at offset 7: SQLITE_ERROR
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:128:24
+ ❯ D1PreparedStatement.first cloudflare-internal:d1-api:291:35
+ ❯ usedOf test/used-bytes.test.ts:6:15
+ ❯ test/used-bytes.test.ts:36:10
+
+
+2026-10-20T05:53:53.4492252Z 
+2026-10-20T05:53:53.4496623Z ##[error]Error: D1_ERROR: no such column: used_bytes at offset 7: SQLITE_ERROR
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:127:19
+ ❯ D1PreparedStatement.first cloudflare-internal:d1-api:291:35
+ ❯ usedOf test/used-bytes.test.ts:6:15
+ ❯ test/used-bytes.test.ts:56:10
+
+Caused by: Caused by: Error: no such column: used_bytes at offset 7: SQLITE_ERROR
+ ❯ D1DatabaseSessionAlwaysPrimary._sendOrThrow cloudflare-internal:d1-api:128:24
+ ❯ D1PreparedStatement.first cloudflare-internal:d1-api:291:35
+ ❯ usedOf test/used-bytes.test.ts:6:15
+ ❯ test/used-bytes.test.ts:56:10
+
+
+2026-10-20T05:53:53.4499338Z [vpw:debug] Shutting down runtimes...
+2026-10-20T05:53:53.6065392Z ##[error]Process completed with exit code 1.
+2026-10-20T05:53:53.6167839Z Post job cleanup.
+2026-10-20T05:53:53.6780837Z [command]/usr/bin/git version
+2026-10-20T05:53:53.6821117Z git version 2.55.0
+2026-10-20T05:53:53.6846747Z Temporarily overriding HOME='/home/runner/work/_temp/468c98de-44aa-49b2-aac6-a02b08e60261' before making global git config changes
+2026-10-20T05:53:53.6847675Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-20T05:53:53.6849279Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/MStor/MStor
+2026-10-20T05:53:53.6884902Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-20T05:53:53.6917846Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-20T05:53:53.7136899Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-20T05:53:53.7167440Z http.https://github.com/.extraheader
+2026-10-20T05:53:53.7176201Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-20T05:53:53.7208986Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-20T05:53:53.7427012Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-20T05:53:53.7476637Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-20T05:53:53.7821321Z Cleaning up orphan processes
+2026-10-20T05:53:53.8063465Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
