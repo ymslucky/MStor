@@ -33,7 +33,7 @@ export default function VirtualizedList({
   }, [focusIndex, virtualizer]);
 
   return (
-    <div ref={scrollRef} data-testid="file-virtual" className="max-h-[30rem] overflow-y-auto">
+    <div ref={scrollRef} data-testid="file-virtual" className="h-full min-h-0 overflow-y-auto">
       <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
         {virtualizer.getVirtualItems().map((vi) => {
           const n = nodes[vi.index];
