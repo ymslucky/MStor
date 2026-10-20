@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import * as RadixDialog from "@radix-ui/react-dialog";
 import type * as React from "react";
+import { cn } from "../../lib/cn";
 
 interface DialogProps {
   open: boolean;
@@ -8,58 +9,37 @@ interface DialogProps {
   children: React.ReactNode;
   /** 额外底部操作区（可选） */
   footer?: React.ReactNode;
-  /** 皮肤：glass=玻璃弹层（默认）/ white=白卡轻玻璃 */
+  /** 皮肤：white=实色卡（默认，表单/确认）/ glass=玻璃层 */
   skin?: "glass" | "white";
 }
 
-// 统一弹窗外壳：Esc/遮罩关闭，内容区 stopPropagation；
-// 桌面（sm+）居中 sm:max-w-md，移动端贴底 bottom sheet（slide-up + safe-bottom）
-export function Dialog({ open, onClose, title, children, footer, skin = "glass" }: DialogProps) {
-  const [entered, setEntered] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
-  // 进场动画：挂载后经两帧 rAF 切换 translate 类，单次 transition 完成 slide-up；卸载动画省略（MVP）
-  useEffect(() => {
-    if (!open) return;
-    setEntered(false);
-    let raf2 = 0;
-    const raf1 = requestAnimationFrame(() => {
-      raf2 = requestAnimationFrame(() => setEntered(true));
-    });
-    return () => {
-      cancelAnimationFrame(raf1);
-      cancelAnimationFrame(raf2);
-    };
-  }, [open]);
-
-  if (!open) return null;
-
-  const skinCls =
-    skin === "white"
-      ? "border border-line bg-white/90 shadow-glass backdrop-blur-md"
-      : "glass-modal";
-
+/**
+ * 统一弹窗外壳（Radix Dialog 驱动）。
+ * 焦点陷阱、Esc、遮罩点击、aria（role/aria-modal/aria-labelledby）、滚动锁定、
+ * 关闭后焦点还原都交给 Radix；这里只保留视觉与「移动端底部抽屉 / 桌面居中」形态。
+ * 对外契约不变：data-testid="dialog-mask"、"dialog-panel"，title/children/footer/skin。
+ */
+export function Dialog({ open, onClose, title, children, footer, skin = "white" }: DialogProps) {
   return (
-    <div
-      data-testid="dialog-mask"
-      className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 sm:items-center"
-      onClick={onClose}
-    >
-      <div
-        data-testid="dialog-panel"
-        className={`w-full rounded-t-panel p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] transition-transform duration-320 ease-out-soft sm:max-w-md sm:rounded-panel sm:p-5 sm:pb-5 ${skinCls} ${entered ? "translate-y-0" : "translate-y-full"}`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="text-lg font-semibold text-ink">{title}</h2>
-        <div className="mt-3">{children}</div>
-        {footer && <div className="mt-4 flex justify-end gap-2">{footer}</div>}
-      </div>
-    </div>
+    <RadixDialog.Root open={open} onOpenChange={(next) => !next && onClose()}>
+      <RadixDialog.Portal>
+        <RadixDialog.Overlay
+          data-testid="dialog-mask"
+          className="anim-fade fixed inset-0 z-40 bg-ink/40 backdrop-blur-[2px]"
+        />
+        <RadixDialog.Content
+          data-testid="dialog-panel"
+          className={cn(
+            "anim-pop fixed inset-x-0 bottom-0 z-50 mx-auto w-full rounded-t-panel p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] outline-none",
+            "sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-panel sm:p-5",
+            skin === "glass" ? "glass-strong" : "glass",
+          )}
+        >
+          <RadixDialog.Title className="text-lg font-semibold text-ink">{title}</RadixDialog.Title>
+          <div className="mt-3">{children}</div>
+          {footer && <div className="mt-4 flex justify-end gap-2">{footer}</div>}
+        </RadixDialog.Content>
+      </RadixDialog.Portal>
+    </RadixDialog.Root>
   );
 }
