@@ -31,6 +31,8 @@ function AppShellLayout() {
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [exitActOpen, setExitActOpen] = useState(false);
   const { collapsed, toggle } = useSidebarCollapsed();
+  // 移动端导航抽屉（替代底部 Tab，避免与批量条/浮层抢底部空间）
+  const [menuOpen, setMenuOpen] = useState(false);
   const { pathname } = useLocation();
 
   // 上传上限由服务端下发（/api/me.limits），前端队列在此同步，避免前后端硬编码漂移
@@ -76,7 +78,11 @@ function AppShellLayout() {
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <TopBar title={PAGE_TITLES[pathname] ?? (pathname.startsWith("/settings") ? "设置" : "MStor")} onLogout={() => setLogoutOpen(true)} />
+          <TopBar
+            title={PAGE_TITLES[pathname] ?? (pathname.startsWith("/settings") ? "设置" : "MStor")}
+            onLogout={() => setLogoutOpen(true)}
+            onOpenMenu={() => setMenuOpen(true)}
+          />
           <main className="min-w-0 flex-1 px-4 py-4 pb-nav sm:px-6 sm:py-6 md:pb-6">
             {actAs && (
               <div className="mb-4 flex flex-wrap items-center gap-x-2 rounded-xl bg-warn-soft px-4 py-2 text-xs text-warn-text">
@@ -95,25 +101,39 @@ function AppShellLayout() {
         </div>
       </div>
 
-      {/* 移动端底部 Tab（玻璃 + 安全区） */}
-      <nav aria-label="底部导航" className="glass-light safe-bottom fixed inset-x-0 bottom-0 z-40 flex px-2 py-1.5 md:hidden">
-        {NAV.map(({ to, label, Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={to === "/"}
-            className={({ isActive }) =>
-              `flex min-h-[44px] flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-2 text-xs transition-colors ${
-                isActive ? "bg-primary-soft font-medium text-primary-text" : "text-ink-2 hover:text-primary-text"
-              }`
-            }
+      {/* 移动端导航抽屉 */}
+      {menuOpen && (
+        <div className="fixed inset-0 z-50 md:hidden" onClick={() => setMenuOpen(false)}>
+          <div className="absolute inset-0 bg-ink/40 backdrop-blur-sm" />
+          <div
+            role="dialog"
+            aria-label="导航"
+            data-testid="mobile-drawer"
+            className="anim-pop absolute inset-y-0 left-0 flex w-64 flex-col bg-surface-1 shadow-glass"
+            onClick={(e) => e.stopPropagation()}
           >
-            <Icon size={18} aria-hidden />
-            <span>{label}</span>
-          </NavLink>
-        ))}
-      </nav>
-
+            <SidebarNav collapsed={false} onToggle={() => setMenuOpen(false)} />
+            <div className="space-y-1 border-t border-line px-2 py-3">
+              {NAV.map(({ to, label, Icon }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  end={to === "/"}
+                  onClick={() => setMenuOpen(false)}
+                  className={({ isActive }) =>
+                    `flex min-h-[44px] items-center gap-3 rounded-xl px-3 text-sm transition-colors ${
+                      isActive ? "bg-primary-soft font-medium text-primary-text" : "text-ink-2 hover:bg-primary-soft/60"
+                    }`
+                  }
+                >
+                  <Icon size={18} aria-hidden />
+                  {label}
+                </NavLink>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       <ConfirmDialog
         open={logoutOpen}
         title="退出登录"
