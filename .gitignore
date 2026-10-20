@@ -5,3 +5,4 @@ client/dist/*
 !client/dist/index.html
 .dev.vars*
 .tmp-verify/
+.npm-cache/
