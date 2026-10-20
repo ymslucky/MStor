@@ -202,7 +202,85 @@ async function main() {
     assertEqual(db.prepare("SELECT COUNT(*) c FROM orphan_objects").first().c, 0, "全部出队（有引用的不再跟踪）");
   });
 
-  // —— 语句数预算（§4.6）：大批量下语句数必须与批次无关 ——
+  // —— 租户层（schema 2.0）：P1.2 的地基，先测再用 ——
+    const schema2 = readFileSync(join(root, "sql/v2/schema.sql"), "utf8");
+    const workspaces = require(join(outDir, "server/data/workspaces.js"));
+    const seedUser2 = (db, id, sub, email) => {
+      db.prepare("INSERT INTO users (id, access_sub, email, name, created_at) VALUES (?,?,?,?,?)").run(id, sub, email ?? null, id, now);
+    };
+  
+    await check("ensurePersonalWorkspace：幂等（同一空间、单条 owner 成员、storage_stats 就位）", async () => {
+      const db = makeD1(schema2);
+      seedUser2(db, "u1", "sub1", "a@example.com");
+      const w1 = await workspaces.ensurePersonalWorkspace(db, "u1");
+      const w2 = await workspaces.ensurePersonalWorkspace(db, "u1");
+      assertEqual(w1.id, w2.id, "二次调用应返回同一空间");
+      assertEqual(db.prepare("SELECT COUNT(*) c FROM memberships WHERE user_id='u1'").first().c, 1, "应只有一条成员记录");
+      assertEqual(db.prepare("SELECT role FROM memberships WHERE user_id='u1'").first().role, "owner", "首登应为 owner");
+      assertEqual(db.prepare("SELECT COUNT(*) c FROM storage_stats WHERE workspace_id=?").first(w1.id).c, 1, "应有 storage_stats 行");
+      let rejected = false;
+      try { db.prepare("INSERT INTO workspaces (id, name, slug, quota_bytes, created_at) VALUES ('dup','x',?,1,?)").run(workspaces.personalSlug("u1"), now); }
+      catch { rejected = true; }
+      assert(rejected, "同 slug 必须被唯一索引拒绝（并发首登靠它收敛）");
+    });
+  
+    await check("resolveWorkspace：默认空间 / 他人空间 403 / 不存在 404", async () => {
+      const db = makeD1(schema2);
+      seedUser2(db, "u1", "sub1");
+      seedUser2(db, "u2", "sub2");
+      const mine = await workspaces.ensurePersonalWorkspace(db, "u1");
+      const other = await workspaces.ensurePersonalWorkspace(db, "u2");
+      const def = await workspaces.resolveWorkspace(db, "u1");
+      assertEqual(def.workspace.id, mine.id, "未指定时应回到自己的空间");
+      assertEqual(def.role, "owner", "角色应为 owner");
+      const byId = await workspaces.resolveWorkspace(db, "u1", mine.id);
+      assertEqual(byId.workspace.id, mine.id, "按 id 解析应成功");
+      let forbidden = null;
+      try { await workspaces.resolveWorkspace(db, "u1", other.id); } catch (e) { forbidden = e; }
+      assert(forbidden && forbidden.status === 403, "访问他人空间应 403，实际 " + (forbidden && forbidden.status));
+      let missing = null;
+      try { await workspaces.resolveWorkspace(db, "u1", "no-such-workspace"); } catch (e) { missing = e; }
+      assert(missing && missing.status === 404, "不存在的空间应 404，实际 " + (missing && missing.status));
+    });
+  
+    await check("listMemberships：多空间按加入顺序，role 正确", async () => {
+      const db = makeD1(schema2);
+      seedUser2(db, "u1", "sub1");
+      seedUser2(db, "u2", "sub2");
+      const personal = await workspaces.ensurePersonalWorkspace(db, "u1");
+      const team = await workspaces.ensurePersonalWorkspace(db, "u2");
+      db.prepare("INSERT INTO memberships (workspace_id, user_id, role, created_at) VALUES (?,?,?,?)").run(team.id, "u1", "admin", Date.now() + 10);
+      const list = await workspaces.listMemberships(db, "u1");
+      assertEqual(list.length, 2, "应看到两个空间");
+      assertEqual(list[0].workspace.id, personal.id, "个人空间在前（加入更早）");
+      assertEqual(list[1].role, "admin", "第二个空间角色应为 admin");
+    });
+  
+    await check("租户隔离：不同 workspace 同名文件互不冲突且互不可见", async () => {
+      const db = makeD1(schema2);
+      seedUser2(db, "u1", "sub1");
+      seedUser2(db, "u2", "sub2");
+      const w1 = await workspaces.ensurePersonalWorkspace(db, "u1");
+      const w2 = await workspaces.ensurePersonalWorkspace(db, "u2");
+      const mkRoot = (ws, uid) => {
+        db.prepare("INSERT INTO nodes (id, workspace_id, created_by, parent_id, path, name, is_dir, created_at, updated_at) VALUES (?,?,?,'','/','',1,?,?)").run("root-" + ws, ws, uid, now, now);
+        return "root-" + ws;
+      };
+      const r1 = mkRoot(w1.id, "u1");
+      const r2 = mkRoot(w2.id, "u2");
+      const mkFile = (id, ws, uid, rt, name) =>
+        db.prepare("INSERT INTO nodes (id, workspace_id, created_by, parent_id, path, name, is_dir, r2_key, size, mime, created_at, updated_at) VALUES (?,?,?,?,?,?,0,'k',1,'x',?,?)")
+          .run(id, ws, uid, rt, "/" + rt + "/", name, now, now);
+      mkFile("a1", w1.id, "u1", r1, "same-name.bin");
+      mkFile("b1", w2.id, "u2", r2, "same-name.bin");
+      const list1 = db.prepare("SELECT id FROM nodes WHERE workspace_id = ?1 AND parent_id = ?2").all(w1.id, r1).results.map((row) => row.id);
+      assertEqual(list1, ["a1"], "只能看到自己空间的节点");
+      let dupRejected = false;
+      try { mkFile("a2", w1.id, "u1", r1, "same-name.bin"); } catch { dupRejected = true; }
+      assert(dupRejected, "同空间同名必须被拒绝（部分唯一索引是 workspace 维度）");
+    });
+  
+    // —— 语句数预算（§4.6）：大批量下语句数必须与批次无关 ——
   await check("200 项批量：软删 ≤4 条语句、彻底删除 ≤5 条语句", async () => {
     const db = makeD1(schema1x);
     seed(db);
