@@ -636,6 +636,30 @@ async function main() {
     assertEqual(firstIds.length + secondIds.length, 4, "两页合计应覆盖全部 4 项");
   });
 
+  // —— 管理台聚合（P2 B10）——
+  await check("HTTP：/api/me/admin/overview 聚合人/空间/审计，且非平台管理员 403", async () => {
+    const db = makeD1(schema1x);
+    const env = makeEnv(db, makeR2());
+    const alice = { "x-dev-email": "a@example.com" };
+    const bob = { "x-dev-email": "b@example.com" };
+    await call(env, "/api/me", { headers: alice });
+    const invite = await call(env, "/api/workspaces/invitations", {
+      method: "POST",
+      headers: { ...alice, "content-type": "application/json" },
+      body: JSON.stringify({ email: "b@example.com", role: "member" }),
+    });
+    assertEqual(invite.status, 201, "发邀请应 201");
+    await call(env, "/api/me", { headers: bob });
+    const ov = await call(env, "/api/me/admin/overview", { headers: alice });
+    assertEqual(ov.status, 200, "平台管理员应 200，实际 " + ov.status + " " + ov.text.slice(0, 160));
+    assertEqual(ov.json.users.total, 2, "应统计到 2 个用户");
+    assertEqual(ov.json.workspaces.total, 1, "应只有 1 个空间（Bob 加入 Alice 的空间）");
+    assertEqual(ov.json.topWorkspaces[0].members, 2, "空间成员应为 2");
+    assert(ov.json.recentAudit.length >= 2, "审计应至少含邀请创建/接受两条，实际 " + ov.json.recentAudit.length);
+    const forbidden = await call(env, "/api/me/admin/overview", { headers: bob });
+    assertEqual(forbidden.status, 403, "普通成员访问应 403，实际 " + forbidden.status);
+  });
+
   // —— 语句数预算（§4.6）：大批量下语句数必须与批次无关 ——
   await check("200 项批量：软删 ≤4 条语句、彻底删除 ≤5 条语句", async () => {
     const db = makeD1(schema1x);

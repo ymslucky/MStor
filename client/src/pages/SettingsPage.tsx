@@ -9,6 +9,7 @@ import { STORAGE_KEYS, setString } from "../lib/storage";
 import { formatBytes, formatDate } from "../lib/format";
 import { toast } from "../components/Toaster";
 import { MemberPanel } from "../components/MemberPanel";
+import { AdminOverviewSection } from "../components/AdminOverviewSection";
 import { Button, GlassCard, Input } from "../components/ui";
 
 type TabKey = "account" | "upload" | "members" | "admin";
@@ -274,6 +275,7 @@ export default function SettingsPage({ me }: { me: Me }) {
         {tab === "members" && workspaceRole !== "member" && <MemberPanel />}
         {tab === "admin" && account.role === "admin" && (
           <>
+            <AdminOverviewSection />
             <AdminUsersSection selfId={account.id} />
             <TrashRetentionSection />
           </>

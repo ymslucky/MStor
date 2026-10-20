@@ -9,6 +9,7 @@ import { isUniqueViolation } from "../lib/sql";
 import { listMemberships } from "../data/workspaces";
 import { listUnboundUsers } from "../data/invitations";
 import { readStorageStats, storageLevel } from "../data/storage";
+import { adminOverview } from "../data/admin";
 
 export const me = new Hono<AppEnv>();
 
@@ -78,6 +79,11 @@ me.patch("/admin/settings", requireAdmin, async (c) => {
     .bind(String(trash_retention_days))
     .run();
   return c.json({ ok: true });
+});
+
+me.get("/admin/overview", requireAdmin, async (c) => {
+  // 管理台一屏：人/空间/存储/审计，单次聚合（5 条语句）
+  return c.json(await adminOverview(c.env.DB));
 });
 
 me.get("/admin/unbound", requireAdmin, async (c) => {
