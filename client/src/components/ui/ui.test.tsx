@@ -14,7 +14,7 @@ test("Button renders variant classes and respects disabled", () => {
     </>,
   );
   expect(screen.getByTestId("primary")).toHaveClass("bg-primary");
-  expect(screen.getByTestId("ghost")).toHaveClass("border-line");
+  expect(screen.getByTestId("ghost")).toHaveClass("border-line-strong");
   expect(screen.getByTestId("danger")).toHaveClass("text-danger-text");
   expect(screen.getByTestId("off")).toBeDisabled();
   expect(screen.getByTestId("off")).toHaveClass("disabled:opacity-45");

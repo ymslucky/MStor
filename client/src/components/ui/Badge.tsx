@@ -1,6 +1,6 @@
 import type * as React from "react";
 
-// 状态标签：低饱和底 + 深一档前景；chip 圆角 + 2xs 字号
+// 状态印标：等宽大写、方形、硬边框
 export function Badge({
   tone = "default",
   children,
@@ -11,11 +11,13 @@ export function Badge({
   const tones = {
     default: "bg-bg-sub text-ink-2",
     accent: "bg-primary-soft text-primary-text",
-    danger: "bg-chip-rose-bg text-danger-text",
-    success: "bg-chip-blue-bg text-success-text",
+    danger: "bg-danger-soft text-danger-text",
+    success: "bg-success-soft text-success-text",
   };
   return (
-    <span className={`inline-flex items-center rounded-chip px-1.5 py-0.5 text-2xs font-medium ${tones[tone]}`}>
+    <span
+      className={`inline-flex items-center rounded-chip border border-line px-1.5 py-0.5 font-mono text-2xs uppercase tracking-wider ${tones[tone]}`}
+    >
       {children}
     </span>
   );

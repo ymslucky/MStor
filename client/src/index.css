@@ -1,81 +1,84 @@
 @import "tailwindcss";
 
 /* ============================================================
-   MStor 设计系统 v4 · 令牌层（单一真相）
-   原则：中性优先 / 一个强调色 / 用层次而不是玻璃 / 发丝边框 / 克制动效
+   MStor 设计系统 v5 · 工业终端 / 磁带未来主义 / 新野兽派
+   - 硬边框（2px 墨线）+ 硬投影（offset 实心）+ 近零圆角
+   - 等宽字体承担标签、数值、状态；正文用无衬线保证可读
+   - 单一强调色：琥珀。功能色只用于状态
+   - 纹理只做极淡网格，不抢内容
+   规范：docs/design-system.md
    ============================================================ */
 @theme {
-  /* 表面：0 页面 / 1 卡片 / 2 悬浮（下拉、弹窗、顶栏） */
-  --color-bg: #fbfbfa;
-  --color-bg-sub: #f4f4f2;
-  --color-surface-0: #fbfbfa;
-  --color-surface-1: #ffffff;
-  --color-surface-2: #ffffff;
+  /* 表面：纸灰（亮）/ 石墨（暗），一档就够，层次靠边框与投影 */
+  --color-bg: #e9e6dd;
+  --color-bg-sub: #dfdbd0;
+  --color-surface-0: #e9e6dd;
+  --color-surface-1: #f4f1e8;
+  --color-surface-2: #fbf9f3;
 
-  /* 文字：主 / 次 / 弱 */
-  --color-ink: #1c1b19;
-  --color-ink-2: #57534e;
-  --color-ink-3: #8a857f;
+  /* 墨色文字：主 / 次 / 弱 */
+  --color-ink: #171613;
+  --color-ink-2: #4a463f;
+  --color-ink-3: #7d786e;
 
-  /* 描边 */
-  --color-line: #e8e6e3;
-  --color-line-strong: #d7d4cf;
+  /* 边框：墨线（主）与浅线（分隔） */
+  --color-line: #b9b3a5;
+  --color-line-strong: #171613;
 
-  /* 品牌强调色（唯一） */
-  --color-primary: #4c5bd4;
-  --color-primary-text: #3a47ae;
-  --color-primary-soft: #eef0fb;
-  --color-cta: #f0a25f;
-  --color-cta-text: #96561f;
+  /* 强调色：琥珀（磁带面板灯） */
+  --color-primary: #b8730f;
+  --color-primary-text: #8a5406;
+  --color-primary-soft: #f2e2c6;
+  --color-cta: #b8730f;
+  --color-cta-text: #8a5406;
 
   /* 功能色 */
-  --color-success: #15803d;
-  --color-success-text: #15803d;
-  --color-warn: #b45309;
-  --color-warn-text: #92400e;
-  --color-danger: #b91c1c;
-  --color-danger-text: #991b1b;
-  /* 状态浅底（替代散落的 bg-red-50 等硬编码） */
-  --color-success-soft: #eaf6ef;
-  --color-warn-soft: #fdf3e7;
-  --color-danger-soft: #fdeeee;
+  --color-success: #1d6b3a;
+  --color-success-text: #145227;
+  --color-success-soft: #d8e8dc;
+  --color-warn: #9a5b06;
+  --color-warn-text: #7d4a05;
+  --color-warn-soft: #f0e0c4;
+  --color-danger: #8f2119;
+  --color-danger-text: #741811;
+  --color-danger-soft: #f0d6d2;
 
-  /* 兼容层：旧令牌名映射到新语义（组件零改动获得新外观） */
+  /* 兼容层：旧令牌名映射，组件零改动获得新外观 */
   --color-ink-dim: var(--color-ink-2);
   --color-ink-faint: var(--color-ink-3);
   --color-surface: var(--color-bg);
   --color-surface-raised: var(--color-surface-1);
   --color-accent: var(--color-primary);
   --color-accent-strong: var(--color-primary-text);
-  --color-accent-deep: #2f3a8f;
+  --color-accent-deep: #6d4205;
   --color-accent-soft: var(--color-primary-soft);
   --color-warning: var(--color-warn);
   --color-warning-text: var(--color-warn-text);
 
-  /* 图标芯片：低饱和底 + 深一档前景 */
-  --color-chip-amber-bg: #fdf3e7;
-  --color-chip-amber-fg: #96561f;
-  --color-chip-blue-bg: #eef0fb;
-  --color-chip-blue-fg: #3a47ae;
-  --color-chip-violet-bg: #f2eefb;
-  --color-chip-violet-fg: #5b45a8;
-  --color-chip-rose-bg: #fdeeee;
-  --color-chip-rose-fg: #991b1b;
+  /* 图标芯片 */
+  --color-chip-amber-bg: #f2e2c6;
+  --color-chip-amber-fg: #8a5406;
+  --color-chip-blue-bg: #dbe3ea;
+  --color-chip-blue-fg: #1f4a6b;
+  --color-chip-violet-bg: #e2dcee;
+  --color-chip-violet-fg: #4b3a75;
+  --color-chip-rose-bg: #f0d6d2;
+  --color-chip-rose-fg: #741811;
 
-  /* 圆角阶梯：chip 6 / control 8 / card 12 / panel 14 */
-  --radius-chip: 6px;
-  --radius-btn: 8px;
-  --radius-input: 8px;
-  --radius-card: 12px;
-  --radius-panel: 14px;
+  /* 圆角：新野兽派几乎无圆角 */
+  --radius-chip: 0px;
+  --radius-btn: 2px;
+  --radius-input: 2px;
+  --radius-card: 2px;
+  --radius-panel: 2px;
 
-  /* 阴影阶梯：卡片 / 悬浮 / 弹窗（1–2 层极浅） */
-  --shadow-soft: 0 1px 2px rgb(24 20 16 / 0.04);
-  --shadow-card: 0 1px 2px rgb(24 20 16 / 0.05), 0 1px 3px rgb(24 20 16 / 0.04);
-  --shadow-lift: 0 2px 8px rgb(24 20 16 / 0.06), 0 1px 2px rgb(24 20 16 / 0.04);
-  --shadow-glass: 0 8px 24px rgb(24 20 16 / 0.08), 0 2px 6px rgb(24 20 16 / 0.05);
+  /* 投影：硬阴影（偏移实心），不用模糊 */
+  --shadow-soft: 2px 2px 0 var(--color-line-strong);
+  --shadow-card: 3px 3px 0 var(--color-line-strong);
+  --shadow-lift: 4px 4px 0 var(--color-line-strong);
+  --shadow-glass: 6px 6px 0 var(--color-line-strong);
 
-  /* 字号阶梯（1.25 比例）+ 行高 */
+  /* 字号阶梯（等宽承担小号标签） */
   --text-2xs: 0.6875rem;
   --text-2xs--line-height: 1rem;
   --text-xs: 0.75rem;
@@ -88,121 +91,153 @@
   --text-lg--line-height: 1.6rem;
   --text-xl: 1.375rem;
   --text-xl--line-height: 1.75rem;
-  --text-2xl: 1.75rem;
-  --text-2xl--line-height: 2.1rem;
+  --text-2xl: 1.875rem;
+  --text-2xl--line-height: 2.15rem;
 
-  /* 动效：短促、克制 */
-  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
-  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
-  --duration-fast: 120ms;
-  --duration-slow: 240ms;
-  --duration-320: 320ms;
+  /* 动效：机械感——短、线性、无弹跳 */
+  --ease-spring: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out-soft: cubic-bezier(0.2, 0, 0, 1);
+  --duration-fast: 90ms;
+  --duration-slow: 160ms;
+  --duration-320: 160ms;
 
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-display: "Plus Jakarta Sans Variable", "Inter Variable", sans-serif;
+  --font-display: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Consolas, "Liberation Mono", monospace;
 }
 
-/* 深色：中性深灰，不纯黑 */
+/* 深色：石墨 + 琥珀灯（磁带机夜间模式） */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg: #131417;
-    --color-bg-sub: #1a1c20;
-    --color-surface-0: #131417;
-    --color-surface-1: #1a1c20;
-    --color-surface-2: #212429;
-    --color-ink: #ecebe8;
-    --color-ink-2: #a8a5a0;
-    --color-ink-3: #787571;
-    --color-line: #2a2d33;
-    --color-line-strong: #3a3e46;
-    --color-primary: #7c88e8;
-    --color-primary-text: #a9b2f2;
-    --color-primary-soft: rgb(124 136 232 / 0.14);
-    --color-cta-text: #f3b686;
-    --color-success-text: #4ade80;
-    --color-warn-text: #fbbf24;
-    --color-danger-text: #f87171;
-    --color-chip-amber-bg: rgb(240 162 95 / 0.14);
-    --color-chip-blue-bg: rgb(124 136 232 / 0.14);
-    --color-chip-violet-bg: rgb(150 126 232 / 0.16);
-    --color-chip-rose-bg: rgb(248 113 113 / 0.14);
-    --color-success-soft: rgb(74 222 128 / 0.12);
-    --color-warn-soft: rgb(251 191 36 / 0.12);
-    --color-danger-soft: rgb(248 113 113 / 0.12);
-    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4);
-    --shadow-lift: 0 2px 10px rgb(0 0 0 / 0.45);
-    --shadow-glass: 0 10px 28px rgb(0 0 0 / 0.5);
+    --color-bg: #14161a;
+    --color-bg-sub: #1b1e23;
+    --color-surface-0: #14161a;
+    --color-surface-1: #1b1e23;
+    --color-surface-2: #23262c;
+    --color-ink: #ede9dd;
+    --color-ink-2: #b3ada0;
+    --color-ink-3: #837d72;
+    --color-line: #3a3e46;
+    --color-line-strong: #ede9dd;
+    --color-primary: #f0a94a;
+    --color-primary-text: #ffc266;
+    --color-primary-soft: rgb(240 169 74 / 0.16);
+    --color-cta: #f0a94a;
+    --color-cta-text: #ffc266;
+    --color-success-text: #6fd39a;
+    --color-success-soft: rgb(111 211 154 / 0.14);
+    --color-warn-text: #ffc266;
+    --color-warn-soft: rgb(240 169 74 / 0.14);
+    --color-danger-text: #f08a80;
+    --color-danger-soft: rgb(240 138 128 / 0.14);
+    --color-chip-amber-bg: rgb(240 169 74 / 0.16);
+    --color-chip-amber-fg: #ffc266;
+    --color-chip-blue-bg: rgb(120 170 220 / 0.16);
+    --color-chip-blue-fg: #9cc8ea;
+    --color-chip-violet-bg: rgb(160 140 220 / 0.16);
+    --color-chip-violet-fg: #c3b1ee;
+    --color-chip-rose-bg: rgb(240 138 128 / 0.16);
+    --color-chip-rose-fg: #f08a80;
   }
 }
 
 body {
   background: var(--color-bg);
+  /* 极淡网格纹理：磁带机面板的"网孔"感 */
+  background-image:
+    repeating-linear-gradient(0deg, rgb(23 22 19 / 0.045) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(90deg, rgb(23 22 19 / 0.045) 0 1px, transparent 1px 4px);
   color: var(--color-ink);
   font-family: var(--font-sans);
   font-size: var(--text-base);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
   min-height: 100dvh;
 }
 
-/* 数字等宽：大小/时间/计数不跳动 */
+@media (prefers-color-scheme: dark) {
+  body {
+    background-image:
+      repeating-linear-gradient(0deg, rgb(237 233 221 / 0.035) 0 1px, transparent 1px 4px),
+      repeating-linear-gradient(90deg, rgb(237 233 221 / 0.035) 0 1px, transparent 1px 4px);
+  }
+}
+
+/* —— 硬边覆盖：把存量组件里的圆角统一压到 2px（头像等 rounded-full 保留圆形）—— */
+:where(.rounded-md, .rounded-lg, .rounded-xl, .rounded-2xl, .rounded-3xl) {
+  border-radius: 2px;
+}
+
+/* —— 等宽标签：小标题/状态/键名（磁带机印字）—— */
+.label-mono {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-ink-2);
+}
+
 .num,
 .tabular-nums {
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
 }
 
-/* ============================================================
-   表面档位：用「实色 + 发丝边框 + 极浅投影」表达层次，不做玻璃拟态。
-   旧类名全部保留并映射到新档位，组件无需改动。
-   ============================================================ */
+/* —— 面板档位：实色 + 2px 墨线 + 硬投影（替代玻璃）—— */
 .glass,
 .glass-light {
   background: var(--color-surface-1);
-  border: 1px solid var(--color-line);
+  border: 2px solid var(--color-line-strong);
   box-shadow: var(--shadow-card);
+  border-radius: 2px;
 }
 
 .glass-strong,
 .glass-modal {
   background: var(--color-surface-2);
-  border: 1px solid var(--color-line);
-  box-shadow: var(--shadow-lift);
+  border: 2px solid var(--color-line-strong);
+  box-shadow: var(--shadow-glass);
+  border-radius: 2px;
 }
 
-/* 顶栏/侧栏：2 档实色 + 底部发丝线，无模糊 */
 .glass-panel {
   background: var(--color-surface-2);
-  border-bottom: 1px solid var(--color-line);
+  border-bottom: 2px solid var(--color-line-strong);
   box-shadow: none;
+  border-radius: 0;
 }
 
 .glass-subtle {
   background: var(--color-bg-sub);
 }
 
-/* 柔光：一处极淡强调色光晕，只做气氛 */
+/* —— 内嵌凹槽（输入框、进度条、状态栏）—— */
+.bezel {
+  box-shadow: inset 1px 1px 0 var(--color-line), inset -1px -1px 0 var(--color-surface-2);
+}
+
+/* 柔光：磁带机的暗角，不做彩色光斑 */
 .glow-radial {
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  background: radial-gradient(900px 520px at 50% -18%, rgb(76 91 212 / 0.05), transparent 62%);
+  background: radial-gradient(120% 90% at 50% 0%, transparent 55%, rgb(23 22 19 / 0.06) 100%);
 }
 
 @media (prefers-color-scheme: dark) {
   .glow-radial {
-    background: radial-gradient(900px 520px at 50% -18%, rgb(124 136 232 / 0.07), transparent 62%);
+    background: radial-gradient(120% 90% at 50% 0%, transparent 45%, rgb(0 0 0 / 0.35) 100%);
   }
 }
 
-/* 动效：入场 6px 位移，不做缩放弹跳 */
+/* —— 动效：机械式，只有位移与透明度，无弹性 —— */
 @keyframes item-in {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(3px); }
 }
 @keyframes modal-in {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(4px); }
 }
 @keyframes shimmer {
   from { background-position: 200% 0; }
@@ -210,7 +245,7 @@ body {
 }
 
 .anim-item-in {
-  animation: item-in 200ms var(--ease-out-soft) both;
+  animation: item-in var(--duration-slow) var(--ease-out-soft) both;
 }
 
 @media (max-width: 640px) {
@@ -229,14 +264,13 @@ body {
 .safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom) + 0.375rem); }
 .pb-nav { padding-bottom: calc(env(safe-area-inset-bottom) + 5rem); }
 
-/* 焦点环：全站唯一强调色 */
+/* 焦点环：琥珀 2px，硬 */
 :where(button, a, input, select, textarea, [tabindex]):focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
-  border-radius: var(--radius-chip);
+  border-radius: 2px;
 }
 
-/* 触控目标下限 */
 @media (pointer: coarse) {
   .tap { min-height: 44px; min-width: 44px; }
 }
