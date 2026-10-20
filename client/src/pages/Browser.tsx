@@ -261,7 +261,6 @@ export default function Browser() {
   return (
     <div
       data-testid="drop-zone"
-      className="md:flex md:h-full md:min-h-0 md:flex-col"
       onDragEnter={(e) => {
         e.preventDefault();
         setDragDepth((d) => d + 1);
@@ -343,7 +342,7 @@ export default function Browser() {
         </GlassCard>
       )}
       {query.data && (
-        <GlassCard className="p-3 sm:p-4 md:flex md:min-h-0 md:flex-1 md:flex-col">
+        <GlassCard className="p-3 sm:p-4">
           <BrowserToolbar
             typeFilter={typeFilter}
             timeFilter={timeFilter}
