@@ -9,6 +9,9 @@ import { BatchBar } from "../components/BatchBar";
 import { UndoSnackbar } from "../components/UndoSnackbar";
 import { StatusBar } from "../components/StatusBar";
 import { AdminUsersSection } from "../components/AdminUsersSection";
+import { CommandPalette } from "../components/CommandPalette";
+import { NotificationBell } from "../components/NotificationBell";
+import userEvent from "@testing-library/user-event";
 import type { Me } from "../api/types";
 import { Cloud } from "lucide-react";
 
@@ -42,6 +45,18 @@ vi.mock("../api/me", () => ({
     ],
   })),
   patchAdminUser: vi.fn(),
+}));
+vi.mock("../api/search", () => ({ searchNodes: vi.fn(async () => ({ nodes: [], paths: {} })) }));
+vi.mock("../api/library", () => ({ listRecent: vi.fn(async () => ({ nodes: [] })) }));
+vi.mock("../api/notifications", () => ({
+  listNotifications: vi.fn(async () => ({
+    unread: 1,
+    items: [
+      { id: "n1", workspace_id: "w1", user_id: "u1", kind: "share", title: "收到分享", body: null, link: null, read_at: null, created_at: Date.now() },
+    ],
+  })),
+  markNotificationRead: vi.fn(),
+  markAllNotificationsRead: vi.fn(),
 }));
 
 describe("无障碍闸门", () => {
@@ -102,6 +117,20 @@ describe("无障碍闸门", () => {
       </div>,
     );
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  test("命令面板（⌘K）", async () => {
+    const { baseElement } = wrap(<CommandPalette />);
+    await userEvent.setup().click(screen.getByRole("button", { name: "搜索（⌘K）" }));
+    await screen.findByLabelText("搜索");
+    expect(await axe(baseElement)).toHaveNoViolations();
+  });
+
+  test("通知面板", async () => {
+    const { baseElement } = wrap(<NotificationBell />);
+    await userEvent.setup().click(screen.getByRole("button", { name: /通知/ }));
+    await screen.findByText("收到分享");
+    expect(await axe(baseElement)).toHaveNoViolations();
   });
 
   test("平台用户管理表格", async () => {

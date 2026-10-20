@@ -9,6 +9,9 @@ import SearchBox from "./SearchBox";
 vi.mock("../api/search", () => ({
   searchNodes: vi.fn(),
 }));
+vi.mock("../api/library", () => ({
+  listRecent: vi.fn(async () => ({ nodes: [] })),
+}));
 
 import { searchNodes } from "../api/search";
 
@@ -20,6 +23,9 @@ const RESULT: SearchResult = {
   paths: { f1: "相册/2026/聚会.jpg", d9: "聚会资料" },
 };
 
+// 命中片段用 <mark> 包裹后，元素文本被拆成多个文本节点；按 textContent 匹配（断言的行为不变）
+const contentEq = (text: string) => (_content: string, el: Element | null) => el?.textContent === text;
+
 function renderWith(ui: JSX.Element) {
   const utils = renderWithProviders(ui, { route: "/" });
   return { ...utils, user: userEvent.setup() };
@@ -30,9 +36,9 @@ test("debounces input then shows results with paths", async () => {
   const { user } = renderWith(<SearchBox />);
   await user.type(screen.getByLabelText("搜索"), "聚会");
   await waitFor(() => expect(searchNodes).toHaveBeenCalledWith({ q: "聚会", sort: "recent", type: "all" }), { timeout: 2000 });
-  expect(await screen.findByText("相册/2026/聚会.jpg")).toBeInTheDocument();
+  expect(await screen.findByText(contentEq("相册/2026/聚会.jpg"))).toBeInTheDocument();
   // 图标语义：目录行带 Lucide 类型图标（NodeIcon svg）+ 名称（路径列同名，限定名称 span）
-  const dirRow = screen.getByText("聚会资料", { selector: "span" }).closest("button")!;
+  const dirRow = screen.getByText(contentEq("聚会资料"), { selector: "span" }).closest("button")!;
   expect(dirRow.querySelector("svg")).not.toBeNull();
 });
 
@@ -40,10 +46,10 @@ test("navigates to parent dir on file click", async () => {
   vi.mocked(searchNodes).mockResolvedValue(RESULT);
   const { user } = renderWith(<SearchBox />);
   await user.type(screen.getByLabelText("搜索"), "聚会");
-  await screen.findByText("聚会.jpg");
-  await user.click(screen.getByText("聚会.jpg"));
+  await screen.findByText(contentEq("聚会.jpg"), { selector: "span" });
+  await user.click(screen.getByText(contentEq("聚会.jpg"), { selector: "span" }));
   // 点击后下拉收起（query 被清空）
-  await waitFor(() => expect(screen.queryByText("相册/2026/聚会.jpg")).not.toBeInTheDocument());
+  await waitFor(() => expect(screen.queryByText(contentEq("相册/2026/聚会.jpg"))).not.toBeInTheDocument());
 });
 
 test("does not search for empty/whitespace query", async () => {
