@@ -41,7 +41,7 @@ export default function SharesPage() {
   const allSelected = shares.length > 0 && selection.count === shares.length;
 
   return (
-    <div>
+    <div className="md:pb-4">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h1 className="text-lg font-semibold text-ink">我的分享</h1>
         {shares.length > 0 && (

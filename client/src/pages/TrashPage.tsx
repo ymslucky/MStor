@@ -69,7 +69,7 @@ export default function TrashPage() {
   };
 
   return (
-    <div>
+    <div className="md:pb-4">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h1 className="text-lg font-semibold text-ink">回收站</h1>
         {nodes.length > 0 && (

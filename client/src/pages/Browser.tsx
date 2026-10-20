@@ -343,7 +343,7 @@ export default function Browser() {
         </GlassCard>
       )}
       {query.data && (
-        <GlassCard className="p-3 sm:p-4 md:flex md:min-h-0 md:flex-1 md:flex-col">
+        <GlassCard className="px-3 pt-3 pb-0 sm:px-4 sm:pt-4 md:flex md:min-h-0 md:flex-1 md:flex-col">
           <BrowserToolbar
             typeFilter={typeFilter}
             timeFilter={timeFilter}

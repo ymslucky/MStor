@@ -54,7 +54,7 @@ export default function LibraryPage({ kind }: { kind: Kind }) {
   const nodes = (query.data as { nodes?: Node[] } | undefined)?.nodes ?? [];
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto max-w-4xl md:pb-4">
       <header className="mb-4">
         <h1 className="flex items-center gap-2 font-display text-lg font-semibold text-ink">
           <meta.icon size={18} aria-hidden className="text-primary" />

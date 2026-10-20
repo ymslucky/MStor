@@ -267,7 +267,7 @@ export default function SettingsPage({ me }: { me: Me }) {
   const seg = pathname.split("/")[2] ?? "account";
   const tab: TabKey = (["account", "upload", "members", "admin"] as const).includes(seg as TabKey) ? (seg as TabKey) : "account";
   return (
-    <div>
+    <div className="md:pb-4">
       <h1 className="mb-3 text-lg font-semibold text-ink">设置</h1>
       <TabBar tabs={tabs} active={tab} />
       <div className="space-y-4">
