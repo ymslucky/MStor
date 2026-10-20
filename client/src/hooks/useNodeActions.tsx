@@ -13,6 +13,7 @@ interface Handlers {
   onShare: (node: Node) => void;
   onRename: (node: Node) => void;
   onMove: (node: Node) => void;
+  onCopy: (node: Node) => void;
   onDelete: (node: Node) => void;
   onDetail: (node: Node) => void;
 }
@@ -67,6 +68,14 @@ export function useNodeActions(h: Handlers) {
       onClick: () => {
         h.closeMenu();
         h.onMove(n);
+      },
+    },
+    {
+      label: "复制到…",
+      icon: <Copy size={14} aria-hidden />,
+      onClick: () => {
+        h.closeMenu();
+        h.onCopy(n);
       },
     },
     ...(n.is_dir

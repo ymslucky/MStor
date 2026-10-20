@@ -13,6 +13,7 @@ import { DetailPane } from "../components/DetailPane";
 import PreviewModal from "../components/PreviewModal";
 import { BrowserToolbar } from "../components/BrowserToolbar";
 import { BatchProgress } from "../components/BatchProgress";
+import { UndoSnackbar } from "../components/UndoSnackbar";
 import { BrowserDialogs } from "../components/BrowserDialogs";
 import { NodeRowActions } from "../components/NodeRowActions";
 import { BatchBar } from "../components/BatchBar";
@@ -35,14 +36,14 @@ import { STORAGE_KEYS, getString, setString } from "../lib/storage";
 export default function Browser() {
   const [params, setParams] = useSearchParams();
   const dir = params.get("dir") ?? "";
-  const { query, mkDir, rename, move, remove } = useFiles(dir);
+  const { query, mkDir, rename, move, copy, remove, undo, undoId, clearUndo } = useFiles(dir);
   const sharesQuery = useQuery({ queryKey: ["shares"], queryFn: listShares });
   const fileInput = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const queue = useUploadQueueContext();
   const dialogs = useBrowserDialogs();
-  const { preview, setPreview, detail, setDetail, setCreating, setRenaming, setMoving, setSharing, setDeleting } = dialogs;
+  const { preview, setPreview, detail, setDetail, setCreating, setRenaming, setMoving, setCopying, setSharing, setDeleting } = dialogs;
   // 视图偏好持久化，缺省 list
   const [view, setView] = useState<"list" | "grid">(() => (getString(STORAGE_KEYS.view) === "grid" ? "grid" : "list"));
   // 拖拽上传：dragenter/leave 计数法防子元素闪烁，>0 时显示全屏覆盖层
@@ -142,6 +143,7 @@ export default function Browser() {
     onShare: setSharing,
     onRename: setRenaming,
     onMove: setMoving,
+    onCopy: setCopying,
     onDelete: setDeleting,
     onDetail: setDetail,
   });
@@ -321,6 +323,13 @@ export default function Browser() {
       />
             {preview && <PreviewModal key={preview.id} node={preview} onClose={() => setPreview(null)} />}
       {batchProgress && <BatchProgress done={batchProgress.done} total={batchProgress.total} />}
+      {undoId && (
+        <UndoSnackbar
+          message="已移动，可在 10 秒内撤销"
+          onUndo={() => undo.mutate(undoId)}
+          onClose={clearUndo}
+        />
+      )}
       <BrowserDialogs
         dialogs={dialogs}
         ops={{
@@ -328,6 +337,7 @@ export default function Browser() {
           rename,
           remove,
           move,
+          copy,
           purgeNow,
           runBatchDelete,
           runBatchMove,

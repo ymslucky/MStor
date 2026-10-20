@@ -14,6 +14,7 @@ interface Ops {
   purgeNow: (id: string) => Promise<void>;
   runBatchDelete: (permanent: boolean) => Promise<void>;
   runBatchMove: (to: string) => Promise<void>;
+  copy: { isPending: boolean; mutate: (v: { id: string; to: string }, options?: { onSuccess?: () => void }) => void };
   deleteBusy: boolean;
   batchBusy: boolean;
   selectedCount: number;
@@ -28,8 +29,8 @@ interface Ops {
  * 状态由 useBrowserDialogs 提供，动作与 mutation 由页面注入（保持数据层归属清晰）。
  */
 export function BrowserDialogs({ dialogs, ops }: { dialogs: Dialogs; ops: Ops }) {
-  const { sharing, setSharing, creating, setCreating, renaming, setRenaming, deleting, setDeleting, moving, setMoving } = dialogs;
-  const { mkDir, rename, remove, move, purgeNow, deleteBusy } = ops;
+  const { sharing, setSharing, creating, setCreating, renaming, setRenaming, deleting, setDeleting, moving, setMoving, copying, setCopying } = dialogs;
+  const { mkDir, rename, remove, move, copy, purgeNow, deleteBusy } = ops;
 
   return (
     <>
@@ -74,6 +75,15 @@ export function BrowserDialogs({ dialogs, ops }: { dialogs: Dialogs; ops: Ops })
           busy={move.isPending}
           onSubmit={(to) => move.mutate({ id: moving.id, to }, { onSuccess: () => setMoving(null) })}
           onCancel={() => setMoving(null)}
+        />
+      )}
+      {copying && (
+        <MoveDialog
+          title={`复制「${copying.name}」到…`}
+          excludeId={copying.is_dir ? copying.id : undefined}
+          busy={copy.isPending}
+          onSubmit={(to) => copy.mutate({ id: copying.id, to }, { onSuccess: () => setCopying(null) })}
+          onCancel={() => setCopying(null)}
         />
       )}
       {ops.batchDeleting && (

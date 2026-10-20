@@ -17,6 +17,7 @@ export function useBrowserDialogs() {
   const [sharing, setSharing] = useState<Node | null>(null);
   const [deleting, setDeleting] = useState<Node | null>(null);
   const [detail, setDetail] = useState<Node | null>(null);
+  const [copying, setCopying] = useState<Node | null>(null);
 
   return {
     creating,
@@ -33,5 +34,7 @@ export function useBrowserDialogs() {
     setDeleting,
     detail,
     setDetail,
+    copying,
+    setCopying,
   };
 }

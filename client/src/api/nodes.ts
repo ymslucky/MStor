@@ -12,11 +12,16 @@ export const createDir = (body: { parentId?: string; name: string }) =>
 export const ensureDir = (body: { parentId?: string; name: string }) =>
   api<Node>("/api/dirs/ensure", { method: "POST", json: body });
 
+export const undoOperation = (undoId: string) => api<{ ok: true }>(`/api/files/operations/${undoId}/undo`, { method: "POST" });
+
+export const copyNode = (id: string, parentId?: string) =>
+  api<{ id: string; created: number }>(`/api/files/${id}/copy`, { method: "POST", json: { parentId } });
+
 export const renameNode = (id: string, name: string) =>
-  api<{ ok: true }>(`/api/files/${id}`, { method: "PATCH", json: { name } });
+  api<{ ok: true; undoId?: string }>(`/api/files/${id}`, { method: "PATCH", json: { name } });
 
 export const moveNode = (id: string, parentId: string) =>
-  api<{ ok: true }>(`/api/files/${id}`, { method: "PATCH", json: { parentId } });
+  api<{ ok: true; undoId?: string }>(`/api/files/${id}`, { method: "PATCH", json: { parentId } });
 
 export const deleteNode = (id: string) =>
   api<{ ok: true }>(`/api/files/${id}`, { method: "DELETE" });
