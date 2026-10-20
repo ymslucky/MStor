@@ -12,6 +12,7 @@ import { ErrorBoundary } from "../components/ErrorBoundary";
 import { UploadQueueProvider } from "../hooks/UploadQueueProvider";
 import { GlobalUploadDock } from "../components/GlobalUploadDock";
 import { NotificationBell } from "../components/NotificationBell";
+import { StatusBar } from "../components/StatusBar";
 import SearchBox from "../components/SearchBox";
 import OfflineBar from "../components/OfflineBar";
 import StorageMeter from "../components/StorageMeter";
@@ -200,6 +201,7 @@ function AppShellLayout() {
               <Outlet context={me} />
             </ErrorBoundary>
           </main>
+          <StatusBar me={me} />
         </div>
       </div>
       {/* 移动端底部 Tab（浅玻璃 + 安全区） */}
