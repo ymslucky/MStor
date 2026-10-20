@@ -8,16 +8,16 @@ import type {
   ReactNode,
   RefObject,
 } from "react";
-import { ArrowDown, ArrowUp, Check, Columns3, Copy, Download, EyeOff, FolderOpen, ListFilter, Search } from "lucide-react";
+import { Copy, Download, FolderOpen } from "lucide-react";
 import { contentUrl } from "../api/nodes";
 import { thumbUrl } from "../api/thumbs";
 import { FileCard } from "./FileCard";
 import { FileRowCells } from "./FileRow";
+import { FileListHeader } from "./FileListHeader";
 import type { Node } from "../api/types";
 import { compareNodes, useColumnPrefs } from "../hooks/useColumnPrefs";
-import type { SortKey } from "../hooks/useColumnPrefs";
 import { hasNodeDrag, readNodeDrag, setNodeDrag } from "../lib/dnd";
-import { Badge, Button, EmptyState } from "./ui";
+import { Badge, EmptyState } from "./ui";
 import { toast } from "./Toaster";
 import VirtualizedList, { ROW_HEIGHT } from "./VirtualizedList";
 
@@ -282,141 +282,27 @@ export default function FileList({
     </span>
   );
 
-  // 表头排序指示（切换逻辑见 useColumnPrefs.toggleSort）
-  const sortIcon = (key: SortKey) => {
-    const s = pref.sort;
-    if (!s || s.key !== key) return null;
-    return s.dir === "asc" ? <ArrowUp size={12} aria-hidden /> : <ArrowDown size={12} aria-hidden />;
-  };
-  const thCls = "select-none px-2 py-2 text-center text-xs font-medium text-ink-faint";
-
-  // 工具栏：名称过滤 + 列显隐菜单
-  const toolbar = view === "list" && (
-    <div className="mb-2 flex items-center justify-between gap-2">
-      <div className="relative">
-        <Search size={14} aria-hidden className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-ink-faint" />
-        <input
-          type="search"
-          value={nameFilter}
-          onChange={(e) => setNameFilter(e.target.value)}
-          placeholder="按名称过滤当前列表…"
-          aria-label="按名称过滤当前列表"
-          className="h-8 w-56 rounded-lg border border-line bg-white pl-8 pr-2 text-xs text-ink placeholder:text-ink-faint focus:border-accent/50 focus:outline-none"
-        />
-      </div>
-      <div className="relative">
-        <Button size="sm" variant="ghost" aria-expanded={colMenuOpen} aria-haspopup="menu" onClick={() => setColMenuOpen((v) => !v)}>
-          <Columns3 size={14} aria-hidden className="mr-1" />
-          列显示
-        </Button>
-        {colMenuOpen && (
-          <div role="menu" className="absolute right-0 z-20 mt-1 w-40 rounded-xl border border-line bg-white p-1 shadow-card">
-            {(
-              [
-                { key: "showSize", label: "大小列" },
-                { key: "showTime", label: "修改时间列" },
-              ] as const
-            ).map((c) => (
-              <label
-                key={c.key}
-                role="menuitemcheckbox"
-                aria-checked={pref[c.key]}
-                className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-ink hover:bg-bg-sub"
-              >
-                <input
-                  type="checkbox"
-                  checked={pref[c.key]}
-                  onChange={() => setPrefAndSave({ ...pref, [c.key]: !pref[c.key] })}
-                  className="h-3.5 w-3.5 accent-emerald-600"
-                />
-                {pref[c.key] ? <Check size={12} aria-hidden className="text-success-text" /> : <EyeOff size={12} aria-hidden className="text-ink-faint" />}
-                {c.label}
-              </label>
-            ))}
-            {pref.sort && (
-              <button
-                type="button"
-                role="menuitem"
-                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-ink hover:bg-bg-sub"
-                onClick={() => {
-                  setPrefAndSave({ ...pref, sort: null });
-                  setColMenuOpen(false);
-                }}
-              >
-                <ListFilter size={12} aria-hidden />
-                恢复默认排序
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
+  const listHeader = (
+    <FileListHeader
+      view={view}
+      nameFilter={nameFilter}
+      onNameFilter={setNameFilter}
+      columnsOpen={colMenuOpen}
+      onToggleColumns={() => setColMenuOpen((v) => !v)}
+      onCloseColumns={() => setColMenuOpen(false)}
+      pref={pref}
+      onChangePref={setPrefAndSave}
+      onWidthChange={updatePref}
+      onSort={toggleSort}
+      showSize={!!showSize}
+      showTime={!!showTime}
+      gridStyle={gridStyle}
+      selectable={selectable}
+      allSelected={display.length > 0 && display.every((n) => selected.has(n.id))}
+      onToggleAll={toggleAll}
+      dragging={!!draggingId}
+    />
   );
-
-  // 表头（grid 行）：标题居中，内容靠左；名称列带拖拽调宽手柄
-  const headerRow = view === "list" && (
-    <div className="hidden border-b border-line sm:grid" style={gridStyle} data-testid="file-list-header">
-      {selectable && (
-        <div className="px-1 py-2 text-center">
-          <input
-            type="checkbox"
-            aria-label="全选"
-            checked={display.length > 0 && display.every((n) => selected.has(n.id))}
-            onChange={toggleAll}
-            disabled={!!draggingId}
-            className="h-4 w-4 cursor-pointer accent-emerald-600"
-          />
-        </div>
-      )}
-      <div />
-      <div className={`relative ${thCls}`}>
-        <button type="button" className="mx-auto inline-flex items-center gap-1 hover:text-ink" onClick={() => toggleSort("name")}>
-          名称 {sortIcon("name")}
-        </button>
-        {/* 拖拽调宽手柄：名称列右缘 6px 热区 */}
-        <span
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="调整名称列宽"
-          className="absolute top-0 -right-1.5 h-full w-1.5 cursor-col-resize hover:bg-accent/30"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            const startX = e.clientX;
-            const startW = pref.nameW ?? 320;
-            document.body.style.cursor = "col-resize";
-            const onMove = (ev: MouseEvent) => {
-              const w = Math.min(960, Math.max(160, startW + ev.clientX - startX));
-              updatePref((p) => ({ ...p, nameW: w }));
-            };
-            const onUp = () => {
-              document.body.style.cursor = "";
-              window.removeEventListener("mousemove", onMove);
-              window.removeEventListener("mouseup", onUp);
-            };
-            window.addEventListener("mousemove", onMove);
-            window.addEventListener("mouseup", onUp);
-          }}
-          onDoubleClick={() => setPrefAndSave({ ...pref, nameW: undefined })}
-        />
-      </div>
-      {showSize && (
-        <div className={thCls}>
-          <button type="button" className="mx-auto inline-flex items-center gap-1 hover:text-ink" onClick={() => toggleSort("size")}>
-            大小 {sortIcon("size")}
-          </button>
-        </div>
-      )}
-      {showTime && (
-        <div className={thCls}>
-          <button type="button" className="mx-auto inline-flex items-center gap-1 hover:text-ink" onClick={() => toggleSort("updated_at")}>
-            修改时间 {sortIcon("updated_at")}
-          </button>
-        </div>
-      )}
-      <div className={thCls}>操作</div>
-    </div>
-  );
-
   // 行内容（grid 子元素，与表头同模板对齐）
   const rowCells = (n: Node) => (
     <FileRowCells
@@ -525,8 +411,8 @@ export default function FileList({
   if (virtual) {
     return (
       <div ref={containerRef} data-testid="file-list-container" tabIndex={0} onKeyDown={onContainerKeyDown}>
-        {toolbar}
-        {headerRow}
+        {listHeader}
+        
         <VirtualizedList nodes={display} focusIndex={focusIndex} row={virtualRow} />
       </div>
     );
@@ -534,8 +420,8 @@ export default function FileList({
 
   return (
     <div ref={containerRef} data-testid="file-list-container" tabIndex={0} onKeyDown={onContainerKeyDown}>
-      {toolbar}
-      {headerRow}
+      {listHeader}
+      
       {listBody}
     </div>
   );
