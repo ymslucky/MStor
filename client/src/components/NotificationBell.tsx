@@ -4,6 +4,7 @@ import { Bell } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { listNotifications, markAllNotificationsRead, markNotificationRead } from "../api/notifications";
 import { formatDate } from "../lib/format";
+import { Panel } from "./ui";
 
 /**
  * 站内通知铃铛：只在打开时拉一次（不轮询），未读数来自 /api/me.unreadNotifications 与列表接口。
@@ -59,9 +60,10 @@ export function NotificationBell() {
         )}
       </button>
       {open && (
-        <div
+        <Panel
           role="dialog"
           aria-label="通知列表"
+          level="e3"
           className="absolute right-0 top-11 z-modal w-80 overflow-hidden"
         >
           <div className="flex items-center justify-between border-b border-line px-3 py-2">
@@ -100,7 +102,7 @@ export function NotificationBell() {
               ))
             )}
           </ul>
-        </div>
+        </Panel>
       )}
     </div>
   );
