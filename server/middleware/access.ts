@@ -5,6 +5,7 @@ import { HttpError, errors } from "../lib/errors";
 import { ensurePersonalWorkspace, resolveWorkspace } from "../data/workspaces";
 import { acceptPendingInvitations } from "../data/invitations";
 import { ensureRootDir } from "../lib/nodes";
+import { recordAudit } from "../lib/audit";
 import { bindOrProvision, type AccessIdentity } from "../lib/users";
 import type { UserRow } from "../types";
 
@@ -95,6 +96,8 @@ export async function accessMiddleware(c: Context<AppEnv>, next: Next) {
     if (!target) throw errors.notFound();
     if (target.disabled_at) throw errors.forbidden("目标用户已停用");
     user = target;
+    // 冒充是高危动作：留痕失败即拒绝（fail closed）
+    await recordAudit(c.env.DB, { actorId: c.get("selfId"), action: "admin.act_as", targetId: target.id });
   }
   c.set("user", user);
   // 租户解析：未指定 x-workspace 时用默认空间；首登无空间则就地建个人空间（幂等）

@@ -5,6 +5,7 @@ export const STORAGE_KEYS = {
   sidebar: "mstor_sidebar",
   view: "mstor_view",
   actAs: "mstor_act_as",
+  workspace: "mstor_workspace",
   filesTable: "mstor_files_table",
   uploadConcurrency: "mstor_upload_concurrency",
   resume: "mstor_resume",

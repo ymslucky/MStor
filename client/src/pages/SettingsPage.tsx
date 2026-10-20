@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { CloudUpload, UserRound, Users } from "lucide-react";
+import { CloudUpload, UserPlus, UserRound, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getAdminSettings, listAdminUsers, patchAdminSettings, patchAdminUser } from "../api/me";
 import type { AdminUser, Me } from "../api/types";
@@ -8,13 +8,15 @@ import { MAX_UPLOAD_CONCURRENCY, MIN_UPLOAD_CONCURRENCY, getUploadConcurrency, s
 import { STORAGE_KEYS, setString } from "../lib/storage";
 import { formatBytes, formatDate } from "../lib/format";
 import { toast } from "../components/Toaster";
+import { MemberPanel } from "../components/MemberPanel";
 import { Button, GlassCard, Input } from "../components/ui";
 
-type TabKey = "account" | "upload" | "admin";
+type TabKey = "account" | "upload" | "members" | "admin";
 
-const TABS: { key: TabKey; label: string; icon: LucideIcon; adminOnly?: boolean }[] = [
+const TABS: { key: TabKey; label: string; icon: LucideIcon; adminOnly?: boolean; workspaceOnly?: boolean }[] = [
   { key: "account", label: "账户", icon: UserRound },
   { key: "upload", label: "上传", icon: CloudUpload },
+  { key: "members", label: "成员", icon: UserPlus, workspaceOnly: true },
   { key: "admin", label: "管理", icon: Users, adminOnly: true },
 ];
 
@@ -258,7 +260,9 @@ function AdminUsersSection({ selfId }: { selfId: string }) {
 export default function SettingsPage({ me }: { me: Me }) {
   // 管理面板看登录账号角色（self）：act-as 查看他人空间时 admin 身份不变
   const account = me.self ?? me;
-  const tabs = TABS.filter((t) => !t.adminOnly || account.role === "admin");
+  // 成员管理按「当前空间角色」放行（owner/admin），平台管理员面板按 platform_admin
+  const workspaceRole = me.workspace?.role ?? "member";
+  const tabs = TABS.filter((t) => (!t.adminOnly || account.role === "admin") && (!t.workspaceOnly || workspaceRole !== "member"));
   const [tab, setTab] = useState<TabKey>("account");
   return (
     <div>
@@ -267,6 +271,7 @@ export default function SettingsPage({ me }: { me: Me }) {
       <div className="space-y-4">
         {tab === "account" && <AccountSection me={me} />}
         {tab === "upload" && <UploadSection />}
+        {tab === "members" && workspaceRole !== "member" && <MemberPanel />}
         {tab === "admin" && account.role === "admin" && (
           <>
             <AdminUsersSection selfId={account.id} />

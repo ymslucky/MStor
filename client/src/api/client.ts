@@ -78,6 +78,9 @@ export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
     const actAs = getString(STORAGE_KEYS.actAs);
     if (actAs) headers.set("x-act-as", actAs);
   }
+  // 当前空间：切空间 = 带 x-workspace 头；未设置时由服务端回落到默认空间
+  const workspace = getString(STORAGE_KEYS.workspace);
+  if (workspace) headers.set("x-workspace", workspace);
   const res = await fetch(path, {
     ...rest,
     headers,

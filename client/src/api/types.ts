@@ -28,6 +28,18 @@ export interface Me {
   self: { id: string; name: string; role: "admin" | "member" };
   /** 服务端下发的上传限制（小文件直传上限 / 分片大小）；旧响应缺失时前端回退默认值 */
   limits?: { smallFileLimit: number; partSize: number };
+  /** 当前空间（切换器用；切空间 = 请求带 x-workspace） */
+  workspace?: WorkspaceSummary;
+  /** 我加入的全部空间 */
+  workspaces?: WorkspaceSummary[];
+}
+
+export type WorkspaceRole = "owner" | "admin" | "member";
+
+export interface WorkspaceSummary {
+  id: string;
+  name: string;
+  role: WorkspaceRole;
 }
 
 export interface AdminUser {

@@ -72,6 +72,13 @@ export default function AppShell() {
   const actAs = getString(STORAGE_KEYS.actAs);
   // 侧栏档案行始终显示登录账号（self）：act-as 查看他人空间时当前空间用户会变化
   const account = me.self ?? me;
+  // 切换空间：写本地偏好 → 清缓存 → 整页重载，确保所有在途/缓存查询都带上新的 x-workspace
+  const switchWorkspace = (id: string) => {
+    if (!id || id === me.workspace?.id) return;
+    setString(STORAGE_KEYS.workspace, id);
+    queryClient.clear();
+    window.location.reload();
+  };
 
   // 退出按钮共用同一确认弹窗：移动顶栏与桌面档案行各一份
   const logoutButton = (className = "") => (
@@ -123,6 +130,22 @@ export default function AppShell() {
           </nav>
           {/* 底部：存储用量环形图 + 用户档案行 */}
           <div className={`space-y-3 border-t border-line py-4 ${collapsed ? "px-2" : "px-3"}`}>
+            {!collapsed && (me.workspaces?.length ?? 0) > 1 && (
+              <label className="block px-1">
+                <span className="sr-only">切换空间</span>
+                <select
+                  value={me.workspace?.id ?? ""}
+                  onChange={(e) => switchWorkspace(e.target.value)}
+                  className="w-full rounded-lg border border-line bg-white px-2 py-1.5 text-xs text-ink"
+                >
+                  {(me.workspaces ?? []).map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <StorageMeter usedBytes={me.usedBytes} quotaBytes={me.quotaBytes} compact={collapsed} />
             <div className={`flex items-center gap-2.5 ${collapsed ? "flex-col" : "px-1"}`}>
               <span

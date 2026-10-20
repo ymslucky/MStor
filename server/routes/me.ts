@@ -7,6 +7,7 @@ import { requireAdmin } from "../middleware/admin";
 import { PART_SIZE } from "../lib/constants";
 import { isUniqueViolation } from "../lib/sql";
 import { listMemberships } from "../data/workspaces";
+import { listUnboundUsers } from "../data/invitations";
 
 export const me = new Hono<AppEnv>();
 
@@ -67,6 +68,11 @@ me.patch("/admin/settings", requireAdmin, async (c) => {
     .bind(String(trash_retention_days))
     .run();
   return c.json({ ok: true });
+});
+
+me.get("/admin/unbound", requireAdmin, async (c) => {
+  // 有 Access 身份但还没有任何空间的人：管理员据此发邀请或排查"已放行但进不去"
+  return c.json({ users: await listUnboundUsers(c.env.DB) });
 });
 
 me.patch("/admin/users/:id", requireAdmin, async (c) => {
