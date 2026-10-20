@@ -90,7 +90,7 @@ test("admin saves trash retention days", async () => {
   vi.mocked(patchAdminSettings).mockResolvedValue({ ok: true });
   const { user } = renderWith(<SettingsPage me={ME} />);
   await user.click(await screen.findByRole("link", { name: "管理" }));
-  const input = await screen.findByLabelText("回收站保留天数");
+  const input = await screen.findByLabelText(/保留天数/);
   // 默认展示服务端值
   expect(input).toHaveValue(30);
   await user.clear(input);

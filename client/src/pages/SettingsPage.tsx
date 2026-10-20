@@ -11,7 +11,7 @@ import { formatBytes, formatDate } from "../lib/format";
 import { toast } from "../components/Toaster";
 import { MemberPanel } from "../components/MemberPanel";
 import { AdminOverviewSection } from "../components/AdminOverviewSection";
-import { Button, GlassCard, Input } from "../components/ui";
+import { Button, Field, GlassCard, Input } from "../components/ui";
 
 type TabKey = "account" | "upload" | "members" | "admin";
 
@@ -133,20 +133,18 @@ function TrashRetentionSection() {
     <GlassCard className="p-4">
       <h2 className="mb-1 font-semibold text-ink">回收站保留天数</h2>
       <p className="mb-3 text-xs text-ink-dim">超过该天数的回收站项将被每日清理任务彻底删除（1-365 天）。</p>
-      <div className="flex flex-wrap items-center gap-2">
-        <Input
-          aria-label="回收站保留天数"
-          type="number"
-          min="1"
-          max="365"
-          className="w-24!"
-          value={days ?? ""}
-          onChange={(e) => setDays(e.target.value)}
-        />
+      <div className="flex flex-wrap items-end gap-2">
+        <Field
+          label="保留天数"
+          hint="1-365 天"
+          error={days !== null && !valid ? "须为 1-365 的整数" : undefined}
+          className="w-32"
+        >
+          <Input type="number" min="1" max="365" value={days ?? ""} onChange={(e) => setDays(e.target.value)} />
+        </Field>
         <Button disabled={!valid || save.isPending} onClick={() => save.mutate()}>
           保存
         </Button>
-        {days !== null && !valid && <span className="text-xs text-danger-text">须为 1-365 的整数</span>}
       </div>
     </GlassCard>
   );
