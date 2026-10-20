@@ -211,6 +211,25 @@ CREATE TABLE IF NOT EXISTS node_views (
 );
 CREATE INDEX IF NOT EXISTS idx_node_views_recent ON node_views(user_id, viewed_at DESC);
 
+-- 标签（空间维度共享，名称在空间内唯一）与节点关联
+CREATE TABLE IF NOT EXISTS tags (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  color TEXT,
+  created_at INTEGER NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_name ON tags(workspace_id, name);
+
+CREATE TABLE IF NOT EXISTS node_tags (
+  workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  tag_id TEXT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+  node_id TEXT NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (tag_id, node_id)
+);
+CREATE INDEX IF NOT EXISTS idx_node_tags_node ON node_tags(node_id);
+
 -- 动态配置：scope = 'global' 或 workspace id
 CREATE TABLE IF NOT EXISTS settings (
   scope TEXT NOT NULL DEFAULT 'global',

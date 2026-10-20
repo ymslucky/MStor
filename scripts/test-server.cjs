@@ -780,6 +780,49 @@ async function main() {
     assertEqual(after.json.nodes.length, 0, "取消收藏后列表应为空");
   });
 
+  // —— 标签（P2 B7 收尾）——
+  await check("HTTP：标签创建/重名 409/打标签/按标签列节点/解绑/跨租户 404", async () => {
+    const db = makeD1(schema1x);
+    const env = makeEnv(db, makeR2());
+    const alice = { "x-dev-email": "a@example.com" };
+    const bob = { "x-dev-email": "b@example.com" };
+    const up = await call(env, "/api/files/upload?name=tagged.bin&parentId=", {
+      method: "PUT",
+      headers: { ...alice, "content-type": "application/octet-stream" },
+      body: new Uint8Array([3, 3, 3]),
+    });
+    const nodeId = up.json.id;
+    const created = await call(env, "/api/library/tags", {
+      method: "POST",
+      headers: { ...alice, "content-type": "application/json" },
+      body: JSON.stringify({ name: "重要", color: "#ff0000" }),
+    });
+    assertEqual(created.status, 201, "建标签应 201，实际 " + created.status + " " + created.text.slice(0, 120));
+    const tagId = created.json.id;
+    const dup = await call(env, "/api/library/tags", {
+      method: "POST",
+      headers: { ...alice, "content-type": "application/json" },
+      body: JSON.stringify({ name: "重要" }),
+    });
+    assertEqual(dup.status, 409, "同名标签应 409，实际 " + dup.status);
+    const attach = await call(env, "/api/library/tags/" + tagId + "/nodes/" + nodeId, { method: "PUT", headers: alice });
+    assertEqual(attach.status, 200, "打标签应 200");
+    const list = await call(env, "/api/library/tags", { headers: alice });
+    assertEqual(list.json.tags[0].nodes, 1, "标签应关联 1 个节点");
+    const tagged = await call(env, "/api/library/tags/" + tagId + "/nodes", { headers: alice });
+    assertEqual(tagged.json.nodes.length, 1, "按标签应查到 1 个节点");
+    assertEqual(tagged.json.nodes[0].id, nodeId, "查到的应是该节点");
+    const bobAttach = await call(env, "/api/library/tags/" + tagId + "/nodes/" + nodeId, { method: "PUT", headers: bob });
+    assertEqual(bobAttach.status, 404, "跨租户打标签应 404，实际 " + bobAttach.status);
+    const detach = await call(env, "/api/library/tags/" + tagId + "/nodes/" + nodeId, { method: "DELETE", headers: alice });
+    assertEqual(detach.status, 200, "解绑应 200");
+    const after = await call(env, "/api/library/tags/" + tagId + "/nodes", { headers: alice });
+    assertEqual(after.json.nodes.length, 0, "解绑后应为空");
+    const del = await call(env, "/api/library/tags/" + tagId, { method: "DELETE", headers: alice });
+    assertEqual(del.status, 200, "删标签应 200");
+    assertEqual(db.prepare("SELECT COUNT(*) c FROM tags").first().c, 0, "标签应已删除");
+  });
+
   // —— 语句数预算（§4.6）：大批量下语句数必须与批次无关 ——
   await check("200 项批量：软删 ≤4 条语句、彻底删除 ≤5 条语句", async () => {
     const db = makeD1(schema1x);
