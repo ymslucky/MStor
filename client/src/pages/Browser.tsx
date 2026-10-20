@@ -2,20 +2,22 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
-import { Copy, Download, ExternalLink, FolderInput, Info, Link2, Pencil, Share2, Trash2, TriangleAlert } from "lucide-react";
+import { Copy, Download, ExternalLink, FolderInput, Info, Pencil, Share2, Trash2, TriangleAlert } from "lucide-react";
 import { listShares } from "../api/shares";
 import type { Me, Node } from "../api/types";
 import { contentUrl } from "../api/nodes";
 import Breadcrumb from "../components/Breadcrumb";
 import ContextMenu from "../components/ContextMenu";
 import type { ContextMenuItem } from "../components/ContextMenu";
-import FileList, { RowAction } from "../components/FileList";
+import FileList from "../components/FileList";
 import NodeDetailDialog from "../components/NodeDetailDialog";
 import PreviewModal from "../components/PreviewModal";
 import { BrowserKpi } from "../components/BrowserKpi";
 import { BrowserToolbar } from "../components/BrowserToolbar";
 import { BatchProgress } from "../components/BatchProgress";
 import { BrowserDialogs } from "../components/BrowserDialogs";
+import { NodeRowActions } from "../components/NodeRowActions";
+import { BatchBar } from "../components/BatchBar";
 import UploadPanel from "../components/UploadPanel";
 import { toast } from "../components/Toaster";
 import { Button, EmptyState, GlassCard, Skeleton } from "../components/ui";
@@ -385,48 +387,28 @@ export default function Browser() {
             emptyText={filtered ? "没有符合筛选条件的文件" : "该目录为空"}
             emptyActions={filtered ? undefined : emptyDirActions}
             actions={(n) => (
-              <>
-                <RowAction label={`分享 ${n.name}`} tone="violet" onClick={() => setSharing(n)}>
-                  <Link2 size={14} aria-hidden />
-                </RowAction>
-                <RowAction label={`重命名 ${n.name}`} onClick={() => setRenaming(n)}>
-                  <Pencil size={14} aria-hidden />
-                </RowAction>
-                <RowAction label={`移动 ${n.name}`} tone="amber" onClick={() => setMoving(n)}>
-                  <FolderInput size={14} aria-hidden />
-                </RowAction>
-                <RowAction label={`删除 ${n.name}`} tone="danger" onClick={() => setDeleting(n)}>
-                  <Trash2 size={14} aria-hidden />
-                </RowAction>
-              </>
+              <NodeRowActions
+                node={n}
+                onShare={setSharing}
+                onRename={setRenaming}
+                onMove={setMoving}
+                onDelete={setDeleting}
+              />
             )}
           />
         </GlassCard>
       )}
       <UploadPanel queue={queue} />
-      {/* 批量操作条：选中 ≥1 项时浮出，移动端避让底部导航（bottom-20） */}
-      {selection.selected.size > 0 && !batchDeleting && !batchMoving && (
-        <div className="fixed inset-x-0 bottom-20 z-40 flex justify-center px-4 sm:bottom-6">
-          <div className="flex items-center gap-1.5 rounded-card border border-line bg-white p-2 shadow-card">
-            <span className="whitespace-nowrap px-2 text-sm font-medium text-ink">已选 {selection.selected.size} 项</span>
-            {hasFileSelected && (
-              <Button size="sm" onClick={batchDownload}>
-                下载
-              </Button>
-            )}
-            <Button size="sm" onClick={() => setBatchMoving(true)}>
-              移动
-            </Button>
-            <Button size="sm" variant="danger" onClick={() => setBatchDeleting(true)}>
-              删除
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => selection.clear()}>
-              取消
-            </Button>
-          </div>
-        </div>
-      )}
-      {preview && <PreviewModal key={preview.id} node={preview} onClose={() => setPreview(null)} />}
+      <BatchBar
+        count={selection.selected.size}
+        hasFileSelected={hasFileSelected}
+        onDownload={batchDownload}
+        onMove={() => setBatchMoving(true)}
+        onDelete={() => setBatchDeleting(true)}
+        onClear={selection.clear}
+        hidden={batchDeleting || batchMoving}
+      />
+            {preview && <PreviewModal key={preview.id} node={preview} onClose={() => setPreview(null)} />}
       {batchProgress && <BatchProgress done={batchProgress.done} total={batchProgress.total} />}
       <BrowserDialogs
         dialogs={dialogs}
