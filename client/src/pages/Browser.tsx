@@ -9,6 +9,7 @@ import Breadcrumb from "../components/Breadcrumb";
 import ContextMenu from "../components/ContextMenu";
 import FileList from "../components/FileList";
 import NodeDetailDialog from "../components/NodeDetailDialog";
+import { DetailPane } from "../components/DetailPane";
 import PreviewModal from "../components/PreviewModal";
 import { BrowserKpi } from "../components/BrowserKpi";
 import { BrowserToolbar } from "../components/BrowserToolbar";
@@ -359,7 +360,24 @@ export default function Browser() {
           setBatchMoving,
         }}
       />      {/* 详情只读弹窗：名称/大小/类型/修改时间 */}
-      {detail && <NodeDetailDialog node={detail} onClose={() => setDetail(null)} />}
+      {detail && (
+        <>
+          <div className="hidden lg:block">
+            <DetailPane
+              node={detail}
+              onClose={() => setDetail(null)}
+              onDownload={downloadNode}
+              onShare={setSharing}
+              onRename={setRenaming}
+              onMove={setMoving}
+              onDelete={setDeleting}
+            />
+          </div>
+          <div className="lg:hidden">
+            <NodeDetailDialog node={detail} onClose={() => setDetail(null)} />
+          </div>
+        </>
+      )}
       {/* 拖拽全屏覆盖层：白底 80% + 内嵌虚线框；drop/离开窗口后关闭（计数法归零） */}
       {dragDepth > 0 && (
         <div data-testid="drop-overlay" className="fixed inset-0 z-40 bg-white/80">
