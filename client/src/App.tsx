@@ -79,7 +79,8 @@ export default function App() {
             <Route path="/" element={<Browser />} />
             <Route path="/shares" element={<SharesPage />} />
             <Route path="/trash" element={<TrashPage />} />
-            <Route path="/settings" element={<SettingsRoute />} />
+            <Route path="/settings" element={<Navigate to="/settings/account" replace />} />
+          <Route path="/settings/:tab" element={<SettingsRoute />} />
           </Route>
           {/* 兜底：任何未匹配路径（含陈旧 SW 缓存的 /cdn-cgi/* 授权回调）回首页，避免渲染空白页 */}
           <Route path="*" element={<Navigate to="/" replace />} />

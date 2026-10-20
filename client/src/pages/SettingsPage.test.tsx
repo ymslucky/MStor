@@ -52,7 +52,7 @@ test("admin edits quota via PATCH", async () => {
   vi.mocked(listAdminUsers).mockResolvedValue({ users: [mkUser()] });
   vi.mocked(patchAdminUser).mockResolvedValue({ ok: true });
   const { user } = renderWith(<SettingsPage me={ME} />);
-  await user.click(await screen.findByRole("tab", { name: "管理" }));
+  await user.click(await screen.findByRole("link", { name: "管理" }));
   await screen.findByText("Bob");
   const input = screen.getByLabelText("配额 GB（Bob）");
   await user.clear(input);
@@ -65,7 +65,7 @@ test("admin toggles disable and enters user space", async () => {
   vi.mocked(listAdminUsers).mockResolvedValue({ users: [mkUser()] });
   vi.mocked(patchAdminUser).mockResolvedValue({ ok: true });
   const { user } = renderWith(<SettingsPage me={ME} />);
-  await user.click(await screen.findByRole("tab", { name: "管理" }));
+  await user.click(await screen.findByRole("link", { name: "管理" }));
   await screen.findByText("Bob");
   await user.click(screen.getByRole("button", { name: "停用" }));
   await waitFor(() => expect(patchAdminUser).toHaveBeenCalledWith("u1", { disabled: true }));
@@ -76,7 +76,7 @@ test("admin toggles disable and enters user space", async () => {
 
 test("upload tab saves concurrency to localStorage", async () => {
   const { user } = renderWith(<SettingsPage me={ME} />);
-  await user.click(await screen.findByRole("tab", { name: "上传" }));
+  await user.click(await screen.findByRole("link", { name: "上传" }));
   const input = screen.getByLabelText("上传并发数");
   await user.clear(input);
   await user.type(input, "8");
@@ -89,7 +89,7 @@ test("admin saves trash retention days", async () => {
   vi.mocked(getAdminSettings).mockResolvedValue({ trash_retention_days: 30 });
   vi.mocked(patchAdminSettings).mockResolvedValue({ ok: true });
   const { user } = renderWith(<SettingsPage me={ME} />);
-  await user.click(await screen.findByRole("tab", { name: "管理" }));
+  await user.click(await screen.findByRole("link", { name: "管理" }));
   const input = await screen.findByLabelText("回收站保留天数");
   // 默认展示服务端值
   expect(input).toHaveValue(30);

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { NavLink, useLocation } from "react-router-dom";
 import { CloudUpload, UserPlus, UserRound, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getAdminSettings, listAdminUsers, patchAdminSettings, patchAdminUser } from "../api/me";
@@ -21,29 +22,26 @@ const TABS: { key: TabKey; label: string; icon: LucideIcon; adminOnly?: boolean;
   { key: "admin", label: "管理", icon: Users, adminOnly: true },
 ];
 
-function TabBar({ tabs, active, onChange }: { tabs: typeof TABS; active: TabKey; onChange: (k: TabKey) => void }) {
+function TabBar({ tabs, active }: { tabs: typeof TABS; active: TabKey }) {
   return (
-    <div role="tablist" aria-label="设置分类" className="mb-4 flex items-center gap-1 border-b border-line">
+    <nav aria-label="设置分类" className="mb-4 flex flex-wrap items-center gap-1 border-b border-line">
       {tabs.map((t) => {
         const Icon = t.icon;
-        const isActive = active === t.key;
         return (
-          <button
+          <NavLink
             key={t.key}
-            type="button"
-            role="tab"
-            aria-selected={isActive}
+            to={`/settings/${t.key}`}
+            aria-current={active === t.key ? "page" : undefined}
             className={`flex min-h-[44px] items-center gap-1.5 rounded-t-xl px-4 text-sm font-medium transition-colors ${
-              isActive ? "border-b-2 border-primary text-primary-text" : "text-ink-2 hover:text-ink"
+              active === t.key ? "border-b-2 border-primary text-primary-text" : "text-ink-2 hover:text-ink"
             }`}
-            onClick={() => onChange(t.key)}
           >
             <Icon size={16} aria-hidden />
             {t.label}
-          </button>
+          </NavLink>
         );
       })}
-    </div>
+    </nav>
   );
 }
 
@@ -264,11 +262,14 @@ export default function SettingsPage({ me }: { me: Me }) {
   // 成员管理按「当前空间角色」放行（owner/admin），平台管理员面板按 platform_admin
   const workspaceRole = me.workspace?.role ?? "member";
   const tabs = TABS.filter((t) => (!t.adminOnly || account.role === "admin") && (!t.workspaceOnly || workspaceRole !== "member"));
-  const [tab, setTab] = useState<TabKey>("account");
+  // 设置分区由子路由决定（可深链、可后退）；非法路径回落到账户页
+  const { pathname } = useLocation();
+  const seg = pathname.split("/")[2] ?? "account";
+  const tab: TabKey = (["account", "upload", "members", "admin"] as const).includes(seg as TabKey) ? (seg as TabKey) : "account";
   return (
     <div>
       <h1 className="mb-3 text-lg font-semibold text-ink">设置</h1>
-      <TabBar tabs={tabs} active={tab} onChange={setTab} />
+      <TabBar tabs={tabs} active={tab} />
       <div className="space-y-4">
         {tab === "account" && <AccountSection me={me} />}
         {tab === "upload" && <UploadSection />}

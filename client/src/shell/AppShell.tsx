@@ -76,7 +76,7 @@ function AppShellLayout() {
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <TopBar title={PAGE_TITLES[pathname] ?? "MStor"} onLogout={() => setLogoutOpen(true)} />
+          <TopBar title={PAGE_TITLES[pathname] ?? (pathname.startsWith("/settings") ? "设置" : "MStor")} onLogout={() => setLogoutOpen(true)} />
           <main className="min-w-0 flex-1 px-4 py-4 pb-nav sm:px-6 sm:py-6 md:pb-6">
             {actAs && (
               <div className="mb-4 flex flex-wrap items-center gap-x-2 rounded-xl bg-warn-soft px-4 py-2 text-xs text-warn-text">
