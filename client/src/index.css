@@ -66,17 +66,17 @@
   --color-chip-rose-fg: #741811;
 
   /* 圆角：新野兽派几乎无圆角 */
-  --radius-chip: 0px;
-  --radius-btn: 2px;
-  --radius-input: 2px;
-  --radius-card: 2px;
-  --radius-panel: 2px;
+  --radius-chip: 2px;
+  --radius-btn: 4px;
+  --radius-input: 4px;
+  --radius-card: 4px;
+  --radius-panel: 6px;
 
   /* 投影：硬阴影（偏移实心），不用模糊 */
-  --shadow-soft: 2px 2px 0 var(--color-line-strong);
-  --shadow-card: 3px 3px 0 var(--color-line-strong);
-  --shadow-lift: 4px 4px 0 var(--color-line-strong);
-  --shadow-glass: 6px 6px 0 var(--color-line-strong);
+  --shadow-soft: 0 1px 0 var(--color-line);
+  --shadow-card: 1px 1px 0 var(--color-line-strong);
+  --shadow-lift: 2px 2px 0 var(--color-line-strong);
+  --shadow-glass: 3px 3px 0 var(--color-line-strong);
 
   /* 字号阶梯（等宽承担小号标签） */
   --text-2xs: 0.6875rem;
@@ -145,8 +145,8 @@ body {
   background: var(--color-bg);
   /* 极淡网格纹理：磁带机面板的"网孔"感 */
   background-image:
-    repeating-linear-gradient(0deg, rgb(23 22 19 / 0.045) 0 1px, transparent 1px 4px),
-    repeating-linear-gradient(90deg, rgb(23 22 19 / 0.045) 0 1px, transparent 1px 4px);
+    repeating-linear-gradient(0deg, rgb(23 22 19 / 0.018) 0 1px, transparent 1px 8px),
+    repeating-linear-gradient(90deg, rgb(23 22 19 / 0.018) 0 1px, transparent 1px 8px);
   color: var(--color-ink);
   font-family: var(--font-sans);
   font-size: var(--text-base);
@@ -158,14 +158,14 @@ body {
 @media (prefers-color-scheme: dark) {
   body {
     background-image:
-      repeating-linear-gradient(0deg, rgb(237 233 221 / 0.035) 0 1px, transparent 1px 4px),
-      repeating-linear-gradient(90deg, rgb(237 233 221 / 0.035) 0 1px, transparent 1px 4px);
+      repeating-linear-gradient(0deg, rgb(237 233 221 / 0.016) 0 1px, transparent 1px 8px),
+      repeating-linear-gradient(90deg, rgb(237 233 221 / 0.016) 0 1px, transparent 1px 8px);
   }
 }
 
 /* —— 硬边覆盖：把存量组件里的圆角统一压到 2px（头像等 rounded-full 保留圆形）—— */
 :where(.rounded-md, .rounded-lg, .rounded-xl, .rounded-2xl, .rounded-3xl) {
-  border-radius: 2px;
+  border-radius: 4px;
 }
 
 /* —— 等宽标签：小标题/状态/键名（磁带机印字）—— */
@@ -188,7 +188,7 @@ body {
 .glass,
 .glass-light {
   background: var(--color-surface-1);
-  border: 2px solid var(--color-line-strong);
+  border: 1px solid var(--color-line-strong);
   box-shadow: var(--shadow-card);
   border-radius: 2px;
 }
@@ -203,7 +203,7 @@ body {
 
 .glass-panel {
   background: var(--color-surface-2);
-  border-bottom: 2px solid var(--color-line-strong);
+  border-bottom: 1px solid var(--color-line-strong);
   box-shadow: none;
   border-radius: 0;
 }
