@@ -5,7 +5,7 @@ import globals from "globals";
 
 export default tseslint.config(
   {
-    ignores: ["node_modules/**", "client/dist/**", ".wrangler/**", "coverage/**", "dist/**"],
+    ignores: ["node_modules/**", "client/dist/**", ".wrangler/**", "coverage/**", "dist/**", ".tmp-verify/**"],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -32,7 +32,12 @@ export default tseslint.config(
     },
   },
   {
-    files: ["*.config.{js,ts}", "vitest.*.config.ts", "eslint.config.js", "scripts/**/*.mjs"],
+    files: ["*.config.{js,ts}", "vitest.*.config.ts", "eslint.config.js", "scripts/**/*.mjs", "scripts/**/*.cjs"],
     languageOptions: { globals: { ...globals.node } },
+  },
+  {
+    // 校验脚本是 CommonJS（需要 require 编译产物），ESM 规则不适用
+    files: ["scripts/**/*.cjs"],
+    rules: { "@typescript-eslint/no-require-imports": "off" },
   },
 );

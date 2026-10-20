@@ -714,6 +714,8 @@ WHERE id = ?2 AND workspace_id = ?3
 
 > 这张表是本次评审问题 1 的答案：省资源的正确做法不是"少发请求"，而是**把 N 条语句合成常数条**。它同时消掉了那类因参数膨胀在 50 项就 500 的历史缺陷。
 
+**已在代码落地（P1.6 第一批，`server/routes/trash.ts`）**：`softDeleteMany` / `permanentDeleteMany` / `sweepOrphanObjects` / `moveMany` 改用 `json_each` + 单次 `batch`。实测语句数（`npm run test:sql` 真库断言，200 项）：**软删 41 → 3、彻底删除 ~535 → 5**；孤儿清扫 500 key 由 ~1001 → 3（1 查询 + 1 次 R2 批量删 + 1 条出队）。同时修掉一个隐藏缺陷：选中"目录 + 其内部文件"时，配额会被重复扣减（现在先在 JS 剔除被目录覆盖的项，各配额子查询互不重叠）。
+
 **迁移方式**：`data/d1.ts` 提供 `jsonList(ids)`、`inJson(column)`、`runBatch(stmts)` 三个助手；路由层不得再出现 `chunk(`、`?).join` 与手拼 IN 子句。`chunk` 仅保留给"每条语句 SQL 结构不同、无法合并"的场景（当前一处都没有）。
 
 ## 5. 分期计划

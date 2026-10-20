@@ -1,11 +1,16 @@
 import { Hono } from "hono";
 import type { AppEnv, Env } from "../env";
 import { errors, HttpError } from "../lib/errors";
-import { childPath, ensureRootDir, getNode, isDescendant, resolveParent, subtreePrefix, subtreeRange, uniqueName, adjustUsedBytes } from "../lib/nodes";
+import { childPath, ensureRootDir, getNode, isDescendant, resolveParent, subtreePrefix, subtreeRange, uniqueName } from "../lib/nodes";
+import { isUniqueViolation, jsonList, jsonSet } from "../data/d1";
 import type { NodeRow } from "../types";
 import { getSetting } from "../lib/settings";
 
-// D1 单语句绑定参数上限 100，IN 子句按分片循环执行
+/** 目录子树区间每语句最多 32 个：每个目录消耗 3 个绑定参数，D1 硬上限 100。
+ * id 列表不再需要分片——走 json_each 单个参数（见 data/d1）。 */
+export const DIRS_PER_STMT = 32;
+
+// 保留给 search.ts 等「每条语句 SQL 结构不同、无法合并」的场景；trash 内部已不再使用
 export function chunk<T>(arr: T[], n: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, n + i));
@@ -23,16 +28,6 @@ async function subtreeFileSizeSum(db: D1Database, ownerId: string, node: NodeRow
     AND (id = ?2 OR (path >= ?3 AND path < ?4))
   `).bind(ownerId, node.id, lo, hi).all<{ total: number }>();
   return results[0]?.total ?? 0;
-}
-
-/** 多根「自身或后代」条件的 SQL 片段：每根消耗 3 个绑定参数（id + 区间 lo/hi），调用方按 ≤30 根/语句分片 */
-function subtreeTerms(roots: NodeRow[]): string {
-  return roots.map(() => `(id = ? OR (path >= ? AND path < ?))`).join(" OR ");
-}
-
-/** 多根条件绑定值：id + subtreeRange 哨兵区间 */
-function subtreeBinds(roots: NodeRow[]): string[] {
-  return roots.flatMap((r) => [r.id, ...Object.values(subtreeRange(subtreePrefix(r)))]);
 }
 
 export async function softDeleteNode(db: D1Database, ownerId: string, id: string): Promise<void> {
@@ -59,49 +54,58 @@ export async function permanentDeleteNode(env: Env, ownerId: string, id: string)
  * 批量删行后并行按引用计数清 R2。比逐个 permanentDeleteNode 少一个数量级的 D1 往返。 */
 export async function permanentDeleteMany(env: Env, ownerId: string, ids: string[]): Promise<number> {
   if (!ids.length) return 0;
-  // 校验：只处理回收站内的根；返回实际存在的根数（不存在的 id 静默忽略）
-  const roots: NodeRow[] = [];
-  for (const part of chunk(ids, 90)) {
-    const ph = part.map((_, i) => `?${i + 1}`).join(",");
-    // 纯 PK 查找（避免 owner 索引全扫），JS 侧过滤 owner
-    const { results } = await env.DB.prepare(
-      `SELECT * FROM nodes WHERE deleted_at IS NOT NULL AND id IN (${ph})`
-    ).bind(...part).all<NodeRow>();
-    roots.push(...results.filter((r) => r.owner_id === ownerId));
-  }
+  // 校验：只处理回收站内的根（owner 过滤在 SQL 内，不再拉回 JS 过滤）
+  const { results: roots } = await env.DB.prepare(
+    `SELECT id, path, is_dir FROM nodes WHERE owner_id = ?1 AND deleted_at IS NOT NULL AND id IN ${jsonSet()}`
+  ).bind(ownerId, jsonList(ids)).all<Pick<NodeRow, "id" | "path" | "is_dir">>();
   if (!roots.length) return 0;
-  // 多根子树闭包：范围扫描同时取 id 和 r2_key（秒传副本共享同一对象，删行后按引用计数决定是否删对象）。
-  // 每根消耗 3 个绑定参数（id + 区间），按 30 根/语句分片
+  // 闭包：自身 id（json_each 单参数）+ 目录区间（每条目录 2 参数），全部读取合并成一次 batch
+  const selects: D1PreparedStatement[] = [
+    env.DB.prepare(
+      `SELECT id, r2_key FROM nodes WHERE owner_id = ?1 AND id IN ${jsonSet()}`
+    ).bind(ownerId, jsonList(roots.map((r) => r.id))),
+  ];
+  for (const part of chunk(roots.filter((r) => r.is_dir), DIRS_PER_STMT)) {
+    const ranges = part.flatMap((d) => {
+      const { lo, hi } = subtreeRange(subtreePrefix(d));
+      return [lo, hi];
+    });
+    const clause = `id IN ${jsonSet()} OR ${part.map(() => "(path >= ? AND path < ?)").join(" OR ")}`;
+    selects.push(
+      env.DB.prepare(`SELECT id, r2_key FROM nodes WHERE owner_id = ?1 AND (${clause})`)
+        .bind(ownerId, jsonList(part.map((d) => d.id)), ...ranges),
+    );
+  }
+  const readResults = await env.DB.batch(selects);
   const all: string[] = [];
   const r2Keys = new Set<string>();
-  for (const part of chunk(roots, 30)) {
-    const clause = subtreeTerms(part);
-    const { results } = await env.DB.prepare(
-      `SELECT id, r2_key FROM nodes WHERE owner_id = ?1 AND (${clause})`
-    ).bind(ownerId, ...subtreeBinds(part)).all<{ id: string; r2_key: string | null }>();
-    for (const r of results) {
-      all.push(r.id);
-      if (r.r2_key) r2Keys.add(r.r2_key);
+  for (const result of readResults) {
+    for (const row of result.results as { id: string; r2_key: string | null }[]) {
+      all.push(row.id);
+      if (row.r2_key) r2Keys.add(row.r2_key);
     }
   }
-  // 删行：shares + nodes 分片 batch，行删除后未删的秒传副本仍在引用计数里
-  for (const part of chunk(all, 90)) {
-    const ph = part.map((_, i) => `?${i + 1}`).join(",");
-    await env.DB.batch([
-      env.DB.prepare(`DELETE FROM shares WHERE node_id IN (${ph})`).bind(...part),
-      env.DB.prepare(`DELETE FROM nodes WHERE id IN (${ph})`).bind(...part),
-    ]);
-  }
-  // R2 清理改由定时任务「延迟 + 二次引用检查」完成：删行后立即删对象存在 TOCTOU——
-  // 并发秒传可能已按 sha256 查到该 key、但尚未插入新行，此刻删对象会留下悬空引用。
-  // 这里只登记候选 key，cron 在宽限期后复查引用为零才真正删除（见 sweepOrphanObjects）。
-  if (r2Keys.size) {
-    const now = Date.now();
-    const stmts = [...r2Keys].map((key) =>
-      env.DB.prepare("INSERT OR REPLACE INTO orphan_objects (r2_key, queued_at) VALUES (?1, ?2)").bind(key, now),
+  // 删行 + 孤儿登记：同一个 batch（一次往返、原子）。
+  // R2 清理仍交给定时任务「延迟 + 二次引用检查」：并发秒传可能已按 sha256 查到该 key 但尚未插行，
+  // 此刻直接删对象会留下悬空引用（TOCTOU），所以这里只登记候选 key。
+  const now = Date.now();
+  const writes: D1PreparedStatement[] = [];
+  for (const part of chunk([...new Set(all)], 5000)) {
+    const partJson = jsonList(part);
+    writes.push(
+      env.DB.prepare(`DELETE FROM shares WHERE node_id IN ${jsonSet()}`).bind(partJson),
+      env.DB.prepare(`DELETE FROM nodes WHERE id IN ${jsonSet()}`).bind(partJson),
     );
-    for (const part of chunk(stmts, 90)) await env.DB.batch(part);
   }
+  if (r2Keys.size) {
+    for (const part of chunk([...r2Keys], 5000)) {
+      writes.push(
+        env.DB.prepare("INSERT OR REPLACE INTO orphan_objects (r2_key, queued_at) SELECT value, ? FROM json_each(?)")
+          .bind(now, jsonList(part)),
+      );
+    }
+  }
+  await env.DB.batch(writes);
   return roots.length;
 }
 
@@ -112,55 +116,65 @@ export const ORPHAN_GRACE_MS = 60 * 60 * 1000;
  * 返回实际删除的对象数；graceMs 可注入（测试传 0 立即清扫）。 */
 export async function sweepOrphanObjects(env: Env, graceMs: number = ORPHAN_GRACE_MS): Promise<number> {
   const cutoff = Date.now() - graceMs;
-  const { results } = await env.DB.prepare(
-    "SELECT r2_key FROM orphan_objects WHERE queued_at < ?1 LIMIT 500",
-  ).bind(cutoff).all<{ r2_key: string }>();
+  // 一条查询同时取出待清扫 key 与引用计数（原实现是 per-key 两条语句，500 个 key 就是约 1000 条）
+  const { results } = await env.DB.prepare(`
+    SELECT o.r2_key, (SELECT COUNT(*) FROM nodes n WHERE n.r2_key = o.r2_key) AS refs
+    FROM orphan_objects o WHERE o.queued_at < ?1 LIMIT 500
+  `).bind(cutoff).all<{ r2_key: string; refs: number }>();
   if (!results.length) return 0;
-  let deleted = 0;
-  // 并行复查引用：零引用删对象，随后一律出队（有引用的说明已被复用，无需再跟踪）
-  await Promise.all(results.map(async ({ r2_key }) => {
-    const ref = await env.DB.prepare("SELECT 1 FROM nodes WHERE r2_key = ?1 LIMIT 1").bind(r2_key).first();
-    if (!ref) {
-      await env.BUCKET.delete(r2_key);
-      deleted++;
-    }
-    await env.DB.prepare("DELETE FROM orphan_objects WHERE r2_key = ?1").bind(r2_key).run();
-  }));
-  return deleted;
+  const dead = results.filter((r) => r.refs === 0).map((r) => r.r2_key);
+  // R2 侧一次批量删除（≤1000 key/次）
+  if (dead.length) await env.BUCKET.delete(dead);
+  // 出队：处理过的 key 全部出队（有引用的说明已被复用，无需继续跟踪），一条语句
+  await env.DB.prepare(`DELETE FROM orphan_objects WHERE r2_key IN ${jsonSet()}`)
+    .bind(jsonList(results.map((r) => r.r2_key))).run();
+  return dead.length;
 }
 
 /** 多根集合式软删除：物化路径范围扫描 + 一条 UPDATE 原子标记（排除根目录哨兵行），
  * 每根消耗 3 个绑定参数，按 30 根/语句分片 */
 export async function softDeleteMany(db: D1Database, ownerId: string, ids: string[]): Promise<number> {
   if (!ids.length) return 0;
-  // 纯 PK 查找（避免 owner 索引全扫），JS 侧过滤 owner；D1 单语句绑定参数上限 100，按 90 分片
-  const selRows: NodeRow[] = [];
-  for (const part of chunk(ids, 90)) {
-    const ph = part.map(() => "?").join(",");
-    const { results } = await db.prepare(
-      `SELECT * FROM nodes WHERE deleted_at IS NULL AND id IN (${ph})`
-    ).bind(...part).all<NodeRow>();
-    selRows.push(...results);
-  }
-  const sel = selRows.filter((r) => r.owner_id === ownerId);
+  // 选中项一次查全（json_each 单参数，任意长度）；owner 过滤在 SQL 内完成
+  const { results: rows } = await db.prepare(
+    `SELECT id, name, is_dir, path FROM nodes WHERE owner_id = ?1 AND deleted_at IS NULL AND id IN ${jsonSet()}`
+  ).bind(ownerId, jsonList(ids)).all<Pick<NodeRow, "id" | "name" | "is_dir" | "path">>();
   // 根目录哨兵行（name=''）不可删除
-  const valid = sel.filter((r) => r.name !== "");
+  const valid = rows.filter((r) => r.name !== "");
   if (!valid.length) return 0;
   const now = Date.now();
-  let freed = 0;
-  for (const part of chunk(valid, 30)) {
-    const clause = subtreeTerms(part);
-    const binds = subtreeBinds(part);
-    // 软删扣减配额占用：先统计（行未标记前），UPDATE 原子标记
-    const sumRow = await db.prepare(`
-      SELECT COALESCE(SUM(size), 0) AS total FROM nodes
-      WHERE owner_id = ?1 AND is_dir = 0 AND size IS NOT NULL AND deleted_at IS NULL AND (${clause})
-    `).bind(ownerId, ...binds).first<{ total: number }>();
-    freed += sumRow?.total ?? 0;
-    await db.prepare(`UPDATE nodes SET deleted_at = ?1 WHERE owner_id = ?2 AND deleted_at IS NULL AND (${clause})`)
-      .bind(now, ownerId, ...binds).run();
+  // 被选中目录的后代由区间语句覆盖，不能重复计入配额（否则 used_bytes 被多扣）。
+  // 先剔除"落在其他选中目录子树内"的项，配额子查询之间因此互不重叠。
+  const dirPrefixes = valid.filter((r) => r.is_dir).map((r) => subtreePrefix(r));
+  const own = valid.filter((n) => !dirPrefixes.some((p) => n.path.startsWith(p)));
+  const ownJson = jsonList(own.map((n) => n.id));
+  const ownedDirs = own.filter((n) => n.is_dir);
+  // 配额扣减语句：子查询在 batch 内先于标记执行，统计到的仍是未删除行
+  const quotaStmt = (predicate: string) =>
+    db.prepare(`UPDATE users SET used_bytes = MAX(0, used_bytes - (
+        SELECT COALESCE(SUM(size), 0) FROM nodes
+        WHERE owner_id = ?1 AND is_dir = 0 AND size IS NOT NULL AND deleted_at IS NULL AND (${predicate})
+      )) WHERE id = ?1`);
+  const stmts: D1PreparedStatement[] = [
+    quotaStmt(`id IN ${jsonSet()}`).bind(ownerId, ownJson),
+    db.prepare(`UPDATE nodes SET deleted_at = ? WHERE owner_id = ? AND deleted_at IS NULL AND id IN ${jsonSet()}`)
+      .bind(now, ownerId, ownJson),
+  ];
+  for (const part of chunk(ownedDirs, DIRS_PER_STMT)) {
+    // 子树谓词：自身 id（json_each 单参数）或区间（每条目录 2 个参数）
+    const ranges = part.flatMap((d) => {
+      const { lo, hi } = subtreeRange(subtreePrefix(d));
+      return [lo, hi];
+    });
+    const clause = `id IN ${jsonSet()} OR ${part.map(() => "(path >= ? AND path < ?)").join(" OR ")}`;
+    const partJson = jsonList(part.map((d) => d.id));
+    stmts.push(
+      quotaStmt(clause).bind(ownerId, partJson, ...ranges),
+      db.prepare(`UPDATE nodes SET deleted_at = ? WHERE owner_id = ? AND deleted_at IS NULL AND (${clause})`)
+        .bind(now, ownerId, partJson, ...ranges),
+    );
   }
-  await adjustUsedBytes(db, ownerId, -freed);
+  await db.batch(stmts);
   return valid.length;
 }
 
@@ -172,16 +186,10 @@ export async function moveMany(db: D1Database, ownerId: string, ids: string[], n
   const parent = await resolveParent(db, ownerId, newParentId);
   if (!parent || !parent.is_dir) throw errors.notFound();
   const targetParentId = parent.id;
-  // 纯 PK 查找（避免 owner 索引全扫），JS 侧过滤 owner；D1 单语句绑定参数上限 100，按 90 分片
-  const selRows: NodeRow[] = [];
-  for (const part of chunk(ids, 90)) {
-    const ph = part.map(() => "?").join(",");
-    const { results } = await db.prepare(
-      `SELECT * FROM nodes WHERE deleted_at IS NULL AND id IN (${ph})`
-    ).bind(...part).all<NodeRow>();
-    selRows.push(...results);
-  }
-  const sel = selRows.filter((r) => r.owner_id === ownerId);
+  // 一次查全（json_each 单参数，任意长度）；owner 过滤在 SQL 内完成
+  const { results: sel } = await db.prepare(
+    `SELECT * FROM nodes WHERE owner_id = ?1 AND deleted_at IS NULL AND id IN ${jsonSet()}`
+  ).bind(ownerId, jsonList(ids)).all<NodeRow>();
   if (!sel.length) return 0;
   // 目录不能移入自身子树：对所选目录做祖先检查（目录数通常极少）
   for (const dir of sel.filter((s) => s.is_dir)) {
@@ -190,12 +198,11 @@ export async function moveMany(db: D1Database, ownerId: string, ids: string[], n
   // 同名冲突：目标下与所选同名的活跃节点，任一冲突整批 409。
   // 只按 name 绑定（2 + 90/片），命中后用 JS 排除所选自身——原 `id NOT IN (…ids)` 写法把参数放大到
   // 2 + names + ids，约 50 项批量移动即超 D1 上限（too many SQL variables）整体 500
-  const idSet = new Set(ids);
-  for (const part of chunk(sel, 90)) {
-    const namePh = part.map(() => "?").join(",");
+  const idSet = new Set(sel.map((s) => s.id));
+  {
     const { results } = await db.prepare(
-      `SELECT id FROM nodes WHERE owner_id = ?1 AND parent_id = ?2 AND deleted_at IS NULL AND name IN (${namePh})`
-    ).bind(ownerId, targetParentId, ...part.map((s) => s.name)).all<{ id: string }>();
+      `SELECT id FROM nodes WHERE owner_id = ?1 AND parent_id = ?2 AND deleted_at IS NULL AND name IN ${jsonSet()}`
+    ).bind(ownerId, targetParentId, jsonList(sel.map((s) => s.name))).all<{ id: string }>();
     if (results.some((r) => !idSet.has(r.id))) throw errors.conflict();
   }
   const now = Date.now();
@@ -281,7 +288,7 @@ export async function restoreTrashNode(db: D1Database, ownerId: string, id: stri
     await db.batch(statements);
   } catch (e) {
     // uniqueName 与 batch 之间并发同名恢复撞 UNIQUE：映射 409（与 createDir 惯例一致）
-    if (!(e instanceof Error && e.message.includes("UNIQUE constraint failed"))) throw e;
+    if (!isUniqueViolation(e)) throw e;
     throw errors.conflict();
   }
 }
