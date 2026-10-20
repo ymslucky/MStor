@@ -200,6 +200,26 @@ CREATE TABLE IF NOT EXISTS operations (
 );
 CREATE INDEX IF NOT EXISTS idx_operations_live ON operations(workspace_id, expires_at) WHERE undone_at IS NULL;
 
+-- 收藏（每人每空间独立，节点删除后级联清理）
+CREATE TABLE IF NOT EXISTS favorites (
+  workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  node_id TEXT NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (workspace_id, user_id, node_id)
+);
+CREATE INDEX IF NOT EXISTS idx_favorites_user ON favorites(user_id, created_at DESC);
+
+-- 最近访问（5 分钟节流：同一节点短时间重复打开不写库，避免写放大）
+CREATE TABLE IF NOT EXISTS node_views (
+  workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  node_id TEXT NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
+  viewed_at INTEGER NOT NULL,
+  PRIMARY KEY (workspace_id, user_id, node_id)
+);
+CREATE INDEX IF NOT EXISTS idx_node_views_recent ON node_views(user_id, viewed_at DESC);
+
 -- 动态配置：scope = 'global' 或 workspace id
 CREATE TABLE IF NOT EXISTS settings (
   scope TEXT NOT NULL DEFAULT 'global',

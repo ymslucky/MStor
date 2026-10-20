@@ -4,6 +4,7 @@ import { errorHandler } from "./lib/errors";
 import { accessMiddleware } from "./middleware/access";
 import { publicShares, shares } from "./routes/shares";
 import { workspaces } from "./routes/workspaces";
+import { library } from "./routes/library";
 import { me } from "./routes/me";
 import { files } from "./routes/files";
 import { dirs } from "./routes/dirs";
@@ -31,6 +32,7 @@ app.route("/api/trash", trash);
 app.route("/api/search", search);
 app.route("/api/shares", shares);
 app.route("/api/workspaces", workspaces);
+app.route("/api/library", library);
 
 export default {
   fetch: app.fetch,

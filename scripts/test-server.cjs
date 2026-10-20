@@ -743,6 +743,43 @@ async function main() {
     assertEqual(expired.status, 410, "过期撤销应 410，实际 " + expired.status);
   });
 
+  // —— 收藏与最近访问（P2 B7）——
+  await check("HTTP：收藏增删 + 最近访问 5 分钟节流 + 跨租户 404", async () => {
+    const db = makeD1(schema1x);
+    const env = makeEnv(db, makeR2());
+    const alice = { "x-dev-email": "a@example.com" };
+    const bob = { "x-dev-email": "b@example.com" };
+    const up = await call(env, "/api/files/upload?name=fav.bin&parentId=", {
+      method: "PUT",
+      headers: { ...alice, "content-type": "application/octet-stream" },
+      body: new Uint8Array([1, 2]),
+    });
+    const nodeId = up.json.id;
+    const fav = await call(env, "/api/library/favorites/" + nodeId, { method: "PUT", headers: alice });
+    assertEqual(fav.status, 200, "收藏应 200，实际 " + fav.status + " " + fav.text.slice(0, 120));
+    const list = await call(env, "/api/library/favorites", { headers: alice });
+    assertEqual(list.json.nodes.length, 1, "收藏列表应有 1 项");
+    // 幂等：重复收藏不报错也不重复
+    await call(env, "/api/library/favorites/" + nodeId, { method: "PUT", headers: alice });
+    assertEqual(db.prepare("SELECT COUNT(*) c FROM favorites").first().c, 1, "重复收藏应幂等");
+    // 最近访问：同一节点连点两次只写一次
+    await call(env, "/api/library/views/" + nodeId, { method: "POST", headers: alice });
+    const firstView = db.prepare("SELECT viewed_at v FROM node_views").first().v;
+    await call(env, "/api/library/views/" + nodeId, { method: "POST", headers: alice });
+    assertEqual(db.prepare("SELECT viewed_at v FROM node_views").first().v, firstView, "5 分钟内重复访问不应写库");
+    const recent = await call(env, "/api/library/recent", { headers: alice });
+    assertEqual(recent.json.nodes.length, 1, "最近列表应有 1 项");
+    // 跨租户：Bob 拿 Alice 的节点 id
+    const bobFav = await call(env, "/api/library/favorites/" + nodeId, { method: "PUT", headers: bob });
+    assertEqual(bobFav.status, 404, "跨租户收藏应 404，实际 " + bobFav.status);
+    const bobView = await call(env, "/api/library/views/" + nodeId, { method: "POST", headers: bob });
+    assertEqual(bobView.status, 404, "跨租户记录访问应 404，实际 " + bobView.status);
+    // 取消收藏
+    await call(env, "/api/library/favorites/" + nodeId, { method: "DELETE", headers: alice });
+    const after = await call(env, "/api/library/favorites", { headers: alice });
+    assertEqual(after.json.nodes.length, 0, "取消收藏后列表应为空");
+  });
+
   // —— 语句数预算（§4.6）：大批量下语句数必须与批次无关 ——
   await check("200 项批量：软删 ≤4 条语句、彻底删除 ≤5 条语句", async () => {
     const db = makeD1(schema1x);
