@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type * as React from "react";
 import type {
   CSSProperties,
@@ -328,8 +328,32 @@ export default function FileList({
       showTime={!!showTime}
     />
   );
+  const longPressTimer = useRef<number | null>(null);
+  const cancelLongPress = () => {
+    if (longPressTimer.current !== null) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+  const touchSelectProps = (n: Node) =>
+    selectable && onToggle
+      ? {
+          onTouchStart: () => {
+            cancelLongPress();
+            longPressTimer.current = window.setTimeout(() => {
+              longPressTimer.current = null;
+              onToggle(n.id);
+            }, 500);
+          },
+          onTouchEnd: cancelLongPress,
+          onTouchMove: cancelLongPress,
+          onTouchCancel: cancelLongPress,
+        }
+      : {};
+
   const rowEvents = (n: Node, _i: number) => ({
     onContextMenu: (e: ReactMouseEvent<HTMLElement>) => onNodeContextMenu?.(e, n),
+    ...touchSelectProps(n),
     ...dragProps(n),
     ...folderDropProps(n),
   });
