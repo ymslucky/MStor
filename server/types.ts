@@ -1,18 +1,29 @@
 export interface UserRow {
   id: string;
-  access_sub: string; // Cloudflare Access JWT sub（0015 由 oidc_sub 更名）
-  email: string | null; // 跨身份绑定锚点：管理员回填后，Access 首登按 email 锚定存量账号
-  access_bound_at: number | null; // NULL 表示 access_sub 仍来自旧 OIDC，尚未被 Access 登录确认
+  access_sub: string; // Cloudflare Access JWT sub（GitHub 身份下同样稳定）
+  email: string | null; // 展示与邀请匹配；GitHub 私有邮箱时可为 NULL
+  access_bound_at: number | null; // 首次完成 Access 身份绑定时间
   name: string;
-  role: "admin" | "member";
-  quota_bytes: number;
+  platform_admin: 0 | 1; // 与 workspace 角色正交：只用于跨空间管理与排障
   created_at: number;
   disabled_at: number | null;
 }
 
+export interface WorkspaceRow {
+  id: string;
+  name: string;
+  slug: string | null;
+  quota_bytes: number;
+  used_bytes: number;
+  created_at: number;
+}
+
+export type WorkspaceRole = "owner" | "admin" | "member";
+
 export interface NodeRow {
   id: string;
-  owner_id: string;
+  workspace_id: string; // 隔离维度：所有查询必须携带
+  created_by: string | null; // 根哨兵行为 NULL
   parent_id: string; // 根哨兵行 id（哨兵行自身为 ''）
   path: string; // 物化祖先 id 链（不含自身）：'/{rootId}/{dirId}/'；子树前缀 = path + id + '/'
   name: string;
@@ -20,6 +31,12 @@ export interface NodeRow {
   r2_key: string | null;
   size: number | null;
   mime: string | null;
+  sha256: string | null;
+  content_version: number;
+  thumb_key: string | null;
+  width: number | null;
+  height: number | null;
+  taken_at: number | null;
   created_at: number;
   updated_at: number;
   deleted_at: number | null;
@@ -27,23 +44,30 @@ export interface NodeRow {
 
 export interface ShareRow {
   id: string;
+  workspace_id: string;
   node_id: string;
   token: string;
   password_hash: string | null;
   expires_at: number | null;
+  max_downloads: number | null;
   downloads: number;
+  last_download_at: number | null;
   created_at: number;
   revoked_at: number | null;
 }
 
 export interface UploadRow {
   id: string;
-  owner_id: string;
+  workspace_id: string;
+  owner_id: string; // 发起上传的用户（审计用）
   parent_id: string;
   name: string;
   size: number;
+  mime: string | null;
   r2_key: string;
   r2_upload_id: string;
-  status: "pending" | "done";
+  idempotency_key: string | null;
+  status: "pending" | "completing" | "done" | "aborted";
   created_at: number;
+  updated_at: number;
 }

@@ -7,19 +7,18 @@ export const trash = new Hono<AppEnv>();
 
 trash.get("/", async (c) => {
   const { results } = await c.env.DB.prepare(
-    "SELECT * FROM nodes WHERE owner_id = ?1 AND deleted_at IS NOT NULL ORDER BY deleted_at DESC LIMIT 500"
-  ).bind(c.get("user").id).all();
+    "SELECT * FROM nodes WHERE workspace_id = ?1 AND deleted_at IS NOT NULL ORDER BY deleted_at DESC LIMIT 500"
+  ).bind(c.get("workspace").id).all();
   return c.json({ nodes: results });
 });
 
 trash.post("/batch-restore", async (c) => {
   const ids = parseIds(await c.req.json());
-  const user = c.get("user");
   let restored = 0;
   const failed: { id: string; reason: string }[] = [];
   for (const id of ids) {
     try {
-      await restoreTrashNode(c.env.DB, user.id, id);
+      await restoreTrashNode(c.env.DB, c.get("workspace").id, id);
       restored++;
     } catch (e) {
       // 单项失败不阻断其余项（如并发同名 409、id 不存在 404）
@@ -31,17 +30,16 @@ trash.post("/batch-restore", async (c) => {
 
 trash.post("/batch-purge", async (c) => {
   const ids = parseIds(await c.req.json());
-  const user = c.get("user");
-  const purged = await permanentDeleteMany(c.env, user.id, ids);
+  const purged = await permanentDeleteMany(c.env, c.get("workspace").id, ids);
   return c.json({ ok: true, purged, failed: [] });
 });
 
 trash.post("/:id/restore", async (c) => {
-  await restoreTrashNode(c.env.DB, c.get("user").id, c.req.param("id"));
+  await restoreTrashNode(c.env.DB, c.get("workspace").id, c.req.param("id"));
   return c.json({ ok: true });
 });
 
 trash.delete("/:id", async (c) => {
-  await permanentDeleteNode(c.env, c.get("user").id, c.req.param("id"));
+  await permanentDeleteNode(c.env, c.get("workspace").id, c.req.param("id"));
   return c.json({ ok: true });
 });

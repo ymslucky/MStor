@@ -1,5 +1,5 @@
 import type { Hono } from "hono";
-import type { UserRow } from "./types";
+import type { UserRow, WorkspaceRole, WorkspaceRow } from "./types";
 
 /** 认证：Cloudflare Access（Zero Trust）在边缘完成登录并向受保护请求注入 Cf-Access-Jwt-Assertion，
  *  Worker 内 jose 验签（iss = team domain / aud = 应用 AUD / RS256）。AUTH_MODE=dev 仅供本地 wrangler dev。 */
@@ -22,5 +22,14 @@ export type Env = {
   TRASH_RETENTION_DAYS: string;
 };
 
-export type AppEnv = { Bindings: Env; Variables: { user: UserRow; selfId: string; selfUser: UserRow } };
+export type AppEnv = {
+  Bindings: Env;
+  Variables: {
+    user: UserRow; // 当前身份（x-act-as 之后可能已是目标用户）
+    workspace: WorkspaceRow; // 当前租户：所有数据查询的隔离维度
+    role: WorkspaceRole; // 当前用户在该租户的角色
+    selfId: string; // 会话原始用户 id（act-as 之前）
+    selfUser: UserRow; // 会话原始用户行
+  };
+};
 export type App = Hono<AppEnv>;

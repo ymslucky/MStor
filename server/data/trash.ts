@@ -8,18 +8,18 @@ import { getSetting } from "../lib/settings";
 
 /** 子树内待变更的文件 size 总和：phase='soft' 统计未删除的（软删扣减用），phase='restore' 统计已删除的（还原加回用）。
  * 物化路径范围扫描（含自身）替代递归 CTE。 */
-async function subtreeFileSizeSum(db: D1Database, ownerId: string, node: NodeRow, phase: "soft" | "restore"): Promise<number> {
+async function subtreeFileSizeSum(db: D1Database, workspaceId: string, node: NodeRow, phase: "soft" | "restore"): Promise<number> {
   const { lo, hi } = subtreeRange(subtreePrefix(node));
   const { results } = await db.prepare(`
     SELECT COALESCE(SUM(size), 0) AS total FROM nodes
-    WHERE owner_id = ?1 AND is_dir = 0 AND size IS NOT NULL
+    WHERE workspace_id = ?1 AND is_dir = 0 AND size IS NOT NULL
     AND deleted_at IS ${phase === "soft" ? "NULL" : "NOT NULL"}
     AND (id = ?2 OR (path >= ?3 AND path < ?4))
-  `).bind(ownerId, node.id, lo, hi).all<{ total: number }>();
+  `).bind(workspaceId, node.id, lo, hi).all<{ total: number }>();
   return results[0]?.total ?? 0;
 }
-export async function softDeleteNode(db: D1Database, ownerId: string, id: string): Promise<void> {
-  const node = await getNode(db, ownerId, id);
+export async function softDeleteNode(db: D1Database, workspaceId: string, id: string): Promise<void> {
+  const node = await getNode(db, workspaceId, id);
   if (!node || node.deleted_at) throw errors.notFound();
   // 根目录哨兵行是唯一 name='' 的行（真实节点名经 validateNodeName 非空）
   if (node.name === "") throw errors.badRequest("不能删除根目录");
@@ -27,31 +27,31 @@ export async function softDeleteNode(db: D1Database, ownerId: string, id: string
   // 物化路径：子树（含自身）一条 UPDATE + 配额扣减收进一次 batch，软删除原子生效
   const { lo, hi } = subtreeRange(subtreePrefix(node));
   await db.batch([
-    db.prepare(`UPDATE nodes SET deleted_at = ?1 WHERE owner_id = ?2 AND deleted_at IS NULL AND (id = ?3 OR (path >= ?4 AND path < ?5))`)
-      .bind(now, ownerId, node.id, lo, hi),
-    db.prepare("UPDATE users SET used_bytes = MAX(0, used_bytes + ?1) WHERE id = ?2").bind(
-      -(await subtreeFileSizeSum(db, ownerId, node, "soft")), ownerId),
+    db.prepare(`UPDATE nodes SET deleted_at = ?1 WHERE workspace_id = ?2 AND deleted_at IS NULL AND (id = ?3 OR (path >= ?4 AND path < ?5))`)
+      .bind(now, workspaceId, node.id, lo, hi),
+    db.prepare("UPDATE workspaces SET used_bytes = MAX(0, used_bytes + ?1) WHERE id = ?2").bind(
+      -(await subtreeFileSizeSum(db, workspaceId, node, "soft")), workspaceId),
   ]);
 }
 
-export async function permanentDeleteNode(env: Env, ownerId: string, id: string): Promise<void> {
-  await permanentDeleteMany(env, ownerId, [id]);
+export async function permanentDeleteNode(env: Env, workspaceId: string, id: string): Promise<void> {
+  await permanentDeleteMany(env, workspaceId, [id]);
 }
 
 /** 多根集合式彻底删除：物化路径前缀扫描取所有根的子树闭包（id + r2_key），
  * 批量删行后并行按引用计数清 R2。比逐个 permanentDeleteNode 少一个数量级的 D1 往返。 */
-export async function permanentDeleteMany(env: Env, ownerId: string, ids: string[]): Promise<number> {
+export async function permanentDeleteMany(env: Env, workspaceId: string, ids: string[]): Promise<number> {
   if (!ids.length) return 0;
   // 校验：只处理回收站内的根（owner 过滤在 SQL 内，不再拉回 JS 过滤）
   const { results: roots } = await env.DB.prepare(
-    `SELECT id, path, is_dir FROM nodes WHERE owner_id = ?1 AND deleted_at IS NOT NULL AND id IN ${jsonSet()}`
-  ).bind(ownerId, jsonList(ids)).all<Pick<NodeRow, "id" | "path" | "is_dir">>();
+    `SELECT id, path, is_dir FROM nodes WHERE workspace_id = ?1 AND deleted_at IS NOT NULL AND id IN ${jsonSet()}`
+  ).bind(workspaceId, jsonList(ids)).all<Pick<NodeRow, "id" | "path" | "is_dir">>();
   if (!roots.length) return 0;
   // 闭包：自身 id（json_each 单参数）+ 目录区间（每条目录 2 参数），全部读取合并成一次 batch
   const selects: D1PreparedStatement[] = [
     env.DB.prepare(
-      `SELECT id, r2_key FROM nodes WHERE owner_id = ?1 AND id IN ${jsonSet()}`
-    ).bind(ownerId, jsonList(roots.map((r) => r.id))),
+      `SELECT id, r2_key FROM nodes WHERE workspace_id = ?1 AND id IN ${jsonSet()}`
+    ).bind(workspaceId, jsonList(roots.map((r) => r.id))),
   ];
   for (const part of chunk(roots.filter((r) => r.is_dir), DIRS_PER_STMT)) {
     const ranges = part.flatMap((d) => {
@@ -60,8 +60,8 @@ export async function permanentDeleteMany(env: Env, ownerId: string, ids: string
     });
     const clause = `id IN ${jsonSet()} OR ${part.map(() => "(path >= ? AND path < ?)").join(" OR ")}`;
     selects.push(
-      env.DB.prepare(`SELECT id, r2_key FROM nodes WHERE owner_id = ?1 AND (${clause})`)
-        .bind(ownerId, jsonList(part.map((d) => d.id)), ...ranges),
+      env.DB.prepare(`SELECT id, r2_key FROM nodes WHERE workspace_id = ?1 AND (${clause})`)
+        .bind(workspaceId, jsonList(part.map((d) => d.id)), ...ranges),
     );
   }
   const readResults = await env.DB.batch(selects);
@@ -121,12 +121,12 @@ export async function sweepOrphanObjects(env: Env, graceMs: number = ORPHAN_GRAC
 
 /** 多根集合式软删除：物化路径范围扫描 + 一条 UPDATE 原子标记（排除根目录哨兵行），
  * 每根消耗 3 个绑定参数，按 30 根/语句分片 */
-export async function softDeleteMany(db: D1Database, ownerId: string, ids: string[]): Promise<number> {
+export async function softDeleteMany(db: D1Database, workspaceId: string, ids: string[]): Promise<number> {
   if (!ids.length) return 0;
   // 选中项一次查全（json_each 单参数，任意长度）；owner 过滤在 SQL 内完成
   const { results: rows } = await db.prepare(
-    `SELECT id, name, is_dir, path FROM nodes WHERE owner_id = ?1 AND deleted_at IS NULL AND id IN ${jsonSet()}`
-  ).bind(ownerId, jsonList(ids)).all<Pick<NodeRow, "id" | "name" | "is_dir" | "path">>();
+    `SELECT id, name, is_dir, path FROM nodes WHERE workspace_id = ?1 AND deleted_at IS NULL AND id IN ${jsonSet()}`
+  ).bind(workspaceId, jsonList(ids)).all<Pick<NodeRow, "id" | "name" | "is_dir" | "path">>();
   // 根目录哨兵行（name=''）不可删除
   const valid = rows.filter((r) => r.name !== "");
   if (!valid.length) return 0;
@@ -139,14 +139,14 @@ export async function softDeleteMany(db: D1Database, ownerId: string, ids: strin
   const ownedDirs = own.filter((n) => n.is_dir);
   // 配额扣减语句：子查询在 batch 内先于标记执行，统计到的仍是未删除行
   const quotaStmt = (predicate: string) =>
-    db.prepare(`UPDATE users SET used_bytes = MAX(0, used_bytes - (
+    db.prepare(`UPDATE workspaces SET used_bytes = MAX(0, used_bytes - (
         SELECT COALESCE(SUM(size), 0) FROM nodes
-        WHERE owner_id = ?1 AND is_dir = 0 AND size IS NOT NULL AND deleted_at IS NULL AND (${predicate})
+        WHERE workspace_id = ?1 AND is_dir = 0 AND size IS NOT NULL AND deleted_at IS NULL AND (${predicate})
       )) WHERE id = ?1`);
   const stmts: D1PreparedStatement[] = [
-    quotaStmt(`id IN ${jsonSet()}`).bind(ownerId, ownJson),
-    db.prepare(`UPDATE nodes SET deleted_at = ? WHERE owner_id = ? AND deleted_at IS NULL AND id IN ${jsonSet()}`)
-      .bind(now, ownerId, ownJson),
+    quotaStmt(`id IN ${jsonSet()}`).bind(workspaceId, ownJson),
+    db.prepare(`UPDATE nodes SET deleted_at = ? WHERE workspace_id = ? AND deleted_at IS NULL AND id IN ${jsonSet()}`)
+      .bind(now, workspaceId, ownJson),
   ];
   for (const part of chunk(ownedDirs, DIRS_PER_STMT)) {
     // 子树谓词：自身 id（json_each 单参数）或区间（每条目录 2 个参数）
@@ -157,9 +157,9 @@ export async function softDeleteMany(db: D1Database, ownerId: string, ids: strin
     const clause = `id IN ${jsonSet()} OR ${part.map(() => "(path >= ? AND path < ?)").join(" OR ")}`;
     const partJson = jsonList(part.map((d) => d.id));
     stmts.push(
-      quotaStmt(clause).bind(ownerId, partJson, ...ranges),
-      db.prepare(`UPDATE nodes SET deleted_at = ? WHERE owner_id = ? AND deleted_at IS NULL AND (${clause})`)
-        .bind(now, ownerId, partJson, ...ranges),
+      quotaStmt(clause).bind(workspaceId, partJson, ...ranges),
+      db.prepare(`UPDATE nodes SET deleted_at = ? WHERE workspace_id = ? AND deleted_at IS NULL AND (${clause})`)
+        .bind(now, workspaceId, partJson, ...ranges),
     );
   }
   await db.batch(stmts);
@@ -168,20 +168,20 @@ export async function softDeleteMany(db: D1Database, ownerId: string, ids: strin
 
 /** 多项集合式移动：目标校验一次、同名冲突一次查、分片 UPDATE 批量改父目录；
  * 所选目录的子树路径用一条前缀 UPDATE 平移 */
-export async function moveMany(db: D1Database, ownerId: string, ids: string[], newParentId: string): Promise<number> {
+export async function moveMany(db: D1Database, workspaceId: string, ids: string[], newParentId: string): Promise<number> {
   if (!ids.length) return 0;
   // '' 表示根 → 根哨兵行，DB parent_id 用哨兵行 id
-  const parent = await resolveParent(db, ownerId, newParentId);
+  const parent = await resolveParent(db, workspaceId, newParentId);
   if (!parent || !parent.is_dir) throw errors.notFound();
   const targetParentId = parent.id;
   // 一次查全（json_each 单参数，任意长度）；owner 过滤在 SQL 内完成
   const { results: sel } = await db.prepare(
-    `SELECT * FROM nodes WHERE owner_id = ?1 AND deleted_at IS NULL AND id IN ${jsonSet()}`
-  ).bind(ownerId, jsonList(ids)).all<NodeRow>();
+    `SELECT * FROM nodes WHERE workspace_id = ?1 AND deleted_at IS NULL AND id IN ${jsonSet()}`
+  ).bind(workspaceId, jsonList(ids)).all<NodeRow>();
   if (!sel.length) return 0;
   // 目录不能移入自身子树：对所选目录做祖先检查（目录数通常极少）
   for (const dir of sel.filter((s) => s.is_dir)) {
-    if (await isDescendant(db, ownerId, dir.id, targetParentId)) throw errors.badRequest("不能移动到自身子目录");
+    if (await isDescendant(db, workspaceId, dir.id, targetParentId)) throw errors.badRequest("不能移动到自身子目录");
   }
   // 同名冲突：目标下与所选同名的活跃节点，任一冲突整批 409。
   // 只按 name 绑定（2 + 90/片），命中后用 JS 排除所选自身——原 `id NOT IN (…ids)` 写法把参数放大到
@@ -189,16 +189,16 @@ export async function moveMany(db: D1Database, ownerId: string, ids: string[], n
   const idSet = new Set(sel.map((s) => s.id));
   {
     const { results } = await db.prepare(
-      `SELECT id FROM nodes WHERE owner_id = ?1 AND parent_id = ?2 AND deleted_at IS NULL AND name IN ${jsonSet()}`
-    ).bind(ownerId, targetParentId, jsonList(sel.map((s) => s.name))).all<{ id: string }>();
+      `SELECT id FROM nodes WHERE workspace_id = ?1 AND parent_id = ?2 AND deleted_at IS NULL AND name IN ${jsonSet()}`
+    ).bind(workspaceId, targetParentId, jsonList(sel.map((s) => s.name))).all<{ id: string }>();
     if (results.some((r) => !idSet.has(r.id))) throw errors.conflict();
   }
   const now = Date.now();
   const parentPath = childPath(parent);
   // 每个被移动节点自身的 path = 目标父路径（祖先链，不含自身），逐节点 UPDATE
   const stmts = sel.map((s) =>
-    db.prepare("UPDATE nodes SET parent_id = ?1, updated_at = ?2, path = ?3 WHERE owner_id = ?4 AND id = ?5")
-      .bind(targetParentId, now, parentPath, ownerId, s.id),
+    db.prepare("UPDATE nodes SET parent_id = ?1, updated_at = ?2, path = ?3 WHERE workspace_id = ?4 AND id = ?5")
+      .bind(targetParentId, now, parentPath, workspaceId, s.id),
   );
   // 目录子树路径前缀平移（一条 UPDATE 搞定整个子树）
   for (const dir of sel.filter((s) => s.is_dir)) {
@@ -206,8 +206,8 @@ export async function moveMany(db: D1Database, ownerId: string, ids: string[], n
     const newPrefix = `${parentPath}${dir.id}/`;
     if (oldPrefix !== newPrefix) {
       const { lo, hi } = subtreeRange(oldPrefix);
-      stmts.push(db.prepare("UPDATE nodes SET path = ?1 || substr(path, ?2) WHERE owner_id = ?3 AND path >= ?4 AND path < ?5")
-        .bind(newPrefix, oldPrefix.length + 1, ownerId, lo, hi));
+      stmts.push(db.prepare("UPDATE nodes SET path = ?1 || substr(path, ?2) WHERE workspace_id = ?3 AND path >= ?4 AND path < ?5")
+        .bind(newPrefix, oldPrefix.length + 1, workspaceId, lo, hi));
     }
   }
   await db.batch(stmts);
@@ -220,11 +220,11 @@ export async function purgeExpiredTrash(env: Env): Promise<void> {
   const days = Number(configured ?? env.TRASH_RETENTION_DAYS);
   const cutoff = Date.now() - days * 86400000;
   const { results } = await env.DB.prepare(
-    "SELECT id, owner_id FROM nodes WHERE deleted_at IS NOT NULL AND deleted_at < ?1"
-  ).bind(cutoff).all<{ id: string; owner_id: string }>();
+    "SELECT id, workspace_id FROM nodes WHERE deleted_at IS NOT NULL AND deleted_at < ?1"
+  ).bind(cutoff).all<{ id: string; workspace_id: string }>();
   for (const r of results) {
     try {
-      await permanentDeleteNode(env, r.owner_id, r.id);
+      await permanentDeleteNode(env, r.workspace_id, r.id);
     } catch (e) {
       // 子树随父目录删除后，子行再被轮到时 404 属预期；其余失败告警但不阻断整轮清理
       if (e instanceof HttpError && e.status === 404) continue;
@@ -233,15 +233,15 @@ export async function purgeExpiredTrash(env: Env): Promise<void> {
   }
 }
 
-export async function restoreTrashNode(db: D1Database, ownerId: string, id: string): Promise<void> {
-  const node = await getNode(db, ownerId, id);
+export async function restoreTrashNode(db: D1Database, workspaceId: string, id: string): Promise<void> {
+  const node = await getNode(db, workspaceId, id);
   if (!node || !node.deleted_at) throw errors.notFound();
   // 目标父目录：原父仍活跃则原地还原，否则还原到根（parent_id 统一为哨兵行 id）
-  let targetParent = await getNode(db, ownerId, node.parent_id);
-  if (!targetParent || targetParent.deleted_at) targetParent = await ensureRootDir(db, ownerId);
+  let targetParent = await getNode(db, workspaceId, node.parent_id);
+  if (!targetParent || targetParent.deleted_at) targetParent = await ensureRootDir(db, workspaceId);
   const targetParentId = targetParent.id;
   // 排除自身：节点仍在表内（软删除态），否则 childByName 命中自己导致恢复后变成 "f (2).txt"
-  const name = await uniqueName(db, ownerId, targetParentId, node.name, node.id);
+  const name = await uniqueName(db, workspaceId, targetParentId, node.name, node.id);
   // 父目录已被删时还原到根：物化路径需重算，子树前缀随之平移
   let newPath = node.path;
   if (targetParentId !== node.parent_id) {
@@ -249,18 +249,18 @@ export async function restoreTrashNode(db: D1Database, ownerId: string, id: stri
   }
   const oldPrefix = subtreePrefix(node);
   const newPrefix = `${newPath}${node.id}/`;
-  const restored = await subtreeFileSizeSum(db, ownerId, node, "restore");
+  const restored = await subtreeFileSizeSum(db, workspaceId, node, "restore");
   const { lo, hi } = subtreeRange(oldPrefix);
   const statements = [
-    db.prepare("UPDATE nodes SET deleted_at = NULL WHERE owner_id = ?1 AND (id = ?2 OR (path >= ?3 AND path < ?4))")
-      .bind(ownerId, node.id, lo, hi),
+    db.prepare("UPDATE nodes SET deleted_at = NULL WHERE workspace_id = ?1 AND (id = ?2 OR (path >= ?3 AND path < ?4))")
+      .bind(workspaceId, node.id, lo, hi),
     db.prepare("UPDATE nodes SET parent_id = ?1, name = ?2, path = ?3, updated_at = ?4 WHERE id = ?5")
       .bind(targetParentId, name, newPath, Date.now(), node.id),
     ...(node.is_dir && oldPrefix !== newPrefix
-      ? [db.prepare("UPDATE nodes SET path = ?1 || substr(path, ?2) WHERE owner_id = ?3 AND path >= ?4 AND path < ?5")
-          .bind(newPrefix, oldPrefix.length + 1, ownerId, lo, hi)]
+      ? [db.prepare("UPDATE nodes SET path = ?1 || substr(path, ?2) WHERE workspace_id = ?3 AND path >= ?4 AND path < ?5")
+          .bind(newPrefix, oldPrefix.length + 1, workspaceId, lo, hi)]
       : []),
-    db.prepare("UPDATE users SET used_bytes = MAX(0, used_bytes + ?1) WHERE id = ?2").bind(restored, ownerId),
+    db.prepare("UPDATE workspaces SET used_bytes = MAX(0, used_bytes + ?1) WHERE id = ?2").bind(restored, workspaceId),
   ];
   try {
     await db.batch(statements);

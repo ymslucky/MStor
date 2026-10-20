@@ -1,16 +1,14 @@
 import { env, SELF } from "cloudflare:test";
 import { expect, test } from "vitest";
-import { ensureRootDir } from "../server/lib/nodes";
 import { seedNode, seedUser, sessionHeaders } from "./helpers";
 
 test("GET /api/me returns profile with usage", async () => {
   const u = await seedUser();
-  await ensureRootDir(env.DB, u.id);
   const res = await SELF.fetch("https://example.com/api/me", { headers: await sessionHeaders(u) });
   expect(res.status).toBe(200);
   const body = (await res.json()) as { name: string; quotaBytes: number; usedBytes: number };
   expect(body.name).toBe("tester");
-  expect(body.quotaBytes).toBe(u.quota_bytes);
+  expect(body.quotaBytes).toBe(10_737_418_240);
   expect(typeof body.usedBytes).toBe("number");
 });
 
@@ -41,7 +39,7 @@ test("PUT /api/me/webdav-password is removed", async () => {
 
 test("admin endpoints enforce role", async () => {
   const member = await seedUser();
-  const admin = await seedUser({ role: "admin" });
+  const admin = await seedUser({ platform_admin: 1 });
   const forbidden = await SELF.fetch("https://example.com/api/me/admin/users", {
     headers: await sessionHeaders(member),
   });
@@ -69,7 +67,7 @@ test("admin endpoints enforce role", async () => {
 });
 
 test("admin can disable and re-enable a user via PATCH", async () => {
-  const admin = await seedUser({ role: "admin" });
+  const admin = await seedUser({ platform_admin: 1 });
   const member = await seedUser();
   const disable = await SELF.fetch(`https://example.com/api/me/admin/users/${member.id}`, {
     method: "PATCH",
@@ -94,7 +92,7 @@ test("admin can disable and re-enable a user via PATCH", async () => {
 });
 
 test("admin cannot disable self", async () => {
-  const admin = await seedUser({ role: "admin" });
+  const admin = await seedUser({ platform_admin: 1 });
   const res = await SELF.fetch(`https://example.com/api/me/admin/users/${admin.id}`, {
     method: "PATCH",
     headers: { ...(await sessionHeaders(admin)), "content-type": "application/json" },
@@ -105,18 +103,18 @@ test("admin cannot disable self", async () => {
 });
 
 test("admin cannot demote self", async () => {
-  const admin = await seedUser({ role: "admin" });
+  const admin = await seedUser({ platform_admin: 1 });
   const res = await SELF.fetch(`https://example.com/api/me/admin/users/${admin.id}`, {
     method: "PATCH",
     headers: { ...(await sessionHeaders(admin)), "content-type": "application/json" },
-    body: JSON.stringify({ role: "member" }),
+    body: JSON.stringify({ platform_admin: 0 }),
   });
   expect(res.status).toBe(400);
   expect(((await res.json()) as { error: { code: string } }).error.code).toBe("BAD_REQUEST");
 });
 
 test("admin can still update own quota", async () => {
-  const admin = await seedUser({ role: "admin" });
+  const admin = await seedUser({ platform_admin: 1 });
   const res = await SELF.fetch(`https://example.com/api/me/admin/users/${admin.id}`, {
     method: "PATCH",
     headers: { ...(await sessionHeaders(admin)), "content-type": "application/json" },
@@ -130,7 +128,7 @@ test("admin can still update own quota", async () => {
 });
 
 test("disabled flag persists in admin list", async () => {
-  const admin = await seedUser({ role: "admin" });
+  const admin = await seedUser({ platform_admin: 1 });
   const member = await seedUser();
   const patched = await SELF.fetch(`https://example.com/api/me/admin/users/${member.id}`, {
     method: "PATCH",
@@ -153,7 +151,7 @@ test("disabled user session is rejected", async () => {
 });
 
 test("admin can act as another user; member cannot", async () => {
-  const admin = await seedUser({ role: "admin" });
+  const admin = await seedUser({ platform_admin: 1 });
   const member = await seedUser();
   // member 名下放一个文件，admin 名下不放
   await seedNode({ owner_id: member.id, name: "members-file.txt" });
@@ -178,7 +176,7 @@ test("admin can act as another user; member cannot", async () => {
 });
 
 test("admin can rename a user", async () => {
-  const admin = await seedUser({ role: "admin" });
+  const admin = await seedUser({ platform_admin: 1 });
   const member = await seedUser();
   const res = await SELF.fetch(`https://example.com/api/me/admin/users/${member.id}`, {
     method: "PATCH",
@@ -192,7 +190,7 @@ test("admin can rename a user", async () => {
 });
 
 test("admin can rename self", async () => {
-  const admin = await seedUser({ role: "admin" });
+  const admin = await seedUser({ platform_admin: 1 });
   const res = await SELF.fetch(`https://example.com/api/me/admin/users/${admin.id}`, {
     method: "PATCH",
     headers: { ...(await sessionHeaders(admin)), "content-type": "application/json" },
@@ -204,7 +202,7 @@ test("admin can rename self", async () => {
 });
 
 test("rename rejects blank and oversized names", async () => {
-  const admin = await seedUser({ role: "admin" });
+  const admin = await seedUser({ platform_admin: 1 });
   for (const name of ["", "   ", "x".repeat(65)]) {
     const res = await SELF.fetch(`https://example.com/api/me/admin/users/${admin.id}`, {
       method: "PATCH",
@@ -217,7 +215,7 @@ test("rename rejects blank and oversized names", async () => {
 });
 
 test("rename rejects non-string name", async () => {
-  const admin = await seedUser({ role: "admin" });
+  const admin = await seedUser({ platform_admin: 1 });
   const res = await SELF.fetch(`https://example.com/api/me/admin/users/${admin.id}`, {
     method: "PATCH",
     headers: { ...(await sessionHeaders(admin)), "content-type": "application/json" },
@@ -227,7 +225,7 @@ test("rename rejects non-string name", async () => {
 });
 
 test("GET /api/me when acting as returns target user plus self", async () => {
-  const admin = await seedUser({ role: "admin" });
+  const admin = await seedUser({ platform_admin: 1 });
   const member = await seedUser();
   const res = await SELF.fetch("https://example.com/api/me", {
     headers: { ...(await sessionHeaders(admin)), "x-act-as": member.id },
@@ -242,7 +240,7 @@ test("GET /api/me when acting as returns target user plus self", async () => {
   // 空间信息 = 目标用户
   expect(body.id).toBe(member.id);
   expect(body.name).toBe(member.name);
-  expect(body.role).toBe(member.role);
+  expect(body.role).toBe("member");
   // 登录账号 = 管理员自己
   expect(body.self).toEqual({ id: admin.id, name: admin.name, role: "admin" });
 });
@@ -261,7 +259,7 @@ test("GET /api/me self mirrors user when not acting as", async () => {
 });
 
 test("admin settings: GET 返回默认（env 回退），PATCH 后生效", async () => {
-  const admin = await seedUser({ role: "admin" });
+  const admin = await seedUser({ platform_admin: 1 });
   const h = await sessionHeaders(admin);
   // 默认值来自 env.TRASH_RETENTION_DAYS
   const res1 = await SELF.fetch("https://example.com/api/me/admin/settings", { headers: h });
@@ -286,7 +284,7 @@ test("admin settings: GET 返回默认（env 回退），PATCH 后生效", async
 });
 
 test("admin settings: 非法天数 400，member 403", async () => {
-  const admin = await seedUser({ role: "admin" });
+  const admin = await seedUser({ platform_admin: 1 });
   const member = await seedUser();
   const h = await sessionHeaders(admin);
   for (const days of [0, -3, 366, 7.5, "x"]) {
@@ -306,7 +304,7 @@ test("admin settings: 非法天数 400，member 403", async () => {
 });
 
 test("admin email binding is normalized to lowercase like Access JWT email", async () => {
-  const admin = await seedUser({ role: "admin" });
+  const admin = await seedUser({ platform_admin: 1 });
   const member = await seedUser();
   const res = await SELF.fetch(`https://example.com/api/me/admin/users/${member.id}`, {
     method: "PATCH",

@@ -65,9 +65,9 @@ test("未知身份 + ACCESS_PROVISION=off → 403 ACCOUNT_NOT_PROVISIONED", asyn
 test("首个建号用户为 admin，其后为 member", async () => {
   await env.DB.prepare("DELETE FROM users").run();
   const first = await bindOrProvision(env, { sub: "s-first", email: "first@example.com" });
-  expect(first.role).toBe("admin");
+  expect(first.platform_admin).toBe(1);
   const second = await bindOrProvision(env, { sub: "s-second", email: "second@example.com" });
-  expect(second.role).toBe("member");
+  expect(second.platform_admin).toBe(0);
 });
 
 test("已停用用户 → 403", async () => {
@@ -106,7 +106,7 @@ test("跨协议同 Host 的 Origin 仍视为跨站 → 403", async () => {
 });
 
 test("同源 Origin 的非 GET 请求进入业务校验而非被 CSRF 拒绝", async () => {
-  const u = await seedUser({ role: "admin" });
+  const u = await seedUser({ platform_admin: 1 });
   const res = await SELF.fetch(`${BASE}/api/me/admin/users/${u.id}`, {
     method: "PATCH",
     headers: { ...(await sessionHeaders(u)), "content-type": "application/json", origin: BASE },

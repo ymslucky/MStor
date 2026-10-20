@@ -1,7 +1,9 @@
 import type { Context, Next } from "hono";
 import { createLocalJWKSet, createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from "jose";
 import type { AppEnv } from "../env";
-import { errors } from "../lib/errors";
+import { HttpError, errors } from "../lib/errors";
+import { ensurePersonalWorkspace, resolveWorkspace } from "../data/workspaces";
+import { ensureRootDir } from "../lib/nodes";
 import { bindOrProvision, type AccessIdentity } from "../lib/users";
 import type { UserRow } from "../types";
 
@@ -87,12 +89,25 @@ export async function accessMiddleware(c: Context<AppEnv>, next: Next) {
   c.set("selfUser", user);
   // admin 切换空间：x-act-as 指向目标用户；非 admin 忽略该头（物理隔离不被绕过）
   const actAs = c.req.header("x-act-as");
-  if (actAs && user.role === "admin") {
+  if (actAs && user.platform_admin === 1) {
     const target = await c.env.DB.prepare("SELECT * FROM users WHERE id = ?1").bind(actAs).first<UserRow>();
     if (!target) throw errors.notFound();
     if (target.disabled_at) throw errors.forbidden("目标用户已停用");
     user = target;
   }
   c.set("user", user);
+  // 租户解析：未指定 x-workspace 时用默认空间；首登无空间则就地建个人空间（幂等）
+  const requested = c.req.header("x-workspace") ?? null;
+  let resolved;
+  try {
+    resolved = await resolveWorkspace(c.env.DB, user.id, requested);
+  } catch (e) {
+    if (requested || !(e instanceof HttpError) || e.status !== 404) throw e;
+    const created = await ensurePersonalWorkspace(c.env.DB, user.id);
+    await ensureRootDir(c.env.DB, created.id);
+    resolved = { workspace: created, role: "owner" as const };
+  }
+  c.set("workspace", resolved.workspace);
+  c.set("role", resolved.role);
   await next();
 }

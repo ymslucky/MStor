@@ -4,7 +4,7 @@ import {
   assertQuota, breadcrumb, createDir, ensureRootDir, getNode, listChildren,
   moveNode, subtreeIds, uniqueName, usedBytes,
 } from "../server/lib/nodes";
-import { seedNode, seedUser } from "./helpers";
+import { seedNode, seedUser, workspaceOf } from "./helpers";
 
 test("ensureRootDir creates once and reuses", async () => {
   const u = await seedUser();
@@ -48,12 +48,13 @@ test("moveNode rejects moving dir into its own descendant", async () => {
   await expect(moveNode(env.DB, u.id, dir.id, child.id, "dir")).rejects.toThrow(/不能移动/);
 });
 
-test("quota check reads users.used_bytes column", async () => {
+test("quota check reads workspaces.used_bytes column", async () => {
   const u = await seedUser({ quota_bytes: 100 });
-  await env.DB.prepare("UPDATE users SET used_bytes = 60 WHERE id = ?1").bind(u.id).run();
-  await expect(assertQuota(env.DB, u.id, 50)).rejects.toThrow(/配额/);
-  await assertQuota(env.DB, u.id, 40);
-  expect(await usedBytes(env.DB, u.id)).toBe(60);
+  const ws = await workspaceOf(u.id);
+  await env.DB.prepare("UPDATE workspaces SET used_bytes = 60 WHERE id = ?1").bind(ws).run();
+  await expect(assertQuota(env.DB, ws, 50)).rejects.toThrow(/配额/);
+  await assertQuota(env.DB, ws, 40);
+  expect(await usedBytes(env.DB, ws)).toBe(60);
 });
 
 test("subtreeIds returns self and descendants", async () => {

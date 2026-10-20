@@ -1,7 +1,7 @@
 import type { Env } from "../env";
 import { HttpError } from "./errors";
 import { randomToken } from "./crypto";
-import { ensureRootDir } from "./nodes";
+
 import { isUniqueViolation } from "./sql";
 import type { UserRow } from "../types";
 
@@ -71,18 +71,17 @@ export async function bindOrProvision(env: Env, ident: AccessIdentity): Promise<
     throw new HttpError(403, "ACCOUNT_NOT_PROVISIONED", "账号未开通，请联系管理员");
   }
   const { n } = (await db.prepare("SELECT COUNT(*) AS n FROM users").first<{ n: number }>())!;
-  const role = n === 0 ? "admin" : "member";
+  const isFirstUser = n === 0; // 首个建号者是平台管理员（跨空间管理），与 workspace 角色正交
   const id = randomToken(12);
   const name = ident.email ? ident.email.split("@")[0] : "user";
-  const quota = Number(env.DEFAULT_QUOTA_BYTES);
   const createdAt = Date.now();
   const boundAt = Date.now();
   try {
     await db
       .prepare(
-        "INSERT INTO users (id, access_sub, email, access_bound_at, name, role, quota_bytes, created_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8)",
+        "INSERT INTO users (id, access_sub, email, access_bound_at, name, platform_admin, created_at) VALUES (?1,?2,?3,?4,?5,?6,?7)",
       )
-      .bind(id, ident.sub, ident.email, boundAt, name, role, quota, createdAt)
+      .bind(id, ident.sub, ident.email, boundAt, name, isFirstUser ? 1 : 0, createdAt)
       .run();
   } catch (e) {
     if (isUniqueViolation(e)) {
@@ -100,15 +99,13 @@ export async function bindOrProvision(env: Env, ident: AccessIdentity): Promise<
     }
     throw e;
   }
-  await ensureRootDir(db, id);
   return {
     id,
     access_sub: ident.sub,
     email: ident.email,
     access_bound_at: boundAt,
     name,
-    role,
-    quota_bytes: quota,
+    platform_admin: isFirstUser ? 1 : 0,
     created_at: createdAt,
     disabled_at: null,
   };

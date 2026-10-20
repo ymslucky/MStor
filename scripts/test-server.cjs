@@ -113,11 +113,12 @@ async function main() {
 
   const now = Date.now();
   const seed = (db) => {
-    db.prepare("INSERT INTO users (id, access_sub, name, role, quota_bytes, created_at) VALUES ('u1','sub1','A','member',100000,?)").run(now);
-    const rootId = nodes.ensureRootDir ? null : null;
-    return rootId;
+    // 测试夹具约定：workspace id 与 user id 相同（u1），让旧的 owner 维度用例可直接迁移
+    db.prepare("INSERT INTO users (id, access_sub, name, created_at) VALUES ('u1','sub1','A',?)").run(now);
+    db.prepare("INSERT INTO workspaces (id, name, slug, quota_bytes, created_at) VALUES ('u1','ws','u1',100000,?)").run(now);
+    db.prepare("INSERT INTO memberships (workspace_id, user_id, role, created_at) VALUES ('u1','u1','owner',?)").run(now);
+    db.prepare("INSERT INTO storage_stats (workspace_id, updated_at) VALUES ('u1',?)").run(now);
   };
-
   // —— 软删 / 彻底删除 / 移动 / 还原 / 孤儿清扫 ——
   await check("softDeleteMany：文件夹子树整棵软删，配额按文件大小精确扣减", async () => {
     const db = makeD1(schema1x);
@@ -126,13 +127,13 @@ async function main() {
     const dirRow = await nodes.createDir(db, "u1", rootId, "docs");
     const dir = dirRow.id;
     const dirPath = nodes.childPath(dirRow);
-    db.prepare("INSERT INTO nodes (id, owner_id, parent_id, path, name, is_dir, r2_key, size, mime, created_at, updated_at) VALUES ('f1','u1',?,?,'a.bin',0,'k1',100,'x',?,?)").run(dir, dirPath, now, now);
-    db.prepare("INSERT INTO nodes (id, owner_id, parent_id, path, name, is_dir, r2_key, size, mime, created_at, updated_at) VALUES ('f2','u1',?,?,'b.bin',0,'k2',50,'x',?,?)").run(dir, dirPath, now, now);
-    db.prepare("UPDATE users SET used_bytes = 150 WHERE id='u1'").run();
+    db.prepare("INSERT INTO nodes (id, workspace_id, created_by, parent_id, path, name, is_dir, r2_key, size, mime, created_at, updated_at) VALUES ('f1','u1','u1',?,?,'a.bin',0,'k1',100,'x',?,?)").run(dir, dirPath, now, now);
+    db.prepare("INSERT INTO nodes (id, workspace_id, created_by, parent_id, path, name, is_dir, r2_key, size, mime, created_at, updated_at) VALUES ('f2','u1','u1',?,?,'b.bin',0,'k2',50,'x',?,?)").run(dir, dirPath, now, now);
+    db.prepare("UPDATE workspaces SET used_bytes = 150 WHERE id='u1'").run();
     const n = await trash.softDeleteMany(db, "u1", [dir]);
     assertEqual(n, 1, "应返回 1 个有效根");
-    assertEqual(db.prepare("SELECT COUNT(*) c FROM nodes WHERE owner_id='u1' AND deleted_at IS NOT NULL").first().c, 3, "目录与两个文件都应软删");
-    assertEqual(db.prepare("SELECT used_bytes u FROM users WHERE id='u1'").first().u, 0, "配额应扣减 150");
+    assertEqual(db.prepare("SELECT COUNT(*) c FROM nodes WHERE workspace_id='u1' AND deleted_at IS NOT NULL").first().c, 3, "目录与两个文件都应软删");
+    assertEqual(db.prepare("SELECT used_bytes u FROM workspaces WHERE id='u1'").first().u, 0, "配额应扣减 150");
   });
 
   await check("permanentDeleteMany：子树行删除、shares 清理、R2 key 全部登记待清扫", async () => {
@@ -143,10 +144,10 @@ async function main() {
     const dirRow = await nodes.createDir(db, "u1", rootId, "old");
     const dir = dirRow.id;
     const dirPath = nodes.childPath(dirRow);
-    db.prepare("INSERT INTO nodes (id, owner_id, parent_id, path, name, is_dir, r2_key, size, mime, created_at, updated_at, deleted_at) VALUES ('g1','u1',?,?,'a.bin',0,'kk1',10,'x',?,?,?)").run(dir, dirPath, now, now, now);
-    db.prepare("INSERT INTO nodes (id, owner_id, parent_id, path, name, is_dir, r2_key, size, mime, created_at, updated_at, deleted_at) VALUES ('g2','u1',?,?,'b.bin',0,'kk2',10,'x',?,?,?)").run(dir, dirPath, now, now, now);
+    db.prepare("INSERT INTO nodes (id, workspace_id, created_by, parent_id, path, name, is_dir, r2_key, size, mime, created_at, updated_at, deleted_at) VALUES ('g1','u1','u1',?,?,'a.bin',0,'kk1',10,'x',?,?,?)").run(dir, dirPath, now, now, now);
+    db.prepare("INSERT INTO nodes (id, workspace_id, created_by, parent_id, path, name, is_dir, r2_key, size, mime, created_at, updated_at, deleted_at) VALUES ('g2','u1','u1',?,?,'b.bin',0,'kk2',10,'x',?,?,?)").run(dir, dirPath, now, now, now);
     db.prepare("UPDATE nodes SET deleted_at = ? WHERE id = ?").run(now, dir);
-    db.prepare("INSERT INTO shares (id, node_id, token, downloads, created_at) VALUES ('sh1','g1','tok',0,?)").run(now);
+    db.prepare("INSERT INTO shares (id, workspace_id, node_id, token, downloads, created_at) VALUES ('sh1','u1','g1','tok',0,?)").run(now);
     const n = await trash.permanentDeleteMany({ DB: db, BUCKET: bucket }, "u1", [dir]);
     assertEqual(n, 1, "应处理 1 个回收站根");
     assertEqual(db.prepare("SELECT COUNT(*) c FROM nodes WHERE id IN ('g1','g2') OR id = ?").first().c === 0, true, "子树行应删除");
@@ -164,7 +165,7 @@ async function main() {
     const b = (await nodes.createDir(db, "u1", rootId, "B")).id;
     const subRow = await nodes.createDir(db, "u1", a, "sub");
     const sub = subRow.id;
-    db.prepare("INSERT INTO nodes (id, owner_id, parent_id, path, name, is_dir, r2_key, size, mime, created_at, updated_at) VALUES ('leaf','u1',?,?,'leaf.bin',0,'kz',5,'x',?,?)").run(sub, nodes.childPath(subRow), now, now);
+    db.prepare("INSERT INTO nodes (id, workspace_id, created_by, parent_id, path, name, is_dir, r2_key, size, mime, created_at, updated_at) VALUES ('leaf','u1','u1',?,?,'leaf.bin',0,'kz',5,'x',?,?)").run(sub, nodes.childPath(subRow), now, now);
     const n = await trash.moveMany(db, "u1", [a], b);
     assertEqual(n, 1, "应移动 1 项");
     const moved = db.prepare("SELECT parent_id, path FROM nodes WHERE id = ?").first(a);
@@ -180,10 +181,10 @@ async function main() {
     const rootId = (await nodes.ensureRootDir(db, "u1")).id;
     const dirRow = await nodes.createDir(db, "u1", rootId, "keep");
     const dir = dirRow.id;
-    db.prepare("INSERT INTO nodes (id, owner_id, parent_id, path, name, is_dir, r2_key, size, mime, created_at, updated_at, deleted_at) VALUES ('r1','u1',?,?,'r.bin',0,'kr',40,'x',?,?,?)").run(dir, nodes.childPath(dirRow), now, now, now);
+    db.prepare("INSERT INTO nodes (id, workspace_id, created_by, parent_id, path, name, is_dir, r2_key, size, mime, created_at, updated_at, deleted_at) VALUES ('r1','u1','u1',?,?,'r.bin',0,'kr',40,'x',?,?,?)").run(dir, nodes.childPath(dirRow), now, now, now);
     db.prepare("UPDATE nodes SET deleted_at = ? WHERE id = ?").run(now, dir);
     await trash.restoreTrashNode(db, "u1", "r1");
-    assertEqual(db.prepare("SELECT used_bytes u FROM users WHERE id='u1'").first().u, 40, "应加回 40 字节");
+    assertEqual(db.prepare("SELECT used_bytes u FROM workspaces WHERE id='u1'").first().u, 40, "应加回 40 字节");
     const row = db.prepare("SELECT parent_id, deleted_at FROM nodes WHERE id='r1'").first();
     assertEqual(row.deleted_at, null, "应恢复为活跃");
     assertEqual(row.parent_id, rootId, "父已删 → 回根（哨兵行 id）");
@@ -195,7 +196,7 @@ async function main() {
     seed(db);
     const rootId = (await nodes.ensureRootDir(db, "u1")).id;
     db.prepare("INSERT INTO orphan_objects (r2_key, queued_at) VALUES ('dead1',?),('dead2',?),('alive',?)").run(now - 5000, now - 5000, now - 5000);
-    db.prepare("INSERT INTO nodes (id, owner_id, parent_id, path, name, is_dir, r2_key, size, mime, created_at, updated_at) VALUES ('keep','u1',?,'/x/','o.bin',0,'alive',1,'x',?,?)").run(rootId, now, now);
+    db.prepare("INSERT INTO nodes (id, workspace_id, created_by, parent_id, path, name, is_dir, r2_key, size, mime, created_at, updated_at) VALUES ('keep','u1','u1',?,'/x/','o.bin',0,'alive',1,'x',?,?)").run(rootId, now, now);
     const deleted = await trash.sweepOrphanObjects({ DB: db, BUCKET: bucket }, 0);
     assertEqual(deleted, 2, "应删 2 个无引用对象");
     assertEqual(bucket.deleted.sort(), ["dead1", "dead2"], "只删无引用的 key");
@@ -377,7 +378,7 @@ async function main() {
     assertEqual(ranged.status, 206, "Range 应 206，实际 " + ranged.status);
     assertEqual([...ranged.bytes], [1, 2, 3, 4], "Range 返回前 4 字节");
     assertEqual(ranged.headers.get("content-range"), "bytes 0-3/8", "content-range 应正确");
-    assertEqual(db.prepare("SELECT used_bytes u FROM users WHERE email='a@example.com'").first().u, 8, "配额应记为 8 字节");
+    assertEqual(db.prepare("SELECT used_bytes u FROM workspaces WHERE slug LIKE 'u-%' ORDER BY created_at DESC LIMIT 1").first().u, 8, "配额应记为 8 字节");
   });
 
   await check("HTTP：批量删除 → 回收站 → 批量还原", async () => {
@@ -437,11 +438,11 @@ async function main() {
     seed(db);
     const rootId = (await nodes.ensureRootDir(db, "u1")).id;
     const ids = [];
-    const ins = db.prepare("INSERT INTO nodes (id, owner_id, parent_id, path, name, is_dir, r2_key, size, mime, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)");
+    const ins = db.prepare("INSERT INTO nodes (id, workspace_id, created_by, parent_id, path, name, is_dir, r2_key, size, mime, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)");
     for (let i = 0; i < 200; i += 1) {
       const id = "big-" + i;
       ids.push(id);
-      ins.run(id, "u1", rootId, "/" + rootId + "/", "big-" + i + ".bin", 0, "kb" + i, 10, "x", now, now);
+      ins.run(id, "u1", "u1", rootId, "/" + rootId + "/", "big-" + i + ".bin", 0, "kb" + i, 10, "x", now, now);
     }
     db._sql = 0;
     await trash.softDeleteMany(db, "u1", ids);

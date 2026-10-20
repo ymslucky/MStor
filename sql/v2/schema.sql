@@ -57,7 +57,7 @@ CREATE INDEX IF NOT EXISTS idx_invitations_pending ON invitations(workspace_id, 
 CREATE TABLE IF NOT EXISTS nodes (
   id TEXT PRIMARY KEY,
   workspace_id TEXT NOT NULL REFERENCES workspaces(id),
-  created_by TEXT NOT NULL REFERENCES users(id),
+  created_by TEXT REFERENCES users(id),        -- 根哨兵行无作者（NULL），真实节点必填
   parent_id TEXT NOT NULL DEFAULT '',
   path TEXT NOT NULL DEFAULT '/',
   name TEXT NOT NULL,

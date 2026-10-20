@@ -15,17 +15,18 @@ me.get("/", async (c) => {
   const s = c.get("selfUser");
   // used_bytes 与保留天数配置相互独立，并行降低 D1 串行往返（p99 优化）
   const [used, configuredDays] = await Promise.all([
-    usedBytes(c.env.DB, u.id),
+    usedBytes(c.env.DB, c.get("workspace").id),
     getSetting(c.env, "trash_retention_days"),
   ]);
   return c.json({
     id: u.id,
     name: u.name,
-    role: u.role,
-    quotaBytes: u.quota_bytes,
+    // 客户端契约仍用 admin/member；owner 视同 admin（workspace 内最高权限）
+    role: u.platform_admin === 1 ? "admin" : "member",
+    quotaBytes: c.get("workspace").quota_bytes,
     usedBytes: used,
     trashRetentionDays: Number(configuredDays ?? c.env.TRASH_RETENTION_DAYS),
-    self: { id: s.id, name: s.name, role: s.role },
+    self: { id: s.id, name: s.name, role: s.platform_admin === 1 ? "admin" : "member" },
     // 上传限制由服务端下发，前端不硬编码（小文件直传上限 / 分片大小）
     limits: { smallFileLimit: Number(c.env.SMALL_FILE_LIMIT), partSize: PART_SIZE },
   });
@@ -33,7 +34,7 @@ me.get("/", async (c) => {
 
 me.get("/admin/users", requireAdmin, async (c) => {
   const { results } = await c.env.DB.prepare(
-    "SELECT id, name, role, quota_bytes, created_at, disabled_at, email FROM users ORDER BY created_at",
+    "SELECT u.id, u.name, u.email, u.created_at, u.disabled_at, u.platform_admin, w.id AS workspace_id, w.quota_bytes, w.used_bytes FROM users u LEFT JOIN memberships m ON m.user_id = u.id AND m.role = 'owner' LEFT JOIN workspaces w ON w.id = m.workspace_id ORDER BY u.created_at",
   ).all();
   return c.json({ users: results });
 });
@@ -89,52 +90,70 @@ me.patch("/admin/users/:id", requireAdmin, async (c) => {
   if (c.req.param("id") === c.get("selfId") && (disabled === true || role === "member")) {
     throw errors.badRequest("不能停用或降级自己");
   }
-  // 兜底：至少保留一名启用中的 admin——停用/降级最后一个 admin 会导致管理入口永久不可恢复
-  const target = await c.env.DB.prepare("SELECT role, disabled_at FROM users WHERE id = ?1")
-    .bind(c.req.param("id"))
-    .first<{ role: string; disabled_at: number | null }>();
+  // 兜底：不允许停用/降级自己（否则无其他 admin 时永久无法恢复）
+  if (c.req.param("id") === c.get("selfId") && (disabled === true || role === "member")) {
+    throw errors.badRequest("不能停用或降级自己");
+  }
+  const targetId = c.req.param("id");
+  const target = await c.env.DB.prepare("SELECT platform_admin, disabled_at FROM users WHERE id = ?1")
+    .bind(targetId)
+    .first<{ platform_admin: number; disabled_at: number | null }>();
   if (!target) throw errors.notFound();
+  // 2.0 里「管理员」是跨空间的 platform_admin；至少保留一名启用中的
   const removesEnabledAdmin =
-    target.role === "admin" && target.disabled_at === null && (disabled === true || role === "member");
+    target.platform_admin === 1 && target.disabled_at === null && (disabled === true || role === "member");
   if (removesEnabledAdmin) {
     const { n } = (await c.env.DB.prepare(
-      "SELECT COUNT(*) AS n FROM users WHERE role = 'admin' AND disabled_at IS NULL",
+      "SELECT COUNT(*) AS n FROM users WHERE platform_admin = 1 AND disabled_at IS NULL",
     ).first<{ n: number }>())!;
     if (n <= 1) throw errors.badRequest("至少保留一名启用中的管理员");
   }
-  const sets: string[] = [];
-  const vals: unknown[] = [];
-  if (quota_bytes !== undefined) {
-    sets.push("quota_bytes = ?");
-    vals.push(quota_bytes);
-  }
+  // 用户级字段
+  const userSets: string[] = [];
+  const userVals: unknown[] = [];
   if (role) {
-    sets.push("role = ?");
-    vals.push(role);
+    userSets.push("platform_admin = ?");
+    userVals.push(role === "admin" ? 1 : 0);
   }
   if (disabled !== undefined) {
-    sets.push("disabled_at = ?");
-    vals.push(disabled ? Date.now() : null);
+    userSets.push("disabled_at = ?");
+    userVals.push(disabled ? Date.now() : null);
   }
   if (name !== undefined) {
-    sets.push("name = ?");
-    vals.push(name.trim());
+    userSets.push("name = ?");
+    userVals.push(name.trim());
   }
   if (email !== undefined) {
-    sets.push("email = ?");
-    vals.push(email === null ? null : email.trim().toLowerCase());
+    userSets.push("email = ?");
+    userVals.push(email === null ? null : email.trim().toLowerCase());
   }
-  if (!sets.length) throw errors.badRequest("无可更新字段");
-  vals.push(c.req.param("id"));
+  // 配额与租户内角色属于「个人空间」：尚未首登的用户还没有个人空间
+  const personal = await c.env.DB.prepare(
+    "SELECT w.id AS id FROM workspaces w JOIN memberships m ON m.workspace_id = w.id WHERE m.user_id = ?1 AND m.role = 'owner' LIMIT 1",
+  ).bind(targetId).first<{ id: string }>();
+  const stmts: D1PreparedStatement[] = [];
+  if (userSets.length) {
+    stmts.push(c.env.DB.prepare(`UPDATE users SET ${userSets.join(", ")} WHERE id = ?`).bind(...userVals, targetId));
+  }
+  if (personal) {
+    if (quota_bytes !== undefined) {
+      stmts.push(c.env.DB.prepare("UPDATE workspaces SET quota_bytes = ?1 WHERE id = ?2").bind(quota_bytes, personal.id));
+    }
+    if (role) {
+      stmts.push(
+        c.env.DB.prepare("UPDATE memberships SET role = ?1 WHERE workspace_id = ?2 AND user_id = ?3")
+          .bind(role === "admin" ? "owner" : "member", personal.id, targetId),
+      );
+    }
+  } else if (quota_bytes !== undefined || role) {
+    throw errors.badRequest("该用户尚未首次登录，暂无个人空间可配置");
+  }
+  if (!stmts.length) throw errors.badRequest("无可更新字段");
   try {
-    await c.env.DB.prepare(`UPDATE users SET ${sets.join(", ")} WHERE id = ?`)
-      .bind(...vals)
-      .run();
+    await c.env.DB.batch(stmts);
   } catch (e) {
     // email 撞部分唯一索引 idx_users_email → 可行动的 400 而非 500
-    if (isUniqueViolation(e)) {
-      throw errors.badRequest("该邮箱已绑定其他账号");
-    }
+    if (isUniqueViolation(e)) throw errors.badRequest("该邮箱已绑定其他账号");
     throw e;
   }
   return c.json({ ok: true });
