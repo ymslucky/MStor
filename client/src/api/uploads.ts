@@ -17,6 +17,9 @@ export function getSmallFileLimit(): number {
   return smallFileLimit;
 }
 
+import { makeThumbnail } from "../lib/thumbnail";
+import { uploadThumb } from "./thumbs";
+
 export interface UploadSmallOpts {
   /** 取消上传：中止 XHR */
   signal?: AbortSignal;
@@ -79,7 +82,12 @@ export const uploadSmall = (file: File, parentId: string, opts?: UploadSmallOpts
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
-          resolve(JSON.parse(xhr.responseText) as { id: string; name: string; size: number });
+          const created = JSON.parse(xhr.responseText) as { id: string; name: string; size: number };
+          // 缩略图尽力而为：客户端生成 WebP（图片且 ≤20MB），失败静默不影响上传
+          void makeThumbnail(file)
+            .then((blob) => (blob ? uploadThumb(created.id, blob) : null))
+            .catch(() => null);
+          resolve(created);
         } catch {
           reject(new ApiError(xhr.status, "INTERNAL", "响应解析失败"));
         }

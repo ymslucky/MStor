@@ -901,6 +901,56 @@ async function main() {
     assertEqual(n2, 1, "24h 内不应重复通知，实际 " + n2);
   });
 
+  // —— 缩略图（P2 B 媒体）——
+  await check("HTTP：缩略图上传/读取、512KB 上限、计入 thumb_bytes、跨租户 404", async () => {
+    const db = makeD1(schema1x);
+    const bucket = makeR2();
+    const env = makeEnv(db, bucket);
+    const alice = { "x-dev-email": "a@example.com" };
+    const bob = { "x-dev-email": "b@example.com" };
+    const up = await call(env, "/api/files/upload?name=pic.png&parentId=", {
+      method: "PUT",
+      headers: { ...alice, "content-type": "image/png" },
+      body: new Uint8Array([1, 2, 3, 4]),
+    });
+    const nodeId = up.json.id;
+    const thumbBytes = new Uint8Array([9, 8, 7]);
+    const put = await call(env, "/api/files/" + nodeId + "/thumb", {
+      method: "POST",
+      headers: { ...alice, "content-type": "image/webp" },
+      body: thumbBytes,
+    });
+    assertEqual(put.status, 201, "上传缩略图应 201，实际 " + put.status + " " + put.text.slice(0, 140));
+    const got = await call(env, "/api/files/" + nodeId + "/thumb", { headers: alice });
+    assertEqual(got.status, 200, "读取缩略图应 200");
+    assertEqual([...got.bytes], [9, 8, 7], "缩略图字节应一致");
+    assert((got.headers.get("cache-control") || "").includes("immutable"), "缩略图应可长缓存");
+    assertEqual(db.prepare("SELECT thumb_bytes t FROM storage_stats").first().t, 3, "thumb_bytes 应为 3");
+    // 覆盖写不应重复计数
+    await call(env, "/api/files/" + nodeId + "/thumb", {
+      method: "POST",
+      headers: { ...alice, "content-type": "image/webp" },
+      body: new Uint8Array([5, 5]),
+    });
+    assertEqual(db.prepare("SELECT thumb_bytes t FROM storage_stats").first().t, 3, "重复上传不应重复计入");
+    // 超限拒绝
+    const tooBig = await call(env, "/api/files/" + nodeId + "/thumb", {
+      method: "POST",
+      headers: { ...alice, "content-type": "image/webp" },
+      body: new Uint8Array(512 * 1024 + 1),
+    });
+    assertEqual(tooBig.status, 400, "超过 512KB 应 400，实际 " + tooBig.status);
+    // 跨租户
+    const bobGet = await call(env, "/api/files/" + nodeId + "/thumb", { headers: bob });
+    assertEqual(bobGet.status, 404, "跨租户读缩略图应 404，实际 " + bobGet.status);
+    const bobPut = await call(env, "/api/files/" + nodeId + "/thumb", {
+      method: "POST",
+      headers: { ...bob, "content-type": "image/webp" },
+      body: new Uint8Array([1]),
+    });
+    assertEqual(bobPut.status, 404, "跨租户写缩略图应 404，实际 " + bobPut.status);
+  });
+
   // —— 语句数预算（§4.6）：大批量下语句数必须与批次无关 ——
   await check("200 项批量：软删 ≤4 条语句、彻底删除 ≤5 条语句", async () => {
     const db = makeD1(schema1x);

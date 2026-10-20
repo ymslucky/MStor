@@ -7,6 +7,7 @@ import { serveObject } from "../lib/serve";
 import { isUniqueViolation } from "../lib/sql";
 import { assertGlobalBudget, notifyIfStorageLevelHigh, recomputeStorageStats, storageDeltaStmt } from "../data/storage";
 import { copyNode } from "../data/copy";
+import { getThumb, putThumb } from "../data/thumbs";
 import { recordMoveUndo, undoOperation } from "../data/operations";
 import { moveMany, permanentDeleteMany, softDeleteMany, softDeleteNode, parseIds } from "../data/trash";
 
@@ -60,6 +61,27 @@ files.post("/operations/:id/undo", async (c) => {
   return c.json({ ok: true });
 });
 
+// 缩略图：客户端 Canvas 生成 WebP 后上传（零服务端转换成本）；key 不可变，可长缓存
+files.post("/:id/thumb", async (c) => {
+  const body = c.req.raw.body;
+  if (!body) throw errors.badRequest("缺少请求体");
+  const result = await putThumb(c.env, c.get("workspace").id, c.req.param("id"), body, c.req.header("content-type") ?? "image/webp");
+  return c.json({ ok: true, bytes: result.bytes }, 201);
+});
+
+files.get("/:id/thumb", async (c) => {
+  const thumb = await getThumb(c.env, c.get("workspace").id, c.req.param("id"));
+  if (!thumb) throw errors.notFound();
+  return new Response(thumb.body, {
+    status: 200,
+    headers: {
+      "content-type": thumb.contentType,
+      // 内容不可变（同名修改=新节点），可长缓存；私有内容不进公共缓存
+      "cache-control": "private, max-age=31536000, immutable",
+      "x-content-type-options": "nosniff",
+    },
+  });
+});
 files.get("/:id/content", async (c) => {
   const node = await getNode(c.env.DB, c.get("workspace").id, c.req.param("id"));
   if (!node || node.is_dir) throw errors.notFound();

@@ -22,20 +22,22 @@ export interface StorageStats {
 export function storageDeltaStmt(
   db: D1Database,
   workspaceId: string,
-  delta: { active?: number; trash?: number },
+  delta: { active?: number; trash?: number; thumb?: number },
 ): D1PreparedStatement {
   const active = delta.active ?? 0;
   const trash = delta.trash ?? 0;
+  const thumb = delta.thumb ?? 0;
   return db
     .prepare(
-      `INSERT INTO storage_stats (workspace_id, active_bytes, trash_bytes, updated_at)
-       VALUES (?1, MAX(0, ?2), MAX(0, ?3), ?4)
+      `INSERT INTO storage_stats (workspace_id, active_bytes, trash_bytes, thumb_bytes, updated_at)
+       VALUES (?1, MAX(0, ?2), MAX(0, ?3), MAX(0, ?5), ?4)
        ON CONFLICT (workspace_id) DO UPDATE SET
          active_bytes = MAX(0, storage_stats.active_bytes + ?2),
          trash_bytes  = MAX(0, storage_stats.trash_bytes + ?3),
+         thumb_bytes  = MAX(0, storage_stats.thumb_bytes + ?5),
          updated_at   = excluded.updated_at`,
     )
-    .bind(workspaceId, active, trash, Date.now());
+    .bind(workspaceId, active, trash, Date.now(), thumb);
 }
 
 /** 重算 active/trash（低频路径用）：一条语句，按 workspace 索引有界扫描 */
