@@ -130,6 +130,17 @@ function AppShellLayout() {
                   {label}
                 </NavLink>
               ))}
+              <NavLink
+                to="/settings"
+                onClick={() => setMenuOpen(false)}
+                className={({ isActive }) =>
+                  `flex min-h-[44px] items-center gap-3 rounded-xl px-3 text-sm transition-colors ${
+                    isActive ? "bg-primary-soft font-medium text-primary-text" : "text-ink-2 hover:bg-primary-soft/60"
+                  }`
+                }
+              >
+                设置
+              </NavLink>
             </div>
           </div>
         </div>

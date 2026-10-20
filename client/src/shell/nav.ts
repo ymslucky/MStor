@@ -1,4 +1,4 @@
-import { Clock, FolderOpen, Settings, Share2, Star, Tag, Trash2 } from "lucide-react";
+import { Clock, FolderOpen, Share2, Star, Tag, Trash2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export interface NavItem {
@@ -29,10 +29,6 @@ export const SECTIONS: NavSection[] = [
       { to: "/shares", label: "分享", Icon: Share2 },
       { to: "/trash", label: "回收站", Icon: Trash2 },
     ],
-  },
-  {
-    title: "系统",
-    items: [{ to: "/settings", label: "设置", Icon: Settings }],
   },
 ];
 

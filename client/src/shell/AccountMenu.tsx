@@ -1,4 +1,5 @@
-import { LogOut } from "lucide-react";
+import { LogOut, Settings } from "lucide-react";
+import { NavLink } from "react-router-dom";
 import { Badge, IconButton } from "../components/ui";
 
 /** 侧栏底部档案行：登录账号（self）+ 角色 + 退出 */
@@ -26,6 +27,9 @@ export function AccountMenu({
           <Badge tone="accent">{account.role === "admin" ? "管理员" : "成员"}</Badge>
         </div>
       )}
+      <NavLink to="/settings" aria-label="设置" title="设置" className="inline-flex h-9 w-9 items-center justify-center rounded-full text-ink-2 transition-colors hover:bg-bg-sub hover:text-ink">
+        <Settings size={18} aria-hidden />
+      </NavLink>
       <IconButton label="退出" onClick={onLogout}>
         <LogOut size={18} aria-hidden />
       </IconButton>

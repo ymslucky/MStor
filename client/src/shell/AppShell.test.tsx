@@ -54,7 +54,8 @@ test("shows user name, quota and nav links", async () => {
   expect(within(nav).getByRole("link", { name: "文件" })).toBeInTheDocument();
   expect(within(nav).getByRole("link", { name: "回收站" })).toBeInTheDocument();
   expect(within(nav).getByRole("link", { name: "分享" })).toBeInTheDocument();
-  expect(within(nav).getByRole("link", { name: "设置" })).toBeInTheDocument();
+  // 设置已从侧栏导航移到头像行（AccountMenu），仍应可通过无障碍名称定位
+  expect(screen.getByRole("link", { name: "设置" })).toBeInTheDocument();
   expect(screen.getAllByText(/40 B/).length).toBeGreaterThanOrEqual(1); // usedBytes（侧栏 StorageMeter）
   // 移动顶栏与桌面档案行各有一个退出按钮，点击均走确认弹窗
   expect(screen.getAllByRole("button", { name: "退出" })).toHaveLength(2);
