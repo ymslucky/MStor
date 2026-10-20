@@ -1,6 +1,7 @@
 import { cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import { afterEach } from "vitest";
+import { afterEach, expect } from "vitest";
+import * as axeMatchers from "vitest-axe/matchers";
 
 // 本环境（Node 实验性 localStorage 未启用 + jsdom 未注入）下 localStorage 为 undefined，补内存实现
 if (typeof localStorage === "undefined") {
@@ -57,5 +58,8 @@ if (typeof globalThis.ResizeObserver === "undefined") {
   }
   Object.defineProperty(globalThis, "ResizeObserver", { configurable: true, value: ResizeObserverStub });
 }
+
+// 无障碍断言 matcher：expect(container).toHaveNoViolations()
+expect.extend(axeMatchers);
 
 afterEach(() => cleanup());

@@ -64,6 +64,12 @@
 
 **移动端**：导航为左侧抽屉（非底部 Tab）、长按 500ms 进入多选、下拉 70px 松手刷新当前目录。
 
+## 4.5 无障碍与视觉闸门
+
+- `client/src/test/a11y.test.tsx` 是**入口闸门**：原语、Dialog、ConflictDialog / BatchBar / UndoSnackbar、StatusBar 必须无 axe 违规。新增浮层或原语时在这里补一条用例，否则视为未登记。
+- matcher 类型声明在 `client/src/test/vitest-axe.d.ts`（vitest-axe 0.1.0 未自带 augmentation）。
+- 视觉回归（Playwright 三断点快照）尚未接入，是下一阶段目标。
+
 ## 5. 组件契约（新增组件必须遵守）
 
 1. 颜色只用语义令牌（`bg-surface-1` / `text-ink-2` / `border-line` …），**禁止** `bg-gray-100`、`text-blue-600` 这类调色板直写。
