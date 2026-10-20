@@ -17,6 +17,7 @@ import PreviewModal from "../components/PreviewModal";
 import ShareDialog from "../components/ShareDialog";
 import { BrowserKpi } from "../components/BrowserKpi";
 import { BrowserToolbar } from "../components/BrowserToolbar";
+import { BatchProgress } from "../components/BatchProgress";
 import UploadPanel from "../components/UploadPanel";
 import { toast } from "../components/Toaster";
 import { Button, ConfirmDialog, EmptyState, GlassCard, Skeleton } from "../components/ui";
@@ -427,23 +428,7 @@ export default function Browser() {
         </div>
       )}
       {preview && <PreviewModal key={preview.id} node={preview} onClose={() => setPreview(null)} />}
-      {/* 批量操作进行中进度条（弹窗底部语义）：处理中 i/n */}
-      {batchProgress && (
-        <div
-          data-testid="batch-progress"
-          className="fixed inset-x-0 bottom-20 z-50 flex justify-center px-4 sm:bottom-6"
-        >
-          <div className="flex items-center gap-2 rounded-card border border-line bg-white px-3 py-2 text-sm text-ink shadow-card">
-            <span className="whitespace-nowrap">处理中 {batchProgress.done}/{batchProgress.total}</span>
-            <div className="h-1.5 w-24 overflow-hidden rounded bg-bg-sub">
-              <div
-                className="h-full rounded bg-primary transition-[width] duration-200"
-                style={{ width: `${Math.round((batchProgress.done / Math.max(batchProgress.total, 1)) * 100)}%` }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      {batchProgress && <BatchProgress done={batchProgress.done} total={batchProgress.total} />}
       {sharing && <ShareDialog node={sharing} onClose={() => setSharing(null)} />}
       {creating && (
         <NameDialog
