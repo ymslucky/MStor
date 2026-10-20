@@ -194,20 +194,17 @@ CREATE TABLE IF NOT EXISTS orphan_objects (
 CREATE INDEX IF NOT EXISTS idx_orphan_queued ON orphan_objects(queued_at);
 
 -- 文件名检索：FTS5 trigram 子串匹配；external content 让 rowid 直连 nodes，触发器 O(1) 同步。
--- 范围锁定为「仅文件名」（不做正文抽取），目录行不入索引。
+-- 范围锁定为「仅文件名」（不做正文抽取）；目录名同样入索引（搜索文件夹是常态）。
 CREATE VIRTUAL TABLE IF NOT EXISTS nodes_fts USING fts5(name, content = 'nodes', content_rowid = 'rowid', tokenize = 'trigram');
 CREATE TRIGGER IF NOT EXISTS nodes_ai AFTER INSERT ON nodes
-WHEN new.is_dir = 0
 BEGIN
   INSERT INTO nodes_fts(rowid, name) VALUES (new.rowid, new.name);
 END;
 CREATE TRIGGER IF NOT EXISTS nodes_ad AFTER DELETE ON nodes
-WHEN old.is_dir = 0
 BEGIN
   INSERT INTO nodes_fts(nodes_fts, rowid, name) VALUES ('delete', old.rowid, old.name);
 END;
 CREATE TRIGGER IF NOT EXISTS nodes_au AFTER UPDATE OF name ON nodes
-WHEN new.is_dir = 0
 BEGIN
   INSERT INTO nodes_fts(nodes_fts, rowid, name) VALUES ('delete', old.rowid, old.name);
   INSERT INTO nodes_fts(rowid, name) VALUES (new.rowid, new.name);

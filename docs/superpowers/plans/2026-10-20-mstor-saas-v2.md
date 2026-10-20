@@ -750,6 +750,8 @@ WHERE id = ?2 AND workspace_id = ?3
 
 > **P2 进度（续）**：分享 2.0 已完成——`maxDownloads` / `oneTime` 创建分享；下载名额**原子扣减**（撤销/过期/上限全部写进 `WHERE`，靠 `meta.changes` 判定）；**Range 分段与预览、HEAD 不计数**（拖进度条不耗次数）；同来源 10 分钟去重（`share_downloads.dedupe_key` 唯一索引）；内容下发失败自动归还名额；`/:token/raw/:fileId` 支持 HEAD。全局上传中心已完成（队列提升到 AppShell + 全局浮层 + 服务端幂等/续传契约）。
 
+> **P2 进度（续 2）**：文件名检索 2.0 完成——服务端过滤（`type=file|dir`、`from/to`、`min/max`）、排序（`recent|name|size`）、分页（`recent` 用 keyset 游标 `u:ts:id`，其余用偏移游标 `o:N`）、`limit ≤ 100`；**目录名也进 FTS**（原先「目录不入索引」导致搜不到文件夹，已订正，schema 与迁移同步）。
+
 ### P2 · 商业级 1.0 功能（5–6 周）
 存储治理与成本中心（四分项计量 + 全局预算 + 507 拒绝）→ 全局上传中心（AppShell 级队列 + IndexedDB 续传 + 幂等键）→ 分享 2.0（下载上限、一次性、审计、限流）→ 文件名检索 2.0（前缀 LIKE + FTS + 服务端过滤 + 游标分页 + 高亮；不做内容检索）→ 收藏/最近/标签 → 复制/撤销（8–30s Snackbar）→ 管理台（用户/存储/设置/审计/健康）→ 通知 → 缩略图与预览矩阵（客户端 WebP + PDF.js 按需 chunk + DOCX/XLSX 客户端预览 + Range/HEAD/ETag 消费端）。
 退出标准：每项验收通过；预算不超（每请求 ≤40 子请求）；无 P0 缺陷。

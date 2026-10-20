@@ -106,11 +106,11 @@ check("版本号在节点内唯一", () => {
   assertThrows(() => db.prepare("INSERT INTO file_versions (id, workspace_id, node_id, version_no, r2_key, size, created_by, created_at) VALUES ('v2','w1','n2',1,'k2',10,'u1',?)").run(now), "同节点同版本号应被拒绝");
 });
 if (ftsStatus === "ok") {
-  check("文件名 FTS 触发器：插入/改名/删除同步，目录不入索引", () => {
+  check("文件名 FTS 触发器：插入/改名/删除同步，目录同样入索引", () => {
     const hit = (q) => db.prepare("SELECT rowid FROM nodes_fts WHERE nodes_fts MATCH ?").all(q).length;
     insertNode.run("n5","w1","u1","root-w1","/root-w1/","quarterly-report.pdf",0,"k5",5,"application/pdf",now,now);
     assert(hit("quarterly") > 0, "插入后可检索到 quarterly");
-    assertEqual(hit("docs"), 0, "目录名不应入索引");
+    assert(hit("docs") > 0, "目录名也应可检索（搜索文件夹是常态）");
     db.prepare("UPDATE nodes SET name = 'annual-summary.pdf' WHERE id = 'n5'").run();
     assertEqual(hit("quarterly"), 0, "改名后旧名应消失");
     assert(hit("summary") > 0, "改名后新名应可检索");

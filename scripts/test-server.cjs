@@ -589,6 +589,53 @@ async function main() {
     assertEqual(afterRevoke.status, 404, "撤销后应 404，实际 " + afterRevoke.status);
   });
 
+  // —— 文件名检索 2.0（P2 B8）：服务端过滤 + 排序 + 分页 ——
+  await check("HTTP：检索支持类型/大小过滤、按大小排序与游标分页", async () => {
+    const db = makeD1(schema1x);
+    const env = makeEnv(db, makeR2());
+    const auth = { "x-dev-email": "a@example.com" };
+    const upload = async (name, bytes) => {
+      const res = await call(env, "/api/files/upload?name=" + encodeURIComponent(name) + "&parentId=", {
+        method: "PUT",
+        headers: { ...auth, "content-type": "application/octet-stream" },
+        body: new Uint8Array(bytes),
+      });
+      assertEqual(res.status, 201, "上传 " + name + " 应 201，实际 " + res.status);
+      return res.json.id;
+    };
+    await upload("report-small.bin", 4);
+    await upload("report-mid.bin", 8);
+    await upload("report-big.bin", 12);
+    const dir = await call(env, "/api/dirs", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ parentId: "", name: "report-dir" }),
+    });
+    assertEqual(dir.status, 201, "建目录应 201");
+    const search = (qs) => call(env, "/api/search?q=report" + qs, { headers: auth });
+    const all = await search("");
+    assertEqual(all.status, 200, "检索应 200");
+    assertEqual(all.json.nodes.length, 4, "应命中 4 项（3 文件 + 1 目录）");
+    const dirsOnly = await search("&type=dir");
+    assertEqual(dirsOnly.json.nodes.length, 1, "type=dir 应只命中目录");
+    const bigOnly = await search("&type=file&min=8");
+    assertEqual(bigOnly.json.nodes.length, 2, "min=8 应命中 2 个文件");
+    const bySize = await search("&type=file&sort=size&limit=2");
+    assertEqual(bySize.json.nodes.length, 2, "第一页应有 2 项");
+    assertEqual(bySize.json.nodes[0].size, 12, "按大小降序首项应为 12");
+    assert(bySize.json.nextCursor && bySize.json.nextCursor.startsWith("o:"), "偏移游标应返回 o:N，实际 " + bySize.json.nextCursor);
+    const page2 = await call(env, "/api/search?q=report&type=file&sort=size&limit=2&cursor=" + encodeURIComponent(bySize.json.nextCursor), { headers: auth });
+    assertEqual(page2.json.nodes.length, 1, "第二页应有 1 项");
+    assertEqual(page2.json.nextCursor, null, "第二页后不应再有游标");
+    const firstPage = await search("&limit=2");
+    assert(firstPage.json.nextCursor && firstPage.json.nextCursor.startsWith("u:"), "recent 排序应返回 keyset 游标");
+    const secondPage = await call(env, "/api/search?q=report&limit=2&cursor=" + encodeURIComponent(firstPage.json.nextCursor), { headers: auth });
+    const firstIds = firstPage.json.nodes.map((n) => n.id);
+    const secondIds = secondPage.json.nodes.map((n) => n.id);
+    assertEqual(secondIds.filter((id) => firstIds.includes(id)).length, 0, "两页不应重叠");
+    assertEqual(firstIds.length + secondIds.length, 4, "两页合计应覆盖全部 4 项");
+  });
+
   // —— 语句数预算（§4.6）：大批量下语句数必须与批次无关 ——
   await check("200 项批量：软删 ≤4 条语句、彻底删除 ≤5 条语句", async () => {
     const db = makeD1(schema1x);
