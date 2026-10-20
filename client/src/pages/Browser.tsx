@@ -1,10 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import { TriangleAlert } from "lucide-react";
-import { listShares } from "../api/shares";
-import { addFavorite, listFavorites, removeFavorite } from "../api/library";
 import type { Node } from "../api/types";
 import Breadcrumb from "../components/Breadcrumb";
 import ContextMenu from "../components/ContextMenu";
@@ -18,7 +15,7 @@ import { UndoSnackbar } from "../components/UndoSnackbar";
 import { ConflictDialog } from "../components/ConflictDialog";
 import { useBrowserUpload } from "../hooks/useBrowserUpload";
 import { PullToRefreshIndicator } from "../components/PullToRefreshIndicator";
-import { usePullToRefresh } from "../hooks/usePullToRefresh";
+import { useBrowserQuery } from "../hooks/useBrowserQuery";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { BrowserDialogs } from "../components/BrowserDialogs";
 import { NodeRowActions } from "../components/NodeRowActions";
@@ -43,7 +40,6 @@ export default function Browser() {
   const [params, setParams] = useSearchParams();
   const dir = params.get("dir") ?? "";
   const { query, mkDir, rename, move, copy, remove, undo, undoId, clearUndo } = useFiles(dir);
-  const sharesQuery = useQuery({ queryKey: ["shares"], queryFn: listShares });
   const fileInput = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -63,7 +59,7 @@ export default function Browser() {
   const openDir = (id: string) => setParams(id ? { dir: id } : {});
 
   // 过滤后的当前目录列表（键盘导航/选择/渲染都以可见列表为准）
-  const allNodes = useMemo(() => query.data?.nodes ?? [], [query.data]);
+  const { allNodes, favIds, pull, sharedIds, toggleFavorite } = useBrowserQuery(query);
   const filtered = typeFilter !== "all" || timeFilter !== "all";
   const nodes = useMemo(() => filterNodes(allNodes, typeFilter, timeFilter), [allNodes, typeFilter, timeFilter]);
 
@@ -127,22 +123,6 @@ export default function Browser() {
   // 详情只有一种呈现：桌面 = 右侧布局列，窄屏 = 弹窗（不再用 CSS 隐藏 + Portal 的组合）
   const isDesktop = useMediaQuery("(min-width: 1024px)");
 
-  // 移动端下拉刷新当前目录（桌面无影响）
-  const pull = usePullToRefresh(() => query.refetch());
-
-  // 收藏：行内星标切换（服务端 PUT/DELETE 幂等），成功后刷新收藏集合
-  const favorites = useQuery({ queryKey: ["favorites"], queryFn: listFavorites });
-  const favIds = new Set((favorites.data?.nodes ?? []).map((n) => n.id));
-  const toggleFavorite = (n: Node) => {
-    const on = favIds.has(n.id);
-    const action = on ? removeFavorite(n.id) : addFavorite(n.id);
-    void action
-      .then(() => {
-        toast(on ? "已取消收藏" : "已收藏", "info");
-        return favorites.refetch();
-      })
-      .catch((e) => toast(e instanceof Error ? e.message : "操作失败"));
-  };
 
   const upload = useBrowserUpload({
     dir,
@@ -164,11 +144,6 @@ export default function Browser() {
     move.mutate({ id, to });
   };
 
-  // 共享标记：shares 列表里的节点 id
-  const sharedIds = useMemo(
-    () => new Set((sharesQuery.data?.shares ?? []).map((s) => s.node_id)),
-    [sharesQuery.data],
-  );
 
   const menuItemsFor = useNodeActions({
     closeMenu: () => setMenu(null),
