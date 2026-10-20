@@ -6,6 +6,7 @@ import { getSetting } from "../lib/settings";
 import { requireAdmin } from "../middleware/admin";
 import { PART_SIZE } from "../lib/constants";
 import { isUniqueViolation } from "../lib/sql";
+import { listMemberships } from "../data/workspaces";
 
 export const me = new Hono<AppEnv>();
 
@@ -29,6 +30,9 @@ me.get("/", async (c) => {
     self: { id: s.id, name: s.name, role: s.platform_admin === 1 ? "admin" : "member" },
     // 上传限制由服务端下发，前端不硬编码（小文件直传上限 / 分片大小）
     limits: { smallFileLimit: Number(c.env.SMALL_FILE_LIMIT), partSize: PART_SIZE },
+    // 空间列表与当前空间（前端切换器用；切空间 = 带 x-workspace 头）
+    workspace: { id: c.get("workspace").id, name: c.get("workspace").name, role: c.get("role") },
+    workspaces: (await listMemberships(c.env.DB, u.id)).map(({ workspace, role }) => ({ id: workspace.id, name: workspace.name, role })),
   });
 });
 

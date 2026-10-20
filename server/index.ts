@@ -3,6 +3,7 @@ import type { AppEnv, Env } from "./env";
 import { errorHandler } from "./lib/errors";
 import { accessMiddleware } from "./middleware/access";
 import { publicShares, shares } from "./routes/shares";
+import { workspaces } from "./routes/workspaces";
 import { me } from "./routes/me";
 import { files } from "./routes/files";
 import { dirs } from "./routes/dirs";
@@ -29,6 +30,7 @@ app.route("/api/uploads", uploads);
 app.route("/api/trash", trash);
 app.route("/api/search", search);
 app.route("/api/shares", shares);
+app.route("/api/workspaces", workspaces);
 
 export default {
   fetch: app.fetch,

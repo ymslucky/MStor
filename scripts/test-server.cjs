@@ -432,6 +432,41 @@ async function main() {
     assertEqual(db.prepare("SELECT deleted_at FROM nodes WHERE id = ?").first(nodeId).deleted_at, null, "Alice 的文件不应被删");
   });
 
+  // —— 邀请与成员（P1.3）：Access 身份 + 邀请令牌 → 自动落 membership ——
+  await check("HTTP：邀请 → 首登认领 → 落在邀请方空间，member 不能发邀请", async () => {
+    const db = makeD1(schema1x);
+    const env = makeEnv(db, makeR2());
+    const alice = { "x-dev-email": "a@example.com" };
+    const bob = { "x-dev-email": "b@example.com" };
+    const meAlice = await call(env, "/api/me", { headers: alice });
+    assertEqual(meAlice.status, 200, "Alice 首登应 200");
+    const invite = await call(env, "/api/workspaces/invitations", {
+      method: "POST",
+      headers: { ...alice, "content-type": "application/json" },
+      body: JSON.stringify({ email: "b@example.com", role: "member" }),
+    });
+    assertEqual(invite.status, 201, "发邀请应 201，实际 " + invite.status + " " + invite.text.slice(0, 160));
+    assert(invite.json.token && invite.json.url, "应返回 token 与 url");
+    const auditCreate = db.prepare("SELECT COUNT(*) c FROM audit_events WHERE action = 'invitation.create'").first().c;
+    assertEqual(auditCreate, 1, "发邀请应写审计事件");
+    const meBob = await call(env, "/api/me", { headers: bob });
+    assertEqual(meBob.status, 200, "Bob 首登应 200（认领邀请，不建个人空间）");
+    assertEqual(meBob.json.workspaces.length, 1, "Bob 应只属于邀请方空间");
+    assertEqual(meBob.json.workspace.id, meAlice.json.workspace.id, "Bob 的当前空间应是 Alice 的空间");
+    const accepted = db.prepare("SELECT COUNT(*) c FROM invitations WHERE accepted_at IS NOT NULL").first().c;
+    assertEqual(accepted, 1, "邀请应被标记为已接受");
+    const auditAccept = db.prepare("SELECT COUNT(*) c FROM audit_events WHERE action = 'invitation.accept'").first().c;
+    assertEqual(auditAccept, 1, "认领应写审计事件");
+    const asMember = await call(env, "/api/workspaces/invitations", {
+      method: "POST",
+      headers: { ...bob, "content-type": "application/json" },
+      body: JSON.stringify({ email: "c@example.com" }),
+    });
+    assertEqual(asMember.status, 403, "member 发邀请应 403，实际 " + asMember.status);
+    const members = await call(env, "/api/workspaces/members", { headers: alice });
+    assertEqual(members.json.members.length, 2, "空间应有 2 名成员");
+  });
+
   // —— 语句数预算（§4.6）：大批量下语句数必须与批次无关 ——
   await check("200 项批量：软删 ≤4 条语句、彻底删除 ≤5 条语句", async () => {
     const db = makeD1(schema1x);

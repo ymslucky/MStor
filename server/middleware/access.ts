@@ -3,6 +3,7 @@ import { createLocalJWKSet, createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey 
 import type { AppEnv } from "../env";
 import { HttpError, errors } from "../lib/errors";
 import { ensurePersonalWorkspace, resolveWorkspace } from "../data/workspaces";
+import { acceptPendingInvitations } from "../data/invitations";
 import { ensureRootDir } from "../lib/nodes";
 import { bindOrProvision, type AccessIdentity } from "../lib/users";
 import type { UserRow } from "../types";
@@ -103,9 +104,15 @@ export async function accessMiddleware(c: Context<AppEnv>, next: Next) {
     resolved = await resolveWorkspace(c.env.DB, user.id, requested);
   } catch (e) {
     if (requested || !(e instanceof HttpError) || e.status !== 404) throw e;
-    const created = await ensurePersonalWorkspace(c.env.DB, user.id);
-    await ensureRootDir(c.env.DB, created.id);
-    resolved = { workspace: created, role: "owner" as const };
+    // 首登：先认领邮件邀请（落 membership），没有邀请才建个人空间
+    const joined = await acceptPendingInvitations(c.env.DB, user.id, user.email);
+    if (joined.length) {
+      resolved = await resolveWorkspace(c.env.DB, user.id, null);
+    } else {
+      const created = await ensurePersonalWorkspace(c.env.DB, user.id);
+      await ensureRootDir(c.env.DB, created.id);
+      resolved = { workspace: created, role: "owner" as const };
+    }
   }
   c.set("workspace", resolved.workspace);
   c.set("role", resolved.role);
