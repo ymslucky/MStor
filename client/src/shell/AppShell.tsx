@@ -9,6 +9,8 @@ import { STORAGE_KEYS, getString, removeItem, setString } from "../lib/storage";
 import type { Me } from "../api/types";
 import { Badge, ConfirmDialog, IconButton } from "../components/ui";
 import { ErrorBoundary } from "../components/ErrorBoundary";
+import { UploadQueueProvider } from "../hooks/UploadQueueProvider";
+import { GlobalUploadDock } from "../components/GlobalUploadDock";
 import SearchBox from "../components/SearchBox";
 import OfflineBar from "../components/OfflineBar";
 import StorageMeter from "../components/StorageMeter";
@@ -57,7 +59,7 @@ const NAV = [
 // 顶部工具栏左侧页面标题（文件页的面包屑由页内渲染，工具栏只放页名）
 const PAGE_TITLES: Record<string, string> = { "/": "文件", "/trash": "回收站", "/shares": "分享", "/settings": "设置" };
 
-export default function AppShell() {
+function AppShellLayout() {
   const me = useMe();
   const queryClient = useQueryClient();
   const [logoutOpen, setLogoutOpen] = useState(false);
@@ -246,5 +248,15 @@ export default function AppShell() {
       <OfflineBar />
       <Toaster />
     </div>
+  );
+}
+
+/** 外壳出口：上传队列在所有页面之上，切换路由不会丢队列 */
+export default function AppShell() {
+  return (
+    <UploadQueueProvider>
+      <AppShellLayout />
+      <GlobalUploadDock />
+    </UploadQueueProvider>
   );
 }

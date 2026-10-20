@@ -14,7 +14,7 @@ export const uploads = new Hono<AppEnv>();
 
 uploads.post("/", async (c) => {
   const user = c.get("user");
-  const { parentId = "", name, size } = await c.req.json<{ parentId?: string; name: string; size: number; mime?: string }>();
+  const { parentId = "", name, size, idempotencyKey: bodyIdem } = await c.req.json<{ parentId?: string; name: string; size: number; mime?: string; idempotencyKey?: string }>();
   const safeName = validateNodeName(name);
   if (!Number.isFinite(size) || size <= 0) throw errors.badRequest("参数不合法");
   const limit = Number(c.env.SMALL_FILE_LIMIT);
@@ -22,15 +22,33 @@ uploads.post("/", async (c) => {
   if (size <= limit) throw errors.badRequest("小文件请使用直传接口");
   const parent = await resolveParent(c.env.DB, c.get("workspace").id, parentId);
   if (!parent || !parent.is_dir) throw errors.notFound();
+  // 幂等：同一个 Key 重复 init 返回同一会话（客户端刷新/重试不会产生第二个 multipart、也不会重复占预算）
+  const idem = (c.req.header("idempotency-key") ?? bodyIdem ?? "").trim();
+  if (idem) {
+    const existing = await c.env.DB.prepare(
+      "SELECT id FROM uploads WHERE workspace_id = ?1 AND idempotency_key = ?2 AND status = 'pending'",
+    ).bind(c.get("workspace").id, idem).first<{ id: string }>();
+    if (existing) return c.json({ uploadId: existing.id, partSize: PART_SIZE, resumed: true }, 200);
+  }
   await assertGlobalBudget(c.env, size);
   await assertQuota(c.env.DB, c.get("workspace").id, size, Number(c.env.DEFAULT_QUOTA_BYTES));
   const id = randomId();
   const key = `${user.id}/${id}`;
   const r2UploadId = await createMultipart(c.env, key);
   await c.env.DB.prepare(
-    "INSERT INTO uploads (id, workspace_id, owner_id, parent_id, name, size, r2_key, r2_upload_id, status, created_at, updated_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,'pending',?9,?9)"
-  ).bind(id, c.get("workspace").id, user.id, parent.id, safeName, size, key, r2UploadId, Date.now()).run();
+    "INSERT INTO uploads (id, workspace_id, owner_id, parent_id, name, size, r2_key, r2_upload_id, idempotency_key, status, created_at, updated_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,'pending',?10,?10)"
+  ).bind(id, c.get("workspace").id, user.id, parent.id, safeName, size, key, r2UploadId, idem || null, Date.now()).run();
   return c.json({ uploadId: id, partSize: PART_SIZE }, 201);
+});
+
+uploads.get("/", async (c) => {
+  // 未完成的大文件会话：刷新/换页后前端据此恢复进度（分片状态在客户端 IndexedDB，这里只给会话元数据）
+  const { results } = await c.env.DB.prepare(
+    `SELECT id, name, size, mime, status, created_at, updated_at FROM uploads
+     WHERE workspace_id = ?1 AND owner_id = ?2 AND status IN ('pending','completing')
+     ORDER BY created_at DESC LIMIT 100`,
+  ).bind(c.get("workspace").id, c.get("user").id).all();
+  return c.json({ uploads: results, partSize: PART_SIZE });
 });
 
 uploads.post("/:id/part-urls", async (c) => {

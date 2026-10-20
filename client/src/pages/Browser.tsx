@@ -24,7 +24,7 @@ import { useBatchOps } from "../hooks/useBatchOps";
 import { useFiles } from "../hooks/useFiles";
 import { useFileSelection } from "../hooks/useFileSelection";
 import { useKeyboardNav } from "../hooks/useKeyboardNav";
-import { useUploadQueue } from "../hooks/useUploadQueue";
+import { useUploadQueueContext } from "../hooks/UploadQueueProvider";
 import { collectDirectory, collectUploads, supportsDirectoryPicker } from "../lib/dirscan";
 import { triggerDownload } from "../lib/download";
 import { filterNodes } from "../lib/fileFilters";
@@ -41,7 +41,7 @@ export default function Browser() {
   const fileInput = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  const queue = useUploadQueue();
+  const queue = useUploadQueueContext();
   const [creating, setCreating] = useState(false);
   const [renaming, setRenaming] = useState<Node | null>(null);
   const [moving, setMoving] = useState<Node | null>(null);
