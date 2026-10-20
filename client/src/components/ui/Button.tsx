@@ -1,6 +1,10 @@
 import type * as React from "react";
+import { cn } from "../../lib/cn";
 
-// 明亮按钮：主按钮实色 + 柔和投影，hover 抬升、按下微缩（spring）
+/**
+ * 按钮：状态反馈统一走状态层（.state-layer → --state-hover/--state-press），
+ * 不再按皮肤硬编码 hover 颜色；形变只保留按下时的轻微缩放。
+ */
 export function Button({
   variant = "primary",
   size = "md",
@@ -8,12 +12,12 @@ export function Button({
   ...rest
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "ghost" | "danger"; size?: "md" | "sm" }) {
   const base =
-    "inline-flex items-center justify-center gap-1.5 rounded-btn border font-medium transition-[transform,box-shadow,background-color] duration-(--duration-fast) ease-[var(--ease-spring)] disabled:opacity-45 disabled:pointer-events-none tap active:scale-[0.985]";
+    "state-layer inline-flex items-center justify-center gap-1.5 rounded-btn border font-medium transition-[box-shadow,transform] duration-(--duration-fast) ease-[var(--ease-standard)] disabled:opacity-45 disabled:pointer-events-none tap active:scale-[0.985]";
   const sizes = { md: "px-3.5 py-2 text-sm", sm: "px-2.5 py-1 text-xs" };
   const variants = {
-    primary: "border-transparent bg-primary text-white shadow-card hover:bg-accent-deep hover:shadow-lift",
-    ghost: "border-line-strong bg-white/70 text-ink shadow-soft backdrop-blur-sm hover:bg-white hover:shadow-card",
-    danger: "border-transparent bg-danger-soft text-danger-text shadow-soft hover:bg-danger hover:text-white hover:shadow-card",
+    primary: "border-transparent bg-primary text-white shadow-card hover:shadow-lift",
+    ghost: "border-line-strong bg-surface-1 text-ink shadow-soft hover:shadow-card",
+    danger: "border-transparent bg-danger-soft text-danger-text shadow-soft hover:shadow-card",
   };
-  return <button className={`${base} ${sizes[size]} ${variants[variant]} ${className}`} {...rest} />;
+  return <button className={cn(base, sizes[size], variants[variant], className)} {...rest} />;
 }

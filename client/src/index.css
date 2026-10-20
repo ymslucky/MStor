@@ -197,6 +197,52 @@ body {
 .z-menu { z-index: var(--z-menu); }
 .z-toast { z-index: var(--z-toast); }
 
+/* 状态层（Material 借鉴）：悬停 6% / 按下 12%，与底色无关，深色主题同样成立 */
+.state-layer {
+  position: relative;
+  isolation: isolate;
+}
+.state-layer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: transparent;
+  pointer-events: none;
+  transition: background-color var(--motion-press, 80ms) linear;
+}
+.state-layer:hover::after {
+  background: var(--state-hover);
+}
+.state-layer:active::after {
+  background: var(--state-press);
+}
+@media (prefers-reduced-motion: reduce) {
+  .state-layer::after {
+    transition: none;
+  }
+}
+
+/* 状态层（Material 借鉴）：悬停 6% / 按下 12%，与底色无关，深色与粗野皮肤同样成立 */
+.state-layer {
+  position: relative;
+  isolation: isolate;
+}
+.state-layer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: transparent;
+  pointer-events: none;
+  transition: background-color 80ms linear;
+}
+.state-layer:hover::after { background: var(--state-hover); }
+.state-layer:active::after { background: var(--state-press); }
+@media (prefers-reduced-motion: reduce) {
+  .state-layer::after { transition: none; }
+}
+
 /* 数字等宽（只有数值） */
 .num,
 .tabular-nums {
