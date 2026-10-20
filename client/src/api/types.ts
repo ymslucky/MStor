@@ -71,6 +71,10 @@ export interface Share {
   token: string;
   expires_at: number | null;
   downloads: number;
+  /** 下载次数上限（一次性分享为 1；null 表示不限） */
+  max_downloads?: number | null;
+  /** 最近一次下载时间（无下载为 null） */
+  last_download_at?: number | null;
   created_at: number;
   node_name: string;
   node_is_dir: 0 | 1;

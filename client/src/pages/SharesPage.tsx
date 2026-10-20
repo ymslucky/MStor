@@ -77,9 +77,12 @@ export default function SharesPage() {
                     <div className="flex items-center gap-1.5 font-medium text-ink">
                       <NodeIcon node={{ is_dir: s.node_is_dir, mime: null }} size={16} className="shrink-0" />
                       <span className="truncate">{s.node_name}</span>
-                      {/* 过期灰标：纯展示（打开链接仍 410） */}
-                      {s.expires_at && s.expires_at < Date.now() && (
-                        <span className="shrink-0 rounded bg-bg-sub px-1.5 py-0.5 text-[10px] text-ink-3">已过期</span>
+                      {/* 失效标记：纯展示（打开链接仍 410） */}
+                      {s.expires_at != null && s.expires_at < Date.now() && (
+                        <span className="shrink-0 rounded-full bg-bg-sub px-1.5 py-0.5 text-[10px] text-ink-3">已过期</span>
+                      )}
+                      {s.max_downloads != null && s.downloads >= s.max_downloads && (
+                        <span className="shrink-0 rounded-full bg-danger-soft px-1.5 py-0.5 text-[10px] text-danger-text">已用尽</span>
                       )}
                     </div>
                     <div className="text-xs text-ink-3">/s/{s.token}</div>
@@ -87,7 +90,9 @@ export default function SharesPage() {
                   <td className="hidden py-2 text-xs text-ink-2 sm:table-cell">
                     {s.node_is_dir ? "文件夹" : formatBytes(s.node_size)}
                     {" · "}已下载 {s.downloads} 次
-                    {s.expires_at ? ` · 有效期至 ${formatDate(s.expires_at)}` : " · 永久"}
+                    {s.max_downloads != null ? ` / 上限 ${s.max_downloads}` : " · 不限次数"}
+                    {s.last_download_at ? ` · 最近 ${formatDate(s.last_download_at)}` : " · 尚未下载"}
+                    {s.expires_at ? ` · 至 ${formatDate(s.expires_at)}` : " · 永久"}
                   </td>
                   <td className="py-2 text-right">
                     <a href={`/s/${s.token}`} className="mr-3 text-primary-text hover:underline" target="_blank" rel="noreferrer">
