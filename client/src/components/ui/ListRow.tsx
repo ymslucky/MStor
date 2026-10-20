@@ -16,7 +16,7 @@ export function ListRow({
       style={{ minHeight: "var(--density-row-h)" }}
       className={cn(
         "flex items-center gap-2 rounded-md px-2 text-sm text-ink transition-colors",
-        selected ? "bg-primary-soft/60" : "hover:bg-bg-sub",
+        selected ? "bg-primary-soft/60" : "state-layer hover:shadow-soft",
         className,
       )}
       {...rest}

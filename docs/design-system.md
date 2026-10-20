@@ -44,6 +44,9 @@
 | `GlassCard` | 自研（历史名，等价于 Surface） | ✅ |
 | `Surface` | 卡片/面板唯一出处（描边+圆角+投影） | ✅ 新增 |
 | `Pill` | 胶囊标签唯一出处（替代手写 rounded-full bg-*-soft） | ✅ 新增 |
+| 状态反馈 | `.state-layer`（hover 6% / press 12%，与底色无关）；Button / IconButton / ListRow / NavItem 已采用 | ✅ |
+| 皮肤 | paper / **slate（默认）** / ink / **brutal（新粗野主义）**，只覆盖 L1 + 形态令牌 | ✅ |
+| 密度 | comfortable（行高 48）/ compact（40），行高由 --density-row-h 驱动 | ✅ |
 | `Skeleton` | 自研 | ✅ |
 | `Panel` | 浮层容器（level=e2 glass / e3 glass-strong），唯一出处 | ✅ 新增 |
 | `Field` | label + 控件 + hint/error（自动 id 与 aria-describedby、error 用 role=alert） | ✅ 新增 |
