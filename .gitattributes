@@ -1,0 +1,3 @@
+# 统一换行：仓库现混有 CRLF/LF（这正是 `npx prettier --check .` 报 129 个文件不通过的真实原因，
+# 不是排版问题）。先声明规则，存量文件待一次 `git add --renormalize .` 统一后即可启用 format 门禁。
+* text=auto eol=lf

@@ -2,7 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # 仓库主分支是 master；此前只监听 main，导致 push 从未触发过 CI（质量门禁实际只覆盖 PR）
+    branches: [main, master]
   pull_request:
 
 jobs:
@@ -17,3 +18,5 @@ jobs:
       - run: npm ci
       - run: npm run test:ci
       - run: npm run check
+      # 未纳入 prettier --check：仓库现混有 CRLF/LF，129 个文件会被判为不通过（真实原因是行尾，
+      # 不是排版）。见 .gitattributes 注释；待一次 renormalize + format 提交后再加门禁。
