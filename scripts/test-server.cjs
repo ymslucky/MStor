@@ -280,7 +280,158 @@ async function main() {
       assert(dupRejected, "同空间同名必须被拒绝（部分唯一索引是 workspace 维度）");
     });
   
-    // —— 语句数预算（§4.6）：大批量下语句数必须与批次无关 ——
+    // —— HTTP 层（真 Hono fetch + D1 垫片 + AUTH_MODE=dev 身份）——
+  const worker = require(join(outDir, "server/index.js")).default;
+  const ctx = { waitUntil() {}, passThroughOnException() {} };
+  function makeEnv(db, bucket) {
+    return {
+      DB: db,
+      BUCKET: bucket,
+      ASSETS: {},
+      AUTH_MODE: "dev",
+      DEV_AUTH_EMAIL: "a@example.com",
+      ACCESS_PROVISION: "on",
+      ACCESS_TEAM_DOMAIN: "https://test.cloudflareaccess.com",
+      ACCESS_AUD: "test-aud",
+      PUBLIC_URL: "https://stor.test",
+      R2_ENDPOINT: "https://r2.test/mstor",
+      R2_ACCESS_KEY_ID: "k",
+      R2_SECRET_ACCESS_KEY: "s",
+      DEFAULT_QUOTA_BYTES: "10737418240",
+      SMALL_FILE_LIMIT: String(60 * 1048576),
+      TRASH_RETENTION_DAYS: "30",
+    };
+  }
+  function makeR2() {
+    const store = new Map();
+    return {
+      store,
+      put: async (key, body) => {
+        const bytes = body instanceof Uint8Array ? body : new Uint8Array(await new Response(body).arrayBuffer());
+        store.set(key, bytes);
+        return { size: bytes.byteLength, key };
+      },
+      get: async (key, opts) => {
+        const bytes = store.get(key);
+        if (!bytes) return null;
+        if (opts && opts.range) {
+          const offset = opts.range.offset || 0;
+          const length = opts.range.length === undefined ? bytes.byteLength - offset : opts.range.length;
+          return { body: bytes.slice(offset, offset + length), size: bytes.byteLength };
+        }
+        return { body: bytes, size: bytes.byteLength };
+      },
+      head: async (key) => (store.has(key) ? { size: store.get(key).byteLength } : null),
+      delete: async (keys) => {
+        for (const k of Array.isArray(keys) ? keys : [keys]) store.delete(k);
+      },
+    };
+  }
+  async function call(env, path, init) {
+    const req = new Request("https://stor.test" + path, init || {});
+    const res = await worker.fetch(req, env, ctx);
+    const buf = await res.arrayBuffer();
+    const text = Buffer.from(buf).toString("utf8");
+    let json = null;
+    try { json = JSON.parse(text); } catch { /* 非 JSON 响应（文件内容） */ }
+    return { status: res.status, json, text, bytes: Buffer.from(buf), headers: res.headers };
+  }
+
+  await check("HTTP：health 免认证 + /api/me 首登自动建号（首个用户 admin）", async () => {
+    const db = makeD1(schema1x);
+    const env = makeEnv(db, makeR2());
+    const health = await call(env, "/api/health");
+    assertEqual(health.status, 200, "health 应 200");
+    const me = await call(env, "/api/me", { headers: { "x-dev-email": "a@example.com" } });
+    assertEqual(me.status, 200, "/api/me 应 200，实际 " + me.status + " " + me.text.slice(0, 120));
+    assertEqual(me.json.role, "admin", "首个建号用户应为 admin");
+    assertEqual(db.prepare("SELECT COUNT(*) c FROM users").first().c, 1, "应只建一个用户");
+  });
+
+  await check("HTTP：建目录 → 列表 → 上传 → 下载 → Range 206", async () => {
+    const db = makeD1(schema1x);
+    const bucket = makeR2();
+    const env = makeEnv(db, bucket);
+    const auth = { "x-dev-email": "a@example.com" };
+    const dir = await call(env, "/api/dirs", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ parentId: "", name: "docs" }),
+    });
+    assertEqual(dir.status, 201, "建目录应 201，实际 " + dir.status + " " + dir.text.slice(0, 120));
+    const listing = await call(env, "/api/files?parentId=", { headers: auth });
+    assertEqual(listing.status, 200, "列表应 200");
+    assertEqual(listing.json.nodes.length, 1, "列表应有 1 个目录");
+    const payload = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
+    const up = await call(env, "/api/files/upload?name=a.bin&parentId=", {
+      method: "PUT",
+      headers: { ...auth, "content-type": "application/octet-stream" },
+      body: payload,
+    });
+    assertEqual(up.status, 201, "上传应 201，实际 " + up.status + " " + up.text.slice(0, 160));
+    const id = up.json.id;
+    const dl = await call(env, "/api/files/" + id + "/content", { headers: auth });
+    assertEqual(dl.status, 200, "下载应 200");
+    assertEqual([...dl.bytes], [1, 2, 3, 4, 5, 6, 7, 8], "下载字节应与上传一致");
+    const ranged = await call(env, "/api/files/" + id + "/content", { headers: { ...auth, range: "bytes=0-3" } });
+    assertEqual(ranged.status, 206, "Range 应 206，实际 " + ranged.status);
+    assertEqual([...ranged.bytes], [1, 2, 3, 4], "Range 返回前 4 字节");
+    assertEqual(ranged.headers.get("content-range"), "bytes 0-3/8", "content-range 应正确");
+    assertEqual(db.prepare("SELECT used_bytes u FROM users WHERE email='a@example.com'").first().u, 8, "配额应记为 8 字节");
+  });
+
+  await check("HTTP：批量删除 → 回收站 → 批量还原", async () => {
+    const db = makeD1(schema1x);
+    const env = makeEnv(db, makeR2());
+    const auth = { "x-dev-email": "a@example.com" };
+    const ids = [];
+    for (const name of ["x1.bin", "x2.bin"]) {
+      const up = await call(env, "/api/files/upload?name=" + name + "&parentId=", {
+        method: "PUT",
+        headers: { ...auth, "content-type": "application/octet-stream" },
+        body: new Uint8Array([1, 2]),
+      });
+      ids.push(up.json.id);
+    }
+    const del = await call(env, "/api/files/batch-delete", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ ids }),
+    });
+    assertEqual(del.status, 200, "批量删除应 200，实际 " + del.status + " " + del.text.slice(0, 120));
+    const trash = await call(env, "/api/trash", { headers: auth });
+    assertEqual(trash.json.nodes.length, 2, "回收站应有 2 项");
+    const restored = await call(env, "/api/trash/batch-restore", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ ids }),
+    });
+    assertEqual(restored.json.restored, 2, "应还原 2 项");
+    const listing = await call(env, "/api/files?parentId=", { headers: auth });
+    assertEqual(listing.json.nodes.length, 2, "还原后列表应有 2 项");
+  });
+
+  await check("HTTP：跨用户隔离（他人节点一律 404，列表互不可见）", async () => {
+    const db = makeD1(schema1x);
+    const env = makeEnv(db, makeR2());
+    const alice = { "x-dev-email": "a@example.com" };
+    const bob = { "x-dev-email": "b@example.com" };
+    const up = await call(env, "/api/files/upload?name=secret.bin&parentId=", {
+      method: "PUT",
+      headers: { ...alice, "content-type": "application/octet-stream" },
+      body: new Uint8Array([9, 9, 9]),
+    });
+    const nodeId = up.json.id;
+    const bobList = await call(env, "/api/files?parentId=", { headers: bob });
+    assertEqual(bobList.json.nodes.length, 0, "Bob 不应看到 Alice 的文件");
+    const bobDl = await call(env, "/api/files/" + nodeId + "/content", { headers: bob });
+    assertEqual(bobDl.status, 404, "Bob 下载 Alice 的文件应 404，实际 " + bobDl.status);
+    const bobDel = await call(env, "/api/files/" + nodeId, { method: "DELETE", headers: bob });
+    assertEqual(bobDel.status, 404, "Bob 删除 Alice 的文件应 404，实际 " + bobDel.status);
+    assertEqual(db.prepare("SELECT deleted_at FROM nodes WHERE id = ?").first(nodeId).deleted_at, null, "Alice 的文件不应被删");
+  });
+
+  // —— 语句数预算（§4.6）：大批量下语句数必须与批次无关 ——
   await check("200 项批量：软删 ≤4 条语句、彻底删除 ≤5 条语句", async () => {
     const db = makeD1(schema1x);
     seed(db);
