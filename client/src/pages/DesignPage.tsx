@@ -49,7 +49,7 @@ export default function DesignPage() {
         </p>
       </header>
 
-      <GlassCard className="p-5">
+      <GlassCard className="p-4">
         <h2 className="mb-3 text-sm font-semibold text-ink">颜色令牌</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {SWATCHES.map((s) => (
@@ -63,7 +63,7 @@ export default function DesignPage() {
       </GlassCard>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <GlassCard className="p-5">
+        <GlassCard className="p-4">
           <h2 className="mb-3 text-sm font-semibold text-ink">圆角阶梯</h2>
           <div className="flex flex-wrap items-end gap-2">
             {RADII.map((r) => (
@@ -75,7 +75,7 @@ export default function DesignPage() {
           </div>
         </GlassCard>
 
-        <GlassCard className="p-5">
+        <GlassCard className="p-4">
           <h2 className="mb-3 text-sm font-semibold text-ink">阴影阶梯</h2>
           <div className="flex flex-wrap items-end gap-3">
             {SHADOWS.map((s) => (
@@ -88,7 +88,7 @@ export default function DesignPage() {
         </GlassCard>
       </div>
 
-      <GlassCard className="p-5">
+      <GlassCard className="p-4">
         <h2 className="mb-3 text-sm font-semibold text-ink">字号阶梯</h2>
         <div className="space-y-1">
           {TYPE.map((t) => (
@@ -100,7 +100,7 @@ export default function DesignPage() {
         </div>
       </GlassCard>
 
-      <GlassCard className="p-5">
+      <GlassCard className="p-4">
         <h2 className="mb-3 text-sm font-semibold text-ink">原语（7）</h2>
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">

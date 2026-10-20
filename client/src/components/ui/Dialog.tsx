@@ -31,7 +31,7 @@ export function Dialog({ open, onClose, title, children, footer, skin = "white" 
           data-testid="dialog-panel"
           className={cn(
             "anim-pop fixed inset-x-0 bottom-0 z-50 mx-auto w-full rounded-t-panel p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] outline-none",
-            "sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-panel sm:p-5",
+            "sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-panel sm:p-4",
             skin === "glass" ? "glass-strong" : "glass",
           )}
         >
