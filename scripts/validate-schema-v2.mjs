@@ -131,5 +131,77 @@ if (ftsStatus === "ok") {
   console.log("  skip  文件名 FTS 断言（本机 SQLite 无 FTS5/trigram，D1 侧仍需一次真实执行验证）");
 }
 
+// —— 批量操作模式（D1 约束下的最少语句数）——
+// 现状实现：IN 占位符分片（每片 ≤90 参数）+ 每 30 根一条语句，500 项约 11 条语句 / 11 次往返。
+// 目标实现：JSON 数组一次绑定 + json_each 展开，语句数与批次无关。
+let stmtCount = 0;
+const counted = { prepare: (s) => { stmtCount += 1; return db.prepare(s); }, exec: (s) => db.exec(s) };
+const BULK = 500;
+
+check("json_each 可一次绑定任意长度 id 列表（绕开 100 参数上限）", () => {
+  const ids = Array.from({ length: BULK }, (_, i) => "bulk-" + i);
+  const row = db.prepare("SELECT COUNT(*) AS c FROM json_each(?1)").get(JSON.stringify(ids));
+  assertEqual(row.c, BULK, "json_each 应展开全部 id");
+  // 反证：同样的列表用 IN 占位符需要 500 个参数 + 分片
+  assert(BULK > 100, "样本必须超过 100 参数上限才有对比意义");
+});
+
+check("软删 500 项：3 条语句（SUM + UPDATE + 配额）且配额精确", () => {
+  const root = db.prepare("SELECT id FROM nodes WHERE workspace_id='w1' AND parent_id='' AND name=''").get().id;
+  const ins = db.prepare("INSERT INTO nodes (id, workspace_id, created_by, parent_id, path, name, is_dir, r2_key, size, mime, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)");
+  let expected = 0;
+  for (let i = 0; i < BULK; i += 1) {
+    const size = 10 + i;
+    expected += size;
+    ins.run("bulk-" + i, "w1", "u1", root, "/" + root + "/", "bulk-" + i + ".bin", 0, "k" + i, size, "application/octet-stream", now, now);
+  }
+  db.prepare("UPDATE workspaces SET used_bytes = ? WHERE id='w1'").run(expected);
+  const idsJson = JSON.stringify(Array.from({ length: BULK }, (_, i) => "bulk-" + i));
+  const scope = "workspace_id = 'w1' AND deleted_at IS NULL AND id IN (SELECT value FROM json_each(?2))";
+  stmtCount = 0;
+  const sum = counted.prepare("SELECT COALESCE(SUM(size),0) AS total FROM nodes WHERE " + scope).get("w1", idsJson).total;
+  counted.prepare("UPDATE nodes SET deleted_at = ?3 WHERE " + scope).run("w1", idsJson, now);
+  counted.prepare("UPDATE workspaces SET used_bytes = MAX(0, used_bytes - ?1) WHERE id = 'w1'").run(sum);
+  assertEqual(stmtCount, 3, "应为 3 条语句");
+  assertEqual(sum, expected, "释放字节应精确等于所选文件大小之和");
+  assertEqual(db.prepare("SELECT used_bytes FROM workspaces WHERE id='w1'").get().used_bytes, 0, "配额应扣减到 0");
+  assertEqual(db.prepare("SELECT COUNT(*) AS c FROM nodes WHERE workspace_id='w1' AND deleted_at IS NOT NULL AND id LIKE 'bulk-%'").get().c, BULK, "500 行应全部标记为软删");
+});
+
+check("彻底删除 500 项：1 次闭包查询 + 1 个 batch（3 条语句）", () => {
+  const idsJson = JSON.stringify(Array.from({ length: BULK }, (_, i) => "bulk-" + i));
+  stmtCount = 0;
+  const closure = counted.prepare("SELECT id, r2_key FROM nodes WHERE workspace_id='w1' AND deleted_at IS NOT NULL AND id IN (SELECT value FROM json_each(?1))").all(idsJson);
+  assertEqual(closure.length, BULK, "闭包应命中 500 行");
+  const keys = JSON.stringify(closure.map((r) => r.r2_key));
+  counted.exec("BEGIN");
+  counted.prepare("DELETE FROM shares WHERE workspace_id='w1' AND node_id IN (SELECT value FROM json_each(?1))").run(idsJson);
+  counted.prepare("DELETE FROM nodes WHERE workspace_id='w1' AND id IN (SELECT value FROM json_each(?1))").run(idsJson);
+  counted.prepare("INSERT OR REPLACE INTO orphan_objects (r2_key, workspace_id, queued_at) SELECT value, 'w1', ?2 FROM json_each(?1)").run(keys, now);
+  counted.exec("COMMIT");
+  // BEGIN/COMMIT 不是 prepare 出来的语句，不计数；净语句数 = 1 查询 + 3 batch 语句
+  assertEqual(stmtCount, 4, "应为 4 条语句（1 查询 + 3 批次语句）");
+  assertEqual(db.prepare("SELECT COUNT(*) AS c FROM nodes WHERE id LIKE 'bulk-%'").get().c, 0, "行应已删除");
+  assertEqual(db.prepare("SELECT COUNT(*) AS c FROM orphan_objects WHERE workspace_id='w1'").get().c, BULK, "R2 key 应全部登记待清扫");
+});
+
+check("孤儿清扫：1 条查询挑出可删 key（引用检查内联），不逐个往返", () => {
+  // 让其中一个 key 被新节点重新引用，验证「有引用不删」
+  db.prepare("INSERT INTO nodes (id, workspace_id, created_by, parent_id, path, name, is_dir, r2_key, size, mime, created_at, updated_at) VALUES ('revive','w1','u1','root-w1','/root-w1/','revive.bin',0,'k7',10,'application/octet-stream',?,?)").run(now, now);
+  stmtCount = 0;
+  const dead = counted.prepare(`SELECT o.r2_key FROM orphan_objects o
+    WHERE o.workspace_id = 'w1' AND o.queued_at < ?1
+      AND NOT EXISTS (SELECT 1 FROM nodes n WHERE n.r2_key = o.r2_key)
+    LIMIT 500`).all(now + 1);
+  // 期望值由数据库算，不写死：本次会话前面的用例留下了若干仍被引用的 key
+  const referenced = counted.prepare("SELECT COUNT(*) AS c FROM orphan_objects o WHERE o.workspace_id='w1' AND EXISTS (SELECT 1 FROM nodes n WHERE n.r2_key = o.r2_key)").get().c;
+  assertEqual(dead.length, BULK - referenced, "可删数量应等于总登记数减去仍被引用数");
+  assert(referenced >= 1, "本用例至少要有一个被引用的 key 才具证明力");
+  assert(!dead.some((r) => r.r2_key === "k7"), "被新节点引用的 k7 不得进入删除列表");
+  // R2 侧对应 bucket.delete(keys[]) 一次调用（一次操作，≤1000 key/次），不在本脚本验证
+  counted.prepare("DELETE FROM orphan_objects WHERE r2_key IN (SELECT value FROM json_each(?1))").run(JSON.stringify(dead.map((r) => r.r2_key)));
+  assertEqual(counted.prepare("SELECT COUNT(*) AS c FROM orphan_objects WHERE workspace_id='w1'").get().c, referenced, "无引用 key 出队后只剩仍被引用的登记项");
+});
+
 console.log("\n" + (failures.length === 0 ? "全部通过： " + passed + " 项" : "失败 " + failures.length + " 项：\n" + failures.join("\n")));
 process.exit(failures.length === 0 ? 0 : 1);
