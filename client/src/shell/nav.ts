@@ -24,7 +24,7 @@ export const SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "共享",
+    title: "管理",
     items: [
       { to: "/shares", label: "分享", Icon: Share2 },
       { to: "/trash", label: "回收站", Icon: Trash2 },

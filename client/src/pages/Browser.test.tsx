@@ -79,11 +79,6 @@ test("lists files and navigates into folder", async () => {
   expect(await screen.findByText("hello.txt")).toBeInTheDocument();
   expect(screen.getByText("相册")).toBeInTheDocument();
 
-  // KPI：当前目录统计卡显示文件/文件夹数量与合计大小
-  const stats = await screen.findByTestId("dir-stats");
-  expect(stats).toHaveTextContent("1 个文件");
-  expect(stats).toHaveTextContent("1 个文件夹");
-  expect(screen.getByText("合计 12 B")).toBeInTheDocument();
   // 新交互：单击行=选中，双击行=打开目录
   await user.dblClick(screen.getByText("相册"));
   await waitFor(() => expect(screen.getByText(/该目录为空/)).toBeInTheDocument());

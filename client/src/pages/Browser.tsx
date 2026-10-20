@@ -1,17 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
-import { useOutletContext, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { TriangleAlert } from "lucide-react";
 import { listShares } from "../api/shares";
-import type { Me, Node } from "../api/types";
+import type { Node } from "../api/types";
 import Breadcrumb from "../components/Breadcrumb";
 import ContextMenu from "../components/ContextMenu";
 import FileList from "../components/FileList";
 import NodeDetailDialog from "../components/NodeDetailDialog";
 import { DetailPane } from "../components/DetailPane";
 import PreviewModal from "../components/PreviewModal";
-import { BrowserKpi } from "../components/BrowserKpi";
 import { BrowserToolbar } from "../components/BrowserToolbar";
 import { BatchProgress } from "../components/BatchProgress";
 import { BrowserDialogs } from "../components/BrowserDialogs";
@@ -36,7 +35,6 @@ import { STORAGE_KEYS, getString, setString } from "../lib/storage";
 export default function Browser() {
   const [params, setParams] = useSearchParams();
   const dir = params.get("dir") ?? "";
-  const me = useOutletContext<Me | null>();
   const { query, mkDir, rename, move, remove } = useFiles(dir);
   const sharesQuery = useQuery({ queryKey: ["shares"], queryFn: listShares });
   const fileInput = useRef<HTMLInputElement>(null);
@@ -170,21 +168,6 @@ export default function Browser() {
       .catch(() => {});
   };
 
-  // 当前目录 KPI：文件数 / 文件夹数 / 文件总大小（前端过滤前全量统计）
-  const dirStats = useMemo(() => {
-    let files = 0;
-    let dirs = 0;
-    let size = 0;
-    for (const n of allNodes) {
-      if (n.is_dir) dirs++;
-      else {
-        files++;
-        size += n.size ?? 0;
-      }
-    }
-    return { files, dirs, size };
-  }, [allNodes]);
-
   // 空目录 CTA：复用上传入口与新建文件夹
   const emptyDirActions = (
     <div className="flex flex-wrap justify-center gap-2">
@@ -200,9 +183,6 @@ export default function Browser() {
     </div>
   );
 
-  const used = me?.usedBytes ?? 0;
-  const quota = me?.quotaBytes ?? 0;
-  const pct = quota > 0 ? Math.min(100, Math.round((used / quota) * 100)) : 0;
 
   return (
     <div
@@ -228,7 +208,7 @@ export default function Browser() {
       }}
     >
       {/* KPI 行：存储用量 + 当前目录统计 */}
-      <BrowserKpi hasQuota={!!me} used={used} quota={quota} pct={pct} hasData={!!query.data} dirStats={dirStats} />
+      {/* KPI 卡片已移除：存储用量在底部状态栏，目录统计交给列表头 */}
       <input
         ref={fileInput}
         type="file"
