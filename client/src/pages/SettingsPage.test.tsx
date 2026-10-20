@@ -77,7 +77,7 @@ test("admin toggles disable and enters user space", async () => {
 test("upload tab saves concurrency to localStorage", async () => {
   const { user } = renderWith(<SettingsPage me={ME} />);
   await user.click(await screen.findByRole("link", { name: "上传" }));
-  const input = screen.getByLabelText("上传并发数");
+  const input = screen.getByLabelText(/并发数/);
   await user.clear(input);
   await user.type(input, "8");
   await user.click(screen.getByRole("button", { name: "保存" }));

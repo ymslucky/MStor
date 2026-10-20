@@ -90,20 +90,18 @@ function UploadSection() {
       <p className="mb-3 text-xs text-ink-dim">
         同时上传的分片 / 文件数（{MIN_UPLOAD_CONCURRENCY}-{MAX_UPLOAD_CONCURRENCY}）。调大可提升吞吐，但占用更多带宽；保存后对新的上传任务生效。
       </p>
-      <div className="flex flex-wrap items-center gap-2">
-        <Input
-          aria-label="上传并发数"
-          type="number"
-          min={MIN_UPLOAD_CONCURRENCY}
-          max={MAX_UPLOAD_CONCURRENCY}
-          className="w-24!"
-          value={n}
-          onChange={(e) => setN(e.target.value)}
-        />
+      <div className="flex flex-wrap items-end gap-2">
+        <Field
+          label="并发数"
+          hint={`${MIN_UPLOAD_CONCURRENCY}-${MAX_UPLOAD_CONCURRENCY}（保存后对新任务生效）`}
+          error={!valid ? `须为 ${MIN_UPLOAD_CONCURRENCY}-${MAX_UPLOAD_CONCURRENCY} 的整数` : undefined}
+          className="w-32"
+        >
+          <Input type="number" min={MIN_UPLOAD_CONCURRENCY} max={MAX_UPLOAD_CONCURRENCY} value={n} onChange={(e) => setN(e.target.value)} />
+        </Field>
         <Button disabled={!valid || parsed === getUploadConcurrency()} onClick={save}>
           保存
         </Button>
-        {!valid && <span className="text-xs text-danger-text">须为 {MIN_UPLOAD_CONCURRENCY}-{MAX_UPLOAD_CONCURRENCY} 的整数</span>}
       </div>
     </GlassCard>
   );
