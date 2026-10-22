@@ -20,6 +20,7 @@ import { useMediaQuery } from "../hooks/useMediaQuery";
 import { BrowserDialogs } from "../components/BrowserDialogs";
 import { NodeRowActions } from "../components/NodeRowActions";
 import { BatchBar } from "../components/BatchBar";
+import { BatchTagDialog } from "../components/BatchTagDialog";
 import { Button, EmptyState, GlassCard, Skeleton } from "../components/ui";
 import { useBatchOps } from "../hooks/useBatchOps";
 import { useBrowserDialogs } from "../hooks/useBrowserDialogs";
@@ -55,6 +56,7 @@ export default function Browser() {
   const [view, setView] = useState<"list" | "grid">(() => (getString(STORAGE_KEYS.view) === "grid" ? "grid" : "list"));
   // 右键菜单：当前节点 + 指针位置
   const [menu, setMenu] = useState<{ node: Node; x: number; y: number } | null>(null);
+  const [batchTagging, setBatchTagging] = useState(false);
   // 前端过滤 chips
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
@@ -364,10 +366,21 @@ export default function Browser() {
         hasFileSelected={hasFileSelected}
         onDownload={batchDownload}
         onMove={() => setBatchMoving(true)}
+        onTag={() => setBatchTagging(true)}
         onDelete={() => setBatchDeleting(true)}
         onClear={selection.clear}
-        hidden={batchDeleting || batchMoving}
+        hidden={batchDeleting || batchMoving || batchTagging}
       />
+      {batchTagging && (
+        <BatchTagDialog
+          nodeIds={[...selection.selected]}
+          onClose={() => setBatchTagging(false)}
+          onDone={() => {
+            setBatchTagging(false);
+            selection.clear();
+          }}
+        />
+      )}
             {preview && <PreviewModal key={preview.id} node={preview} onClose={() => setPreview(null)} />}
       {batchProgress && <BatchProgress done={batchProgress.done} total={batchProgress.total} />}
       {upload.conflicts && (

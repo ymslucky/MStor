@@ -104,7 +104,7 @@ describe("无障碍闸门", () => {
   test("BatchBar / UndoSnackbar（非 modal，独立扫描避免被 modal 的 aria-hidden 隐藏）", async () => {
     const { container } = wrap(
       <div>
-        <BatchBar count={2} hasFileSelected onDownload={() => {}} onMove={() => {}} onDelete={() => {}} onClear={() => {}} />
+        <BatchBar count={2} hasFileSelected onDownload={() => {}} onMove={() => {}} onTag={() => {}} onDelete={() => {}} onClear={() => {}} />
         <UndoSnackbar message="已移动" onUndo={() => {}} onClose={() => {}} />
       </div>,
     );
