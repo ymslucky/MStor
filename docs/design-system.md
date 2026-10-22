@@ -161,3 +161,8 @@
 - 新增 `client/src/test/contrast.test.ts`：解析 `@theme`/暗色/skin 令牌（含 var 链与半透明合成），断言 5 个变体 × 18 组文字/背景 ≥4.5:1。
 - 修正：亮色 `chip-amber-fg #b45309→#a64a06`；brutal `ink-tertiary #6d6d6d→#626262`。
 - 闸门：**43 文件 250 例**；双 `tsc` / `eslint` / `vite build` 全绿。
+
+### v6.7 目录树与回归
+
+- 移动/复制目标选择改 `GET /api/dirs/tree` 一次性建树（5000 上限 + truncated 提示），移除逐层 N+1。
+- 闸门：**43 文件 249 例**；server 本地 29 项；双 `tsc` / `eslint` / `vite build` 全绿。

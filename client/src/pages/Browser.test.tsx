@@ -12,6 +12,7 @@ import Browser from "./Browser";
 vi.mock("../api/nodes", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../api/nodes")>()),
   listFiles: vi.fn(),
+  listDirTree: vi.fn(async () => ({ dirs: [], truncated: false })),
   createDir: vi.fn(),
   renameNode: vi.fn(),
   moveNode: vi.fn(),

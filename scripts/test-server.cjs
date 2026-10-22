@@ -363,6 +363,18 @@ async function main() {
     const listing = await call(env, "/api/files?parentId=", { headers: auth });
     assertEqual(listing.status, 200, "列表应 200");
     assertEqual(listing.json.nodes.length, 1, "列表应有 1 个目录");
+    const sub = await call(env, "/api/dirs", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ parentId: dir.json.id, name: "inner" }),
+    });
+    assertEqual(sub.status, 201, "建子目录应 201");
+    const tree = await call(env, "/api/dirs/tree", { headers: auth });
+    assertEqual(tree.status, 200, "目录树应 200，实际 " + tree.status);
+    assertEqual(tree.json.dirs.length, 2, "目录树应返回 2 个目录");
+    assertEqual(tree.json.truncated, false, "未超上限不应 truncated");
+    const inner = tree.json.dirs.find((d) => d.name === "inner");
+    assert(inner && inner.parent_id === dir.json.id, "inner 的 parent 应为 docs");
     const payload = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
     const up = await call(env, "/api/files/upload?name=a.bin&parentId=", {
       method: "PUT",

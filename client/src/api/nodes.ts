@@ -5,6 +5,16 @@ import type { ListFilesResult, Node } from "./types";
 export const listFiles = (parentId: string) =>
   api<ListFilesResult>(`/api/files${parentId ? `?parentId=${encodeURIComponent(parentId)}` : ""}`);
 
+export interface DirTreeRow {
+  id: string;
+  parent_id: string;
+  name: string;
+  path: string;
+}
+
+/** 目录树（移动/复制目标选择）：一次请求返回全部目录，truncated 表示超过服务端上限 */
+export const listDirTree = () => api<{ dirs: DirTreeRow[]; truncated: boolean }>("/api/dirs/tree");
+
 export const createDir = (body: { parentId?: string; name: string }) =>
   api<Node>("/api/dirs", { method: "POST", json: body });
 

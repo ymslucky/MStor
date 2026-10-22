@@ -1,34 +1,31 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { expect, test, vi } from "vitest";
-import type { ListFilesResult } from "../api/types";
+import { beforeEach, expect, test, vi } from "vitest";
 
 vi.mock("../api/nodes", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../api/nodes")>()),
-  listFiles: vi.fn(),
+  listDirTree: vi.fn(),
 }));
 
-import { beforeEach } from "vitest";
-import { listFiles } from "../api/nodes";
+import { listDirTree } from "../api/nodes";
+import type { DirTreeRow } from "../api/nodes";
 import MoveDialog, { listDirOptions } from "./MoveDialog";
 
-// 上一用例卸载的对话框可能还有在途扫描：先让出一次宏任务再清空 mock，避免调用记录串场
+function row(id: string, name: string, parent = "root"): DirTreeRow {
+  return { id, parent_id: parent, name, path: "/root/" };
+}
+
+// 上一用例卸载的对话框可能还有在途读取：先让出一次宏任务再清空 mock
 beforeEach(async () => {
   await new Promise((r) => setTimeout(r, 0));
   vi.clearAllMocks();
 });
 
-function dir(id: string, name: string) {
-  return { id, parent_id: "", name, is_dir: 1 as const, size: null, mime: null, created_at: 1, updated_at: 2 };
-}
-function list(nodes: ReturnType<typeof dir>[]): ListFilesResult {
-  return { nodes, breadcrumb: [], rootId: "root" };
-}
-
-test("lists nested dirs and submits the selected target", async () => {
-  vi.mocked(listFiles).mockImplementation(async (parentId: string) =>
-    parentId === "" ? list([dir("a", "A"), dir("b", "B")]) : parentId === "a" ? list([dir("a1", "A1")]) : list([]),
-  );
+test("列出嵌套目录并提交所选目标", async () => {
+  vi.mocked(listDirTree).mockResolvedValue({
+    dirs: [row("a", "A"), row("b", "B"), row("a1", "A1", "a")],
+    truncated: false,
+  });
   const user = userEvent.setup();
   const onSubmit = vi.fn();
   render(<MoveDialog title="移动" onSubmit={onSubmit} onCancel={() => {}} />);
@@ -41,8 +38,8 @@ test("lists nested dirs and submits the selected target", async () => {
   expect(onSubmit).toHaveBeenCalledWith("b");
 });
 
-test("root target submits empty id", async () => {
-  vi.mocked(listFiles).mockResolvedValue(list([]));
+test("根目录提交空 id", async () => {
+  vi.mocked(listDirTree).mockResolvedValue({ dirs: [], truncated: false });
   const user = userEvent.setup();
   const onSubmit = vi.fn();
   render(<MoveDialog title="移动" onSubmit={onSubmit} onCancel={() => {}} />);
@@ -52,51 +49,27 @@ test("root target submits empty id", async () => {
   expect(onSubmit).toHaveBeenCalledWith("");
 });
 
-test("excludeId skips the node and its whole subtree", async () => {
-  vi.mocked(listFiles).mockImplementation(async (parentId: string) =>
-    parentId === "" ? list([dir("x", "移动中的目录"), dir("y", "其他")]) : parentId === "x" ? list([dir("x1", "子树")]) : list([]),
-  );
-  const dirs = await listDirOptions("x");
-  expect(dirs.map((d) => d.id)).toEqual(["y"]);
-  expect(listFiles).not.toHaveBeenCalledWith("x");
-});
-
-test("同一层超过并发批次（6）也不会漏项，层级按路径相邻排序", async () => {
-  const roots = Array.from({ length: 9 }, (_, i) => dir(`r${i}`, `R${i}`));
-  vi.mocked(listFiles).mockImplementation(async (parentId: string) => (parentId === "" ? list(roots) : list([])));
-  const dirs = await listDirOptions();
-  expect(dirs).toHaveLength(9);
-  const expected = [...roots.map((r) => r.name)].sort((a, b) => a.localeCompare(b, "zh-CN"));
-  expect(dirs.map((d) => d.name)).toEqual(expected);
-});
-
-test("父项与子项按路径相邻排序（A, A/A1, B）", async () => {
-  vi.mocked(listFiles).mockImplementation(async (parentId: string) =>
-    parentId === "" ? list([dir("b", "B"), dir("a", "A")]) : parentId === "a" ? list([dir("a1", "A1")]) : list([]),
-  );
-  const dirs = await listDirOptions();
-  expect(dirs.map((d) => d.name)).toEqual(["A", "A/A1", "B"]);
-});
-
-test("cancelled 回调在发起更深层请求前生效", async () => {
-  let cancelled = false;
-  vi.mocked(listFiles).mockImplementation(async (parentId: string) => {
-    if (parentId === "") {
-      cancelled = true;
-      return list([dir("a", "A")]);
-    }
-    return list([]);
+test("excludeId 跳过节点及整棵子树（且只请求一次）", async () => {
+  vi.mocked(listDirTree).mockResolvedValue({
+    dirs: [row("x", "移动中的目录"), row("x1", "子树", "x"), row("y", "其他")],
+    truncated: false,
   });
-  const dirs = await listDirOptions(undefined, () => cancelled);
-  // 根层结果保留，但不再请求子目录 A
-  expect(dirs.map((d) => d.id)).toEqual(["a"]);
-  expect(listFiles).not.toHaveBeenCalledWith("a");
+  const { options, truncated } = await listDirOptions("x");
+  expect(options.map((d) => d.id)).toEqual(["y"]);
+  expect(truncated).toBe(false);
+  expect(listDirTree).toHaveBeenCalledTimes(1);
 });
 
-test("load failure shows retry and recovers", async () => {
-  vi.mocked(listFiles)
+test("truncated 时提示目录过多", async () => {
+  vi.mocked(listDirTree).mockResolvedValue({ dirs: [row("a", "A")], truncated: true });
+  render(<MoveDialog title="移动" onSubmit={() => {}} onCancel={() => {}} />);
+  expect(await screen.findByText(/仅显示前 5000 个/)).toBeInTheDocument();
+});
+
+test("加载失败显示重试并恢复", async () => {
+  vi.mocked(listDirTree)
     .mockRejectedValueOnce(new Error("网络断了"))
-    .mockImplementation(async (parentId: string) => (parentId === "" ? list([dir("a", "A")]) : list([])));
+    .mockResolvedValue({ dirs: [row("a", "A")], truncated: false });
   const user = userEvent.setup();
   render(<MoveDialog title="移动" onSubmit={() => {}} onCancel={() => {}} />);
   expect(await screen.findByText("目录加载失败")).toBeInTheDocument();
@@ -104,12 +77,18 @@ test("load failure shows retry and recovers", async () => {
   expect(await screen.findByText("A")).toBeInTheDocument();
 });
 
-test("dialog close calls onCancel", async () => {
-  vi.mocked(listFiles).mockResolvedValue(list([]));
+test("关闭对话框调用 onCancel", async () => {
+  vi.mocked(listDirTree).mockResolvedValue({ dirs: [], truncated: false });
   const user = userEvent.setup();
   const onCancel = vi.fn();
   render(<MoveDialog title="移动" onSubmit={() => {}} onCancel={onCancel} />);
   await screen.findByText("暂无其他文件夹");
   await user.click(screen.getByRole("button", { name: "取消" }));
   await waitFor(() => expect(onCancel).toHaveBeenCalled());
+});
+
+test("取消回调生效后不再返回扫描结果", async () => {
+  vi.mocked(listDirTree).mockResolvedValue({ dirs: [row("a", "A")], truncated: false });
+  const { options } = await listDirOptions(undefined, () => true);
+  expect(options).toEqual([]);
 });

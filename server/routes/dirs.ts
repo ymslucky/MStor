@@ -6,6 +6,19 @@ import type { NodeRow } from "../types";
 
 export const dirs = new Hono<AppEnv>();
 
+/** 目录树一次性返回（移动/复制目标选择用）：避免前端逐目录 N+1 请求。
+ *  上限 5000 条并带 truncated 标记，防止异常大目录把响应撑爆。 */
+dirs.get("/tree", async (c) => {
+  const LIMIT = 5000;
+  const { results } = await c.env.DB.prepare(
+    "SELECT id, parent_id, name, path FROM nodes WHERE workspace_id = ?1 AND is_dir = 1 AND deleted_at IS NULL AND name <> '' ORDER BY path, name LIMIT ?2",
+  )
+    .bind(c.get("workspace").id, LIMIT + 1)
+    .all<{ id: string; parent_id: string; name: string; path: string }>();
+  const truncated = results.length > LIMIT;
+  return c.json({ dirs: truncated ? results.slice(0, LIMIT) : results, truncated });
+});
+
 dirs.post("/", async (c) => {
   const { parentId = "", name } = await c.req.json<{ parentId?: string; name: string }>();
   const validName = validateNodeName(name);

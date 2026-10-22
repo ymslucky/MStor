@@ -414,7 +414,16 @@
   - brutal 皮肤 `ink-3` 在 `bg-sub` 上仅 **4.07:1** → `#6d6d6d → #626262`（约 4.6:1）。
 - 验证：客户端 **43 文件 / 250 例**；双 `tsc`、`eslint`、`vite build` 全绿。
 
-## 18. 后续建议（本次未实施）
+## 18. 第十二轮：目录树一次性接口
+
+移动/复制目标选择此前用「逐层 BFS 并发」扫全树：每个目录一次 `GET /api/files`（大目录仍多次请求，且前端还要处理取消/截断）。
+
+- **服务端**：新增 `GET /api/dirs/tree`，一次返回当前空间全部目录（`id/parent_id/name/path`，排除 `name=''` 的根哨兵行，上限 5000 + `truncated` 标记）。
+- **客户端**：`api/nodes.listDirTree`；`MoveDialog.listDirOptions` 改为一次请求 + 前端建树（按父 id 分组、`zh-CN` 名称排序、`excludeId` 整棵子树跳过、深度上限 8），返回 `{ options, truncated }`；弹窗新增「目录过多，仅显示前 5000 个」提示。取消/失败重试语义保持不变。
+- **测试**：MoveDialog 测试改为 mock `listDirTree`（7 例：嵌套/根目标/exclude/truncated/失败重试/取消/关闭）；Browser 移动测试补 `listDirTree` mock；本地 server 垫片补目录树断言（2 个目录 + parent 关系 + truncated=false）。
+- 验证：客户端 **43 文件 / 249 例**；server 本地 29 项；双 `tsc`、`eslint`、`vite build` 全绿。
+
+## 19. 后续建议（本次未实施）
 
 1. `<AsyncState>`/`<PageState>` 统一加载/失败/空三态，修复收藏/最近/标签/回收站/分享/审计页「失败伪装成空」。
 2. `<SelectionBar>` 统一 BatchBar / TrashPage / SharesPage 的批量条；`<SearchInput>`、`<ListSkeleton>`、`<PageShell>` 抽公共件。
