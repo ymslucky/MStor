@@ -21,6 +21,10 @@ export const removeFavorite = (nodeId: string) =>
 /** 最近访问 */
 export const listRecent = () => api<{ nodes: Node[] }>("/api/library/recent");
 
+/** 记录一次访问（最近访问来源；服务端对同节点 5 分钟内节流） */
+export const recordView = (nodeId: string) =>
+  api<{ ok: true }>(`/api/library/views/${nodeId}`, { method: "POST" });
+
 /** 标签清单 */
 export const listTags = () => api<{ tags: TagRow[] }>("/api/library/tags");
 

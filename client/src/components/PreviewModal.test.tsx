@@ -38,8 +38,10 @@ test("text preview fetches first 1MB and shows content", async () => {
   );
   setup(<PreviewModal node={node({ mime: "text/plain", name: "a.txt" })} onClose={() => {}} />);
   expect(await screen.findByText("hello mstor")).toBeInTheDocument();
-  const call = vi.mocked(fetch).mock.calls[0];
-  expect((call[1] as RequestInit).headers).toEqual({ range: "bytes=0-1048575", "x-requested-with": "XMLHttpRequest" });
+  // 预览挂载时还会 POST /api/library/views 记录访问，这里只找 content 请求
+  const call = vi.mocked(fetch).mock.calls.find(([url]) => String(url).includes("/content"));
+  expect(call).toBeTruthy();
+  expect((call![1] as RequestInit).headers).toEqual({ range: "bytes=0-1048575", "x-requested-with": "XMLHttpRequest" });
   vi.unstubAllGlobals();
 });
 

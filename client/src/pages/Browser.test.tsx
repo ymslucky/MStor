@@ -29,8 +29,16 @@ vi.mock("../api/shares", () => ({
   listShares: vi.fn().mockResolvedValue({ shares: [] }),
 }));
 
+vi.mock("../api/library", () => ({
+  listFavorites: vi.fn(async () => ({ nodes: [] })),
+  addFavorite: vi.fn(),
+  removeFavorite: vi.fn(),
+  recordView: vi.fn(async () => ({ ok: true })),
+}));
+
 import { createDir, batchDeleteNodes, deleteNode, listFiles, moveNode, renameNode } from "../api/nodes";
 import { listShares } from "../api/shares";
+import { recordView } from "../api/library";
 
 function fileNode(over: Partial<Node> = {}): Node {
   return {
@@ -84,6 +92,27 @@ test("lists files and navigates into folder", async () => {
   // 新交互：单击行=选中，双击行=打开目录
   await user.dblClick(screen.getByText("相册"));
   await waitFor(() => expect(screen.getByText(/该目录为空/)).toBeInTheDocument());
+});
+
+test("entering a folder records a recent view", async () => {
+  vi.mocked(listFiles).mockImplementation(async (parentId: string) => (parentId === "" ? ROOT_LIST : SUB_DIR_LIST));
+  vi.mocked(recordView).mockClear();
+  const { user } = renderWith(<Browser />);
+  await screen.findByText("相册");
+  await user.dblClick(screen.getByText("相册"));
+  await waitFor(() => expect(recordView).toHaveBeenCalledWith("d1"));
+});
+
+test("opening a file preview records a recent view", async () => {
+  vi.mocked(listFiles).mockResolvedValue({
+    ...ROOT_LIST,
+    nodes: [fileNode({ id: "img1", name: "photo.png", mime: "image/png" })],
+  });
+  vi.mocked(recordView).mockClear();
+  const { user } = renderWith(<Browser />);
+  await screen.findByText("photo.png");
+  await user.dblClick(screen.getByText("photo.png"));
+  await waitFor(() => expect(recordView).toHaveBeenCalledWith("img1"));
 });
 
 test("create folder calls createDir and refreshes", async () => {

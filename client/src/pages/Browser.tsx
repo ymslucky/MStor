@@ -29,6 +29,7 @@ import { useFileSelection } from "../hooks/useFileSelection";
 import { useKeyboardNav } from "../hooks/useKeyboardNav";
 import { useUploadQueueActions } from "../hooks/UploadQueueProvider";
 import { collectDirectory, supportsDirectoryPicker } from "../lib/dirscan";
+import { recordView } from "../api/library";
 import { downloadMany, triggerDownload } from "../lib/download";
 import { DETAIL_PANE_MEDIA_QUERY } from "../lib/constants";
 import { useDropUpload } from "../hooks/useDropUpload";
@@ -58,7 +59,11 @@ export default function Browser() {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
 
-  const openDir = (id: string) => setParams(id ? { dir: id } : {});
+  const openDir = (id: string) => {
+    // 进入目录 = 一次访问，供「最近」列表使用（失败不影响导航）
+    if (id) void recordView(id).catch(() => {});
+    setParams(id ? { dir: id } : {});
+  };
 
   // 过滤后的当前目录列表（键盘导航/选择/渲染都以可见列表为准）
   const { allNodes, favIds, pull, sharedIds, toggleFavorite } = useBrowserQuery(query);

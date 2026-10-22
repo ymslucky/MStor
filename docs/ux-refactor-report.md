@@ -339,7 +339,19 @@
 | 服务端本地用例 `npm run test:server:local` | **29 项通过**（workerd 版 `npm run test:server` 在本机仍因 `ERR_RUNTIME_FAILURE` 起不来，按 README 走 node:sqlite 垫片） |
 | 客户端 `tsc` / `eslint` / `vite build` | 通过 |
 
-## 12. 后续建议（本次未实施）
+## 12. 第六轮：「最近访问」链路补全
+
+服务端早已提供 `POST /api/library/views/:id`（`recordView`，同节点 5 分钟节流），但前端从未调用 → 「最近」页在真实使用中永远为空（只有测试/种子数据可见）。
+
+修复：
+- `api/library.ts` 增加 `recordView(nodeId)`；
+- `Browser` 进入目录时上报（`openDir`，失败静默、不阻塞导航）；
+- `PreviewModal` 挂载时上报（覆盖双击/键盘/右键等所有预览入口）；
+- 测试：Browser 新增「进入目录记录访问」「打开文件预览记录访问」两例；PreviewModal 的 fetch 断言改为定位 content 请求（挂载时多了一次 views POST）。
+
+验证：客户端 **38 文件 / 236 例**；双 `tsc`、`eslint`、`vite build` 全绿。
+
+## 13. 后续建议（本次未实施）
 
 1. `<AsyncState>`/`<PageState>` 统一加载/失败/空三态，修复收藏/最近/标签/回收站/分享/审计页「失败伪装成空」。
 2. `<SelectionBar>` 统一 BatchBar / TrashPage / SharesPage 的批量条；`<SearchInput>`、`<ListSkeleton>`、`<PageShell>` 抽公共件。

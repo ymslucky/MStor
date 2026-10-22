@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Download, X } from "lucide-react";
+import { recordView } from "../api/library";
 import { contentUrl } from "../api/nodes";
 import type { Node } from "../api/types";
 import { formatBytes } from "../lib/format";
@@ -30,6 +31,11 @@ export default function PreviewModal({ node, onClose }: Props) {
   const [error, setError] = useState("");
   // 弹性进场：挂载后经两帧 rAF 切类，单次 transition 完成 modal-in（300ms ease-spring）
   const [entered, setEntered] = useState(false);
+
+  // 打开预览 = 一次访问，供「最近」列表使用（失败不打扰）
+  useEffect(() => {
+    void recordView(node.id).catch(() => {});
+  }, [node.id]);
 
   useEffect(() => {
     if (kind !== "text") return;
