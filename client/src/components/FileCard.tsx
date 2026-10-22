@@ -36,7 +36,7 @@ export function FileCard({ node, thumbSrc, badge, actions }: Props) {
             <NodeIcon node={node} size={44} className="text-ink-3" />
           )}
         </div>
-        <div className="p-2">
+        <div className="px-2.5 py-2">
           <div className="flex items-center gap-1.5">
             <NodeIcon node={node} size={14} className="shrink-0" />
             <span className="truncate text-sm text-ink">{truncateMiddle(node.name, 20)}</span>

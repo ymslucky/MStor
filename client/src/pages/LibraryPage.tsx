@@ -12,6 +12,7 @@ import { Button, ConfirmDialog, EmptyState, GlassCard, Input, Pill } from "../co
 import { NodeIcon } from "../components/NodeIcon";
 import { queryKeys } from "../lib/queryKeys";
 import { formatBytes, formatDate } from "../lib/format";
+import { DEFAULT_TAG_COLOR, TAG_COLORS, tagDotColor } from "../lib/tagColors";
 
 type Kind = "favorites" | "recent" | "tags";
 
@@ -43,13 +44,15 @@ export default function LibraryPage({ kind }: { kind: Kind }) {
   const meta = COPY[kind];
   const queryClient = useQueryClient();
   const [newTag, setNewTag] = useState("");
+  const [newTagColor, setNewTagColor] = useState<string>(DEFAULT_TAG_COLOR);
   const [deletingTag, setDeletingTag] = useState(false);
   const invalidateTags = () => queryClient.invalidateQueries({ queryKey: ["library", "tags"] });
 
   const create = useMutation({
-    mutationFn: (name: string) => createTag(name),
+    mutationFn: ({ name, color }: { name: string; color: string }) => createTag(name, color),
     onSuccess: () => {
       setNewTag("");
+      setNewTagColor(DEFAULT_TAG_COLOR);
       toast("标签已创建", "info");
       void invalidateTags();
     },
@@ -107,7 +110,7 @@ export default function LibraryPage({ kind }: { kind: Kind }) {
             onSubmit={(e) => {
               e.preventDefault();
               const name = newTag.trim();
-              if (name && !create.isPending) create.mutate(name);
+              if (name && !create.isPending) create.mutate({ name, color: newTagColor });
             }}
           >
             <Input
@@ -118,6 +121,18 @@ export default function LibraryPage({ kind }: { kind: Kind }) {
               maxLength={32}
               className="h-8 w-40 text-xs"
             />
+            <select
+              aria-label="标签颜色"
+              value={newTagColor}
+              onChange={(e) => setNewTagColor(e.target.value)}
+              className="h-8 rounded-btn border border-line bg-surface-1 px-2 text-xs text-ink"
+            >
+              {TAG_COLORS.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
             <Button type="submit" size="sm" disabled={!newTag.trim() || create.isPending}>
               新建标签
             </Button>
@@ -139,7 +154,8 @@ export default function LibraryPage({ kind }: { kind: Kind }) {
           </Pill>
           {tags.map((t) => (
             <Pill key={t.id} tone={tagId === t.id ? "accent" : "neutral"}>
-              <button type="button" onClick={() => setParams({ tag: t.id })} className="px-1">
+              <button type="button" onClick={() => setParams({ tag: t.id })} className="flex items-center gap-1.5 px-1">
+                <span aria-hidden className="h-2 w-2 rounded-full" style={{ backgroundColor: tagDotColor(t.color) }} />
                 {t.name}
               </button>
             </Pill>

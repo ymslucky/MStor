@@ -40,8 +40,9 @@ test("标签页可新建标签", async () => {
   const { user } = renderPage();
   await screen.findByText("家庭");
   await user.type(screen.getByLabelText("新标签名"), "旅行");
+  await user.selectOptions(screen.getByLabelText("标签颜色"), "#be123c");
   await user.click(screen.getByRole("button", { name: "新建标签" }));
-  await waitFor(() => expect(createTag).toHaveBeenCalledWith("旅行"));
+  await waitFor(() => expect(createTag).toHaveBeenCalledWith("旅行", "#be123c"));
 });
 
 test("选中标签后可删除该标签（二次确认）", async () => {

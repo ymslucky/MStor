@@ -95,7 +95,8 @@ export function Toaster() {
           </Toast.Close>
         </Toast.Root>
       ))}
-      <Toast.Viewport className="fixed top-4 left-1/2 z-menu flex w-full max-w-sm -translate-x-1/2 flex-col items-center gap-2 outline-none" />
+      {/* 顶栏高 56px：toast 从 64px 起，避免遮挡 AppHeader 的菜单/搜索/通知 */}
+      <Toast.Viewport className="fixed top-16 left-1/2 z-menu flex w-full max-w-sm -translate-x-1/2 flex-col items-center gap-2 outline-none" />
     </Toast.Provider>
   );
 }

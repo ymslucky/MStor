@@ -53,7 +53,8 @@ test("新建标签会自动打在当前节点上", async () => {
   renderWithProviders(<TagDialog node={NODE} onClose={() => {}} />);
   await screen.findByRole("checkbox", { name: "标签 家庭" });
   await user.type(screen.getByLabelText("新标签名"), "旅行");
+  await user.selectOptions(screen.getByLabelText("标签颜色"), "#0f766e");
   await user.click(screen.getByRole("button", { name: "创建并添加" }));
-  await waitFor(() => expect(createTag).toHaveBeenCalledWith("旅行"));
+  await waitFor(() => expect(createTag).toHaveBeenCalledWith("旅行", "#0f766e"));
   await waitFor(() => expect(attachTag).toHaveBeenCalledWith("t3", "n1"));
 });

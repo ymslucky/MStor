@@ -4,6 +4,7 @@ import { Check } from "lucide-react";
 import { attachTag, createTag, detachTag, listNodeTags, listTags } from "../api/library";
 import type { Node } from "../api/types";
 import { queryKeys } from "../lib/queryKeys";
+import { DEFAULT_TAG_COLOR, TAG_COLORS, tagDotColor } from "../lib/tagColors";
 import { AsyncState } from "./AsyncState";
 import { toast } from "./Toaster";
 import { Button, Dialog, Input, Pill } from "./ui";
@@ -27,6 +28,7 @@ export function TagDialog({ node, onClose }: { node: Node; onClose: () => void }
   const [attached, setAttached] = useState<Set<string>>(new Set());
   const [pending, setPending] = useState<Set<string>>(new Set());
   const [newName, setNewName] = useState("");
+  const [newColor, setNewColor] = useState<string>(DEFAULT_TAG_COLOR);
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
@@ -75,9 +77,10 @@ export function TagDialog({ node, onClose }: { node: Node; onClose: () => void }
     if (!name || creating) return;
     setCreating(true);
     try {
-      const tag = await createTag(name);
+      const tag = await createTag(name, newColor);
       await attachTag(tag.id, node.id);
       setNewName("");
+      setNewColor(DEFAULT_TAG_COLOR);
       setAttached((prev) => new Set(prev).add(tag.id));
       invalidate();
       toast(`已创建标签「${name}」`, "info");
@@ -115,6 +118,7 @@ export function TagDialog({ node, onClose }: { node: Node; onClose: () => void }
                       onChange={() => void toggle(t.id)}
                       className="h-4 w-4 accent-primary"
                     />
+                    <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: tagDotColor(t.color) }} />
                     <span className="min-w-0 flex-1 truncate text-ink">{t.name}</span>
                     {typeof t.nodes === "number" && <Pill tone="neutral">{t.nodes}</Pill>}
                     {on && <Check size={14} aria-hidden className="text-success-text" />}
@@ -145,6 +149,18 @@ export function TagDialog({ node, onClose }: { node: Node; onClose: () => void }
             maxLength={32}
           />
         </label>
+        <select
+          aria-label="标签颜色"
+          value={newColor}
+          onChange={(e) => setNewColor(e.target.value)}
+          className="h-9 rounded-input border border-line bg-surface-1 px-2 text-xs text-ink"
+        >
+          {TAG_COLORS.map((c) => (
+            <option key={c.value} value={c.value}>
+              {c.label}
+            </option>
+          ))}
+        </select>
         <Button type="submit" disabled={!newName.trim() || creating}>
           {creating ? "创建中…" : "创建并添加"}
         </Button>

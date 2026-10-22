@@ -197,3 +197,9 @@ AppHeader（全端，h-14）：移动=菜单 + 品牌；桌面=当前空间 · M
 - **网格卡片**：`FileGrid` 加 `content-start auto-rows-max`，卡片按内容高度排列，不再被 grid 拉伸成带大片空白的 300px 高卡片。
 - **标签页**：标签列表改为独立查询；选中某标签后仍保留「全部标签 / 各标签」pills，可直接切换（此前选中即失去标签导航）。发布/删除后同时失效标签列表与标签节点。
 - 补充 `grid-desktop` / `dark-desktop` / `tags-desktop` / `platform-users` 截图基线；暗色与亮色共用同一套层级与强调色。
+
+### v7.3 标签色板与浮层位置
+
+- 新增 `lib/tagColors.ts`（6 色）；LibraryPage 新建标签与 TagDialog 新建并添加均可选颜色，标签 pills/列表行显示色点。
+- Toast viewport 从 `top-4` 移到 `top-16`：提示不再遮挡 AppHeader 的菜单/搜索/通知。
+- 网格卡片 footer 内边距微调；标签页截图基线更新为带色点版本。
