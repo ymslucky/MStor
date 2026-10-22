@@ -3,7 +3,7 @@
 > **令牌唯一来源**：`client/src/index.css` 的 `@theme`（含暗色覆盖）。
 > **原语唯一来源**：`client/src/components/ui/*`；页面骨架 `components/layout/PageHeader` + `shell/AppHeader`。
 > **可视化验收**：应用内 `/design` 页（`pages/DesignPage.tsx`）——新增令牌/原语**必须先在此登记**。
-> **v7 实机基线**：`docs/design/v7/` 下 `files-desktop` / `files-mobile`（1440×900 / 390×844）、`grid-desktop`、`dark-desktop`、`tags-desktop`、`platform-users`、`platform-audit`、`shares-desktop`、`settings-desktop`、`trash-desktop`、`grid-mobile`、`palette`、`notifications`、`share-dialog`、`create-dialog`、`batch-bar`、`preview`、`settings-members`、`create-mobile`（共 19 张）。
+> **v7 实机基线**：`docs/design/v7/` 下 `files-desktop` / `files-mobile`（1440×900 / 390×844）、`grid-desktop`、`dark-desktop`、`tags-desktop`、`platform-users`、`platform-audit`、`shares-desktop`、`settings-desktop`、`trash-desktop`、`grid-mobile`、`palette`、`palette-mobile`、`notifications`、`share-dialog`、`create-dialog`、`batch-bar`、`preview`、`settings-members`、`create-mobile`（共 20 张）。
 > 类名合并统一走 `client/src/lib/cn.ts`（clsx + tailwind-merge）。
 
 ## 1. 方向：从「演示型玻璃拟态」到「安静、内容优先的工作台」
@@ -255,6 +255,14 @@ AppHeader（全端，h-14）：移动=菜单 + 品牌；桌面=当前空间 · M
 
 ### v7.12 浮层视觉覆盖与命令面板
 
-- `visual:check` 新增 8 个浮层/页面基线：命令面板、通知面板、分享弹窗、新建文件夹、批量条、预览层、成员设置、移动端新建文件夹；当前 **19/19** 通过且像素差异 0.00%。
+- `visual:check` 新增 8 个浮层/页面基线：命令面板、通知面板、分享弹窗、新建文件夹、批量条、预览层、成员设置、移动端新建文件夹；随后补 palette-mobile，当前 **20/20** 通过且像素差异 0.00%。
 - 命令面板打开即展示最近访问（不再依赖输入框 focus 是否成功）；空态按钮修正为“回到根目录”。
-- 命令面板「新建文件夹」改为通过 `?newFolder=1` 跳转并自动打开创建弹窗，不再只是回到文件页。
+- 命令面板「新建文件夹」改为通过 /?newFolder=1 跳转并自动打开创建弹窗，不再只是回到文件页。
+
+### v7.13 命令面板重构
+
+- 移除「标题栏 + 输入框 + 绝对定位下拉」的三层嵌套，改为单一纵向面板：输入行 → 排序/类型分段 → 结果滚动区 → 键盘提示。
+- 桌面宽面板 sm:max-w-2xl，高度按内容自适应、上限 70vh；移动端为底部抽屉（上限 86dvh），不再是 cramped 的居中弹窗。
+- 排序/类型从原生下拉改为分段控件；结果行统一图标 + 名称 + 路径；最近访问/操作分组、命中高亮保留。
+- 顶部搜索按钮仍是入口；Esc/点击遮罩/关闭按钮均可关闭。
+- 视觉基线新增 palette-mobile，共 20 张。

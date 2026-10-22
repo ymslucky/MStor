@@ -327,6 +327,11 @@ const CASES = [
     check: "!!document.querySelector('[data-testid=\"dialog-panel\"]')",
   },
   {
+    name: "palette-mobile", path: "/", width: 390, height: 844, marker: "全部文件",
+    action: "document.querySelector('[aria-label=\"搜索（⌘K）\"]')?.click(); true",
+    check: "!!document.querySelector('[data-testid=\"dialog-panel\"]')",
+  },
+  {
     name: "notifications", path: "/", width: 1440, height: 900, marker: "全部文件",
     action: "document.querySelector('[aria-label^=\"通知\"]')?.click(); true",
     check: "!!document.querySelector('[aria-label=\"通知列表\"]')",

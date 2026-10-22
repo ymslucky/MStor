@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import * as RadixDialog from "@radix-ui/react-dialog";
 import { Search } from "lucide-react";
 import SearchBox from "./SearchBox";
-import { Dialog } from "./ui";
 
 /**
- * Spotlight 式搜索入口（桌面端替代顶栏搜索框）：
- * ⌘K / Ctrl+K 或点击浮动按钮打开；移动端不使用（搜索在抽屉里）。
+ * 命令面板（v7.13）：独立 Radix Dialog，桌面为居中大面板、移动端为底部抽屉。
+ * 不使用通用 Dialog，是为了隐藏重复的标题栏，把整个面板让给「输入 + 筛选 + 结果 + 键盘提示」。
  */
 export function CommandPalette({ onOpen }: { onOpen?: () => void } = {}) {
   const [open, setOpen] = useState(false);
@@ -42,9 +42,24 @@ export function CommandPalette({ onOpen }: { onOpen?: () => void } = {}) {
         <kbd className="hidden rounded border border-line px-1 text-2xs text-ink-3 lg:inline">⌘K</kbd>
       </button>
 
-      <Dialog open={open} onClose={() => setOpen(false)} title="搜索文件">
-        <SearchBox autoFocus onNavigate={() => setOpen(false)} />
-      </Dialog>
+      <RadixDialog.Root open={open} onOpenChange={(next) => !next && setOpen(false)}>
+        <RadixDialog.Portal>
+          <RadixDialog.Overlay
+            data-testid="dialog-mask"
+            className="anim-fade fixed inset-0 z-overlay bg-ink/40 backdrop-blur-[2px]"
+          />
+          <RadixDialog.Content
+            data-testid="dialog-panel"
+            className="anim-pop fixed inset-x-0 bottom-0 z-modal mx-auto flex max-h-[86dvh] w-full flex-col overflow-hidden rounded-t-panel border border-line bg-surface-1 shadow-lift outline-none sm:inset-x-auto sm:top-24 sm:bottom-auto sm:left-1/2 sm:max-h-[min(70vh,620px)] sm:max-w-2xl sm:-translate-x-1/2 sm:rounded-panel"
+          >
+            <RadixDialog.Title className="sr-only">搜索文件</RadixDialog.Title>
+            <RadixDialog.Description className="sr-only">
+              搜索文件名或文件夹，或跳转到常用位置
+            </RadixDialog.Description>
+            <SearchBox autoFocus onNavigate={() => setOpen(false)} onClose={() => setOpen(false)} />
+          </RadixDialog.Content>
+        </RadixDialog.Portal>
+      </RadixDialog.Root>
     </>
   );
 }
