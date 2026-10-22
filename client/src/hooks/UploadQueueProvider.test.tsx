@@ -24,7 +24,7 @@ function Probe() {
 }
 
 // 真实 hook 的动作是 useCallback 稳定引用：测试里也必须跨渲染复用同一组函数
-const stableActions = { add: vi.fn(), retry: vi.fn(), cancel: vi.fn(), purge: vi.fn(), clearFinished: vi.fn() };
+const stableActions = { add: vi.fn(), retry: vi.fn(), cancel: vi.fn(), purge: vi.fn() };
 
 function queue(over: Partial<ReturnType<typeof useUploadQueue>> = {}) {
   return { items: [], ...stableActions, ...over } as unknown as ReturnType<typeof useUploadQueue>;

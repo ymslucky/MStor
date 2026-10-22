@@ -276,12 +276,5 @@ export function useUploadQueue() {
     [resetSampling],
   );
 
-  const clearFinished = useCallback(() => {
-    const removed = itemsRef.current.filter((it) => it.status !== "uploading" && it.status !== "pending" && it.status !== "paused");
-    for (const it of removed) resetSampling(it.key);
-    itemsRef.current = itemsRef.current.filter((it) => it.status === "uploading" || it.status === "pending" || it.status === "paused");
-    setItems([...itemsRef.current]);
-  }, [resetSampling]);
-
-  return { items, add, retry, cancel, purge, clearFinished };
+  return { items, add, retry, cancel, purge };
 }

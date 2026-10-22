@@ -20,7 +20,6 @@ vi.mock("../hooks/useUploadQueue", () => ({
     retry: vi.fn(),
     cancel: vi.fn(),
     purge: vi.fn(),
-    clearFinished: vi.fn(),
   })),
 }));
 

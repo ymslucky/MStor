@@ -52,6 +52,9 @@
 | `Skeleton` | 自研 | ✅ |
 | `ListSkeleton` | 统一列表加载占位（rows × 整行，aria-busy） | ✅ 新增 |
 | `SearchInput` | 放大镜搜索输入（aria-label + 统一内边距） | ✅ 新增（components/SearchInput.tsx） |
+| `SelectionBar` | 批量浮条唯一出处（已选 N 项 + 动作 + 取消，`.dock-bottom`） | ✅ 新增 |
+| `AsyncState` | 查询三态壳（骨架/内联错误/缓存降级/禁用查询不骨架） | ✅ 新增（components/AsyncState.tsx） |
+| `TagDialog` | 节点标签弹窗（基于 Dialog；勾选打/解、新建并添加） | ✅ 新增 |
 | `Panel` | 浮层容器（level=e2 glass / e3 glass-strong），唯一出处 | ✅ 新增 |
 | `Field` | label + 控件 + hint/error（自动 id 与 aria-describedby、error 用 role=alert） | ✅ 新增 |
 | `NavItem` | 导航项，选中 accent-tint，行高走 --density-row-h | ✅ 新增 |
@@ -145,3 +148,10 @@
 - 通知角标初始值取 `/api/me.unreadNotifications`（`NotificationBell.initialUnread`）；收藏/取消收藏改乐观更新（失败回滚）。
 - 上传分片并发封顶 `MAX_PART_CONCURRENCY = 4`（队列并发 N 时峰值 N×4 而非 N²）。
 - 闸门：`tsc` / `eslint` / **38 文件 233 例** / `vite build` 全绿。
+
+### v6.5 后续批次（标签 / 搜索分页 / 清理）
+
+- 标签写接口 UI：TagDialog、LibraryPage 新建/删除标签、Browser 右键「标签…」与 DetailPane 入口；服务端新增 `GET /api/library/node-tags/:nodeId`。
+- 命令面板接入 `nextCursor` 游标分页（`useInfiniteQuery` + 「加载更多结果」）。
+- 删除 `clearFinished` 死代码；底部浮层统一 `.dock-bottom`；`/design` 登记 SearchInput/AsyncState/SelectionBar/TagDialog。
+- 闸门：**42 文件 245 例**；双 `tsc` / `eslint` / `vite build` 全绿。

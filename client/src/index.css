@@ -367,6 +367,12 @@ body {
 }
 
 
+/* 底部浮层统一偏移：移动端避开安全区/批量条，sm+ 贴近底部（SelectionBar / BatchProgress / UploadDock 共用） */
+.dock-bottom { bottom: calc(env(safe-area-inset-bottom) + 4.5rem); }
+@media (min-width: 640px) {
+  .dock-bottom { bottom: 1.5rem; }
+}
+
 /* 焦点环：柔和双环 */
 :where(button, a, input, select, textarea, [tabindex]):focus-visible {
   outline: none;

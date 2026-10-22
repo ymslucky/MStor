@@ -18,7 +18,7 @@ export function SelectionBar({
 }) {
   if (count <= 0 || hidden) return null;
   return (
-    <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] z-overlay flex justify-center px-4 sm:bottom-6">
+    <div className="dock-bottom fixed inset-x-0 z-overlay flex justify-center px-4">
       <Surface className="flex items-center gap-1.5 p-2">
         <span className="whitespace-nowrap px-2 text-sm font-medium text-ink">已选 {count} 项</span>
         {children}

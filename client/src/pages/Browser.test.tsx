@@ -22,7 +22,7 @@ vi.mock("../api/nodes", async (importOriginal) => ({
 // 上传队列 mock：拖拽/文件选择断言 queue.add 调用（不入真实上传流程）
 const { queueAdd } = vi.hoisted(() => ({ queueAdd: vi.fn() }));
 vi.mock("../hooks/useUploadQueue", () => ({
-  useUploadQueue: () => ({ items: [], add: queueAdd, retry: vi.fn(), clearFinished: vi.fn() }),
+  useUploadQueue: () => ({ items: [], add: queueAdd, retry: vi.fn(), cancel: vi.fn(), purge: vi.fn() }),
 }));
 
 vi.mock("../api/shares", () => ({

@@ -252,20 +252,6 @@ test("彻底取消 purge：abortUpload + clearResume + 移除队列项", async (
   expect(result.current.items).toHaveLength(0);
 });
 
-test("clearFinished 保留 paused 项", async () => {
-  vi.mocked(uploadLarge).mockImplementation(async (_f, _p, _onProgress, _delay, opts) => {
-    opts?.onUploadId?.("up-q");
-    return new Promise(() => {});
-  });
-  const { result } = renderHook(() => useUploadQueue(), { wrapper });
-  act(() => result.current.add([makeFile("big.bin", 4096)], "d1"));
-  await waitFor(() => expect(result.current.items[0].status).toBe("uploading"));
-  act(() => result.current.cancel(result.current.items[0].key));
-  act(() => result.current.clearFinished());
-  expect(result.current.items).toHaveLength(1);
-  expect(result.current.items[0].status).toBe("paused");
-});
-
 // —— 秒传 ——
 
 test("小文件上传前计算 SHA-256 传给 uploadSmall", async () => {

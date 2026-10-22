@@ -26,7 +26,7 @@ export function GlobalUploadDock() {
   const totalSpeed = visible.reduce((sum, i) => (i.status === "uploading" && i.speed ? sum + i.speed : sum), 0);
 
   return (
-    <div className="fixed right-4 bottom-20 z-overlay w-72 max-w-[calc(100vw-2rem)] md:bottom-4">
+    <div className="dock-bottom fixed right-4 z-overlay w-72 max-w-[calc(100vw-2rem)]">
       <Surface className="overflow-hidden">
         <div className="flex items-center justify-between gap-2 px-3 py-2">
           <span className="flex min-w-0 items-center gap-1.5 text-xs text-ink-2">

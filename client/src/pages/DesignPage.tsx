@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Button, Dialog, Field, GlassCard, IconButton, Input, ListRow, ListSkeleton, NavItem, Panel, Pill, Skeleton, Surface } from "../components/ui";
+import { AsyncState } from "../components/AsyncState";
+import { SearchInput } from "../components/SearchInput";
 import { cn } from "../lib/cn";
 import { readDensity, readSkin, setDensity, setSkin } from "../lib/appearance";
 import type { Density, Skin } from "../lib/appearance";
@@ -193,6 +195,12 @@ export default function DesignPage() {
               <Skeleton className="h-4 flex-1" />
             </div>
             <ListSkeleton rows={2} />
+            <SearchInput label="示例搜索" placeholder="搜索…" value="" onChange={() => {}} />
+            <AsyncState query={{ isPending: false, isError: false, error: null, refetch: () => {} }}>
+              <Surface className="p-2 text-sm text-ink-2">
+                AsyncState：就绪态渲染 children（错误态走内联空态，禁用查询不显示骨架）
+              </Surface>
+            </AsyncState>
           </div>
           <Button variant="ghost" onClick={() => setDialogOpen(true)}>
             打开 Dialog（Radix：焦点陷阱 / Esc / aria）

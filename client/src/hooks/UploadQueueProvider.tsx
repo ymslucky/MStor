@@ -15,7 +15,7 @@ export interface UploadQueueState {
   items: UploadQueue["items"];
 }
 
-export type UploadQueueActions = Pick<UploadQueue, "add" | "retry" | "cancel" | "purge" | "clearFinished">;
+export type UploadQueueActions = Pick<UploadQueue, "add" | "retry" | "cancel" | "purge">;
 
 const StateContext = createContext<UploadQueueState | null>(null);
 const ActionsContext = createContext<UploadQueueActions | null>(null);
@@ -29,9 +29,8 @@ export function UploadQueueProvider({ children }: { children: ReactNode }) {
       retry: queue.retry,
       cancel: queue.cancel,
       purge: queue.purge,
-      clearFinished: queue.clearFinished,
     }),
-    [queue.add, queue.retry, queue.cancel, queue.purge, queue.clearFinished],
+    [queue.add, queue.retry, queue.cancel, queue.purge],
   );
   const state = useMemo<UploadQueueState>(() => ({ items: queue.items }), [queue.items]);
 

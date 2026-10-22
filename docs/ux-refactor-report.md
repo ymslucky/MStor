@@ -396,7 +396,14 @@
 - 新增 SearchBox 分页用例（首屏 nextCursor → 点击加载更多 → 断言 cursor 与追加结果）。
 - 验证：客户端 **42 文件 / 246 例**；双 `tsc`、`eslint`、`vite build` 全绿。
 
-## 16. 后续建议（本次未实施）
+## 16. 第十轮：清理与设计系统登记
+
+- **删除死代码**：`useUploadQueue.clearFinished` 已无消费者（上传浮层只展示未完成项），从 hook/Provider/测试移除，减少一份「会误删失败项」的 API。
+- **底部浮层统一**：新增 `.dock-bottom`（移动端 `safe-area + 4.5rem`，sm+ `1.5rem`），SelectionBar / BatchProgress / GlobalUploadDock 共用，替代各自写死的 `bottom-20/24`。
+- **/design 登记**：补充 `SearchInput` 与 `AsyncState` 演示（后者用 `Surface` 包裹以满足「禁止手写卡片外观」的 lint 规则）。
+- 验证：客户端 **42 文件 / 245 例**（删除 1 例死 API 测试）；双 `tsc`、`eslint`、`vite build` 全绿。
+
+## 17. 后续建议（本次未实施）
 
 1. `<AsyncState>`/`<PageState>` 统一加载/失败/空三态，修复收藏/最近/标签/回收站/分享/审计页「失败伪装成空」。
 2. `<SelectionBar>` 统一 BatchBar / TrashPage / SharesPage 的批量条；`<SearchInput>`、`<ListSkeleton>`、`<PageShell>` 抽公共件。
