@@ -3,7 +3,7 @@
 > **令牌唯一来源**：`client/src/index.css` 的 `@theme`（含暗色覆盖）。
 > **原语唯一来源**：`client/src/components/ui/*`；页面骨架 `components/layout/PageHeader` + `shell/AppHeader`。
 > **可视化验收**：应用内 `/design` 页（`pages/DesignPage.tsx`）——新增令牌/原语**必须先在此登记**。
-> **v7 实机基线**：`docs/design/v7/` 下 `files-desktop` / `files-mobile`（1440×900 / 390×844）、`grid-desktop`、`dark-desktop`、`tags-desktop`、`platform-users`。
+> **v7 实机基线**：`docs/design/v7/` 下 `files-desktop` / `files-mobile`（1440×900 / 390×844）、`grid-desktop`、`dark-desktop`、`tags-desktop`、`platform-users`、`platform-audit`、`shares-desktop`。
 > 类名合并统一走 `client/src/lib/cn.ts`（clsx + tailwind-merge）。
 
 ## 1. 方向：从「演示型玻璃拟态」到「安静、内容优先的工作台」
