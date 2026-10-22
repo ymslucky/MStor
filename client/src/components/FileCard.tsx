@@ -23,14 +23,14 @@ export function FileCard({ node, thumbSrc, badge, actions }: Props) {
   return (
     <>
       <div className="block w-full text-left" title={node.name}>
-        <div className="flex h-28 items-center justify-center overflow-hidden bg-bg-sub">
+        <div className="flex aspect-[4/3] items-center justify-center overflow-hidden bg-bg-sub">
           {thumbSrc ? (
             <img
               src={thumbSrc}
               alt={node.name}
               loading="lazy"
               decoding="async"
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover transition-transform duration-(--duration-320) ease-(--ease-out-soft) group-hover:scale-[1.03]"
             />
           ) : (
             <NodeIcon node={node} size={44} className="text-ink-3" />
@@ -39,7 +39,7 @@ export function FileCard({ node, thumbSrc, badge, actions }: Props) {
         <div className="px-2.5 py-2">
           <div className="flex items-center gap-1.5">
             <NodeIcon node={node} size={14} className="shrink-0" />
-            <span className="truncate text-sm text-ink">{truncateMiddle(node.name, 20)}</span>
+            <span className="truncate text-sm text-ink" title={node.name}>{truncateMiddle(node.name, 20)}</span>
             {badge}
           </div>
           <div className="text-xs tabular-nums text-ink-faint">
