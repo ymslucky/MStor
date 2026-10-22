@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { usePaletteSearch } from "../hooks/usePaletteSearch";
 import { PaletteResults } from "./search/PaletteResults";
 
@@ -8,6 +9,11 @@ import { PaletteResults } from "./search/PaletteResults";
  */
 export default function SearchBox({ autoFocus, onNavigate }: { autoFocus?: boolean; onNavigate?: () => void } = {}) {
   const palette = usePaletteSearch({ onNavigate });
+  const { openPanel } = palette;
+  // 打开命令面板即展示「最近访问」，不再依赖输入框是否拿到焦点（headless/程序化打开时 focus 不可靠）
+  useEffect(() => {
+    openPanel();
+  }, [openPanel]);
 
   return (
     <div ref={palette.boxRef} className="relative">

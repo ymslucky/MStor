@@ -3,7 +3,7 @@
 > **令牌唯一来源**：`client/src/index.css` 的 `@theme`（含暗色覆盖）。
 > **原语唯一来源**：`client/src/components/ui/*`；页面骨架 `components/layout/PageHeader` + `shell/AppHeader`。
 > **可视化验收**：应用内 `/design` 页（`pages/DesignPage.tsx`）——新增令牌/原语**必须先在此登记**。
-> **v7 实机基线**：`docs/design/v7/` 下 `files-desktop` / `files-mobile`（1440×900 / 390×844）、`grid-desktop`、`dark-desktop`、`tags-desktop`、`platform-users`、`platform-audit`、`shares-desktop`、`settings-desktop`、`trash-desktop`、`grid-mobile`（共 11 张）。
+> **v7 实机基线**：`docs/design/v7/` 下 `files-desktop` / `files-mobile`（1440×900 / 390×844）、`grid-desktop`、`dark-desktop`、`tags-desktop`、`platform-users`、`platform-audit`、`shares-desktop`、`settings-desktop`、`trash-desktop`、`grid-mobile`、`palette`、`notifications`、`share-dialog`、`create-dialog`、`batch-bar`、`preview`、`settings-members`、`create-mobile`（共 19 张）。
 > 类名合并统一走 `client/src/lib/cn.ts`（clsx + tailwind-merge）。
 
 ## 1. 方向：从「演示型玻璃拟态」到「安静、内容优先的工作台」
@@ -252,3 +252,9 @@ AppHeader（全端，h-14）：移动=菜单 + 品牌；桌面=当前空间 · M
 - 网格卡片：图标从灰底直接摆放改为白色圆角 tile + 文件类型角标（文件夹不重复角标）；缩略图加载失败回退到类型图标；新增 390×844 网格基线。
 - 拖拽：内部节点拖拽不再触发上传覆盖层/上传队列；拖回当前目录直接 no-op，不再产生移动撤销条。
 - 邀请：创建/重新生成后自动尝试写入剪贴板，并在成员面板展示只读链接 + 复制按钮；复制失败提示手动复制。
+
+### v7.12 浮层视觉覆盖与命令面板
+
+- `visual:check` 新增 8 个浮层/页面基线：命令面板、通知面板、分享弹窗、新建文件夹、批量条、预览层、成员设置、移动端新建文件夹；当前 **19/19** 通过且像素差异 0.00%。
+- 命令面板打开即展示最近访问（不再依赖输入框 focus 是否成功）；空态按钮修正为“回到根目录”。
+- 命令面板「新建文件夹」改为通过 `?newFolder=1` 跳转并自动打开创建弹窗，不再只是回到文件页。

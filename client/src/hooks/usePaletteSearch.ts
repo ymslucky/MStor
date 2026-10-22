@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { listRecent } from "../api/library";
@@ -152,11 +152,13 @@ export function usePaletteSearch({ onNavigate }: { onNavigate?: () => void } = {
     setOpen(true);
   };
 
+  const openPanel = useCallback(() => setOpen(true), []);
+
   return {
     q,
     setQuery,
     open,
-    openPanel: () => setOpen(true),
+    openPanel,
     sort,
     setSort,
     kind,

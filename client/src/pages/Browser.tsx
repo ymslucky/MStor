@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Download, MoreHorizontal, TriangleAlert } from "lucide-react";
@@ -60,6 +60,15 @@ export default function Browser() {
   // 前端过滤 chips
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
+
+  // 命令面板「新建文件夹」：通过 URL 参数跨页触发创建弹窗，随后清理参数避免刷新重开
+  useEffect(() => {
+    if (!params.get("newFolder")) return;
+    setCreating(true);
+    const next = new URLSearchParams(params);
+    next.delete("newFolder");
+    setParams(next, { replace: true });
+  }, [params, setParams, setCreating]);
 
   const openDir = (id: string) => {
     // 进入目录 = 一次访问，供「最近」列表使用（失败不影响导航）

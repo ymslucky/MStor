@@ -354,6 +354,17 @@ test("drag-drop onto drop zone shows overlay and queues files into current dir",
   expect(screen.queryByTestId("drop-overlay")).not.toBeInTheDocument();
 });
 
+test("命令面板 newFolder 参数打开新建文件夹弹窗", async () => {
+  renderWithProviders(
+    <UploadQueueProvider>
+      <Browser />
+    </UploadQueueProvider>,
+    { route: "/?newFolder=1" },
+  );
+  expect(await screen.findByTestId("dialog-panel")).toBeInTheDocument();
+  expect(screen.getByText("名称")).toBeInTheDocument();
+});
+
 test("内部节点拖拽不显示上传覆盖层、不入上传队列", async () => {
   queueAdd.mockClear();
   vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);

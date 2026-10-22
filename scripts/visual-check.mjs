@@ -88,7 +88,29 @@ const apiResponse = (url) => {
   if (p === "/api/library/tags/t1/nodes") return { nodes: FILES.slice(2, 6) };
   if (p.startsWith("/api/library/tags/")) return { nodes: [] };
   if (p === "/api/library/node-tags" || p.startsWith("/api/library/node-tags/")) return { tags: [] };
-  if (p === "/api/notifications") return { unread: 3, items: [] };
+  if (p === "/api/notifications") {
+    return {
+      unread: 2,
+      items: [
+        { id: "n1", workspace_id: "w1", user_id: "u1", kind: "share", title: "收到分享：家庭照片", body: null, link: "/shares", read_at: null, created_at: NOW - 60000 },
+        { id: "n2", workspace_id: "w1", user_id: "u1", kind: "quota", title: "存储用量已超过 50%", body: null, link: null, read_at: null, created_at: NOW - 3600000 },
+        { id: "n3", workspace_id: "w1", user_id: "u1", kind: "share", title: "分享链接已过期", body: null, link: "/shares", read_at: NOW - 7200000, created_at: NOW - 86400000 },
+      ],
+    };
+  }
+  if (p === "/api/workspaces/members") {
+    return {
+      members: [
+        { user_id: "u1", name: "Alice", email: "alice@example.com", role: "owner", created_at: NOW - 86400000 },
+        { user_id: "u2", name: "Bob", email: "bob@example.com", role: "member", created_at: NOW - 3600000 },
+      ],
+    };
+  }
+  if (p === "/api/workspaces/invitations") {
+    return {
+      invitations: [{ email: "carol@example.com", role: "member", created_at: NOW - 3600000, expires_at: NOW + 604800000 }],
+    };
+  }
   if (p === "/api/search") return { nodes: [], paths: {} };
   if (p === "/api/me/admin/overview") {
     return {
@@ -300,6 +322,45 @@ const CASES = [
   },
   { name: "dark-desktop", path: "/", width: 1440, height: 900, marker: "全部文件", dark: true },
   {
+    name: "palette", path: "/", width: 1440, height: 900, marker: "全部文件",
+    action: "document.querySelector('[aria-label=\"搜索（⌘K）\"]')?.click(); true",
+    check: "!!document.querySelector('[data-testid=\"dialog-panel\"]')",
+  },
+  {
+    name: "notifications", path: "/", width: 1440, height: 900, marker: "全部文件",
+    action: "document.querySelector('[aria-label^=\"通知\"]')?.click(); true",
+    check: "!!document.querySelector('[aria-label=\"通知列表\"]')",
+  },
+  {
+    name: "share-dialog", path: "/", width: 1440, height: 900, marker: "全部文件",
+    action: "document.querySelector('[aria-label^=\"分享 \"]')?.click(); true",
+    check: "document.body.innerText.includes('有效天数')",
+  },
+  {
+    name: "create-dialog", path: "/", width: 1440, height: 900, marker: "全部文件",
+    action: "[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='新建文件夹')?.click(); true",
+    check: "!!document.querySelector('[data-testid=\"dialog-panel\"]')",
+  },
+  {
+    name: "batch-bar", path: "/", width: 1440, height: 900, marker: "全部文件",
+    action: "(() => { [...document.querySelectorAll('[data-file-row] input[type=checkbox]')].slice(0,2).forEach(c=>c.click()); return true; })()",
+    check: "document.body.innerText.includes('已选 2 项')",
+  },
+  {
+    name: "preview", path: "/", width: 1440, height: 900, marker: "全部文件",
+    action: "(() => { const r=[...document.querySelectorAll('[data-file-row]')].find(x=>x.textContent.includes('旅行照片')); r?.dispatchEvent(new MouseEvent('dblclick',{bubbles:true})); return true; })()",
+    check: "!!document.querySelector('[role=\"dialog\"][aria-label^=\"预览\"]')",
+  },
+  {
+    name: "settings-members", path: "/settings/members", width: 1440, height: 900, marker: "空间成员",
+    check: "document.body.innerText.includes('carol@example.com')",
+  },
+  {
+    name: "create-mobile", path: "/", width: 390, height: 844, marker: "全部文件",
+    action: "[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='新建文件夹')?.click(); true",
+    check: "!!document.querySelector('[data-testid=\"dialog-panel\"]')",
+  },
+  {
     name: "grid-desktop", path: "/", width: 1440, height: 900, marker: "项目资料",
     setup: "localStorage.setItem('mstor_view','grid'); location.reload(); true",
     check: "!!document.querySelector('[data-testid=\"file-grid\"]')",
@@ -342,6 +403,10 @@ async function main() {
         await sleep(600);
       }
       const markerOk = await waitFor(evaluate, `document.body.innerText.includes(${JSON.stringify(c.marker)})`);
+      if (markerOk && c.action) {
+        await evaluate(c.action);
+        await sleep(700);
+      }
       const metrics = JSON.parse(await evaluate("JSON.stringify({ vw: innerWidth, sw: document.documentElement.scrollWidth })"));
       const checkOk = c.check ? Boolean(await evaluate(c.check)) : true;
       const shot = await cmd("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
