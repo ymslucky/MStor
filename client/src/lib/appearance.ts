@@ -1,8 +1,10 @@
+import { STORAGE_KEYS } from "./storage";
+
 export type Skin = "paper" | "slate" | "ink" | "brutal";
 export type Density = "comfortable" | "compact";
 
-const SKIN_KEY = "mstor_skin";
-const DENSITY_KEY = "mstor_density";
+const SKIN_KEY = STORAGE_KEYS.skin;
+const DENSITY_KEY = STORAGE_KEYS.density;
 
 const DEFAULT_SKIN: Skin = "slate";
 

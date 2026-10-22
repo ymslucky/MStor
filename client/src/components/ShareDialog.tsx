@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { CalendarClock, KeyRound, Link2 } from "lucide-react";
 import { renderSVG } from "uqr";
 import { createShare } from "../api/shares";
 import type { Node } from "../api/types";
 import { toast } from "../components/Toaster";
+import { queryKeys } from "../lib/queryKeys";
 import { Button, Dialog, Input } from "./ui";
 
 interface Props {
@@ -12,6 +14,7 @@ interface Props {
 }
 
 export default function ShareDialog({ node, onClose }: Props) {
+  const queryClient = useQueryClient();
   // 默认 7 天有效期；清空为永久
   const [days, setDays] = useState("7");
   const [password, setPassword] = useState("");
@@ -40,6 +43,8 @@ export default function ShareDialog({ node, onClose }: Props) {
         maxDownloads: limitMode === "custom" ? Number(maxDownloads) || undefined : undefined,
       });
       setUrl(res.url);
+      // 列表的「已分享」角标来自 ["shares"] 缓存，创建成功后必须失效
+      void queryClient.invalidateQueries({ queryKey: queryKeys.shares });
     } catch (e) {
       toast(e instanceof Error ? e.message : "创建分享失败");
     } finally {

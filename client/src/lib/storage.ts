@@ -9,6 +9,9 @@ export const STORAGE_KEYS = {
   filesTable: "mstor_files_table",
   uploadConcurrency: "mstor_upload_concurrency",
   resume: "mstor_resume",
+  uploadConflict: "mstor_upload_conflict",
+  skin: "mstor_skin",
+  density: "mstor_density",
 } as const;
 
 /** sessionStorage 键：仅当前标签页生命周期有效（会话标记与续期守卫） */

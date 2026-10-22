@@ -1,0 +1,285 @@
+# MStor 前端系统性分析 · 重构与 UX 优化报告
+
+> 范围：`client/src`（约 9,400 行、153 个非测试源文件）+ `docs/design-system.md`。
+> 目标：在**不改变功能行为**的前提下，修复真实缺陷、收敛组件边界与参数设计、改善布局/响应式/可访问性。
+> 结论均带代码证据；实施按 5 个可回滚的步骤推进，每步通过 `tsc + eslint + 全量客户端测试 + vite build`。
+
+## 1. 项目结构与技术栈
+
+| 层 | 选型 |
+| --- | --- |
+| 运行时 / 存储 | Cloudflare Workers + R2（对象）+ D1（元数据） |
+| 后端 | Hono + TypeScript strict，`server/{routes,middleware,lib,data}` |
+| 前端 | React 19、TanStack Query 5（服务端状态）、TanStack Table 8 + Virtual 3（列模型/虚拟滚动）、react-router 7、Tailwind 4、Radix（Dialog/Toast/Slot）、Vite + PWA |
+| 设计系统 | `client/src/index.css` 的 `@theme` 令牌 + `components/ui/*` 原语 + `/design` 可视化验收页 |
+| 测试 | Vitest：客户端 jsdom（Testing Library + vitest-axe），服务端 `@cloudflare/vitest-pool-workers` |
+
+前端分层基本健康：`pages` 作容器、`hooks` 承载规则、`api` 封装请求、`lib` 放纯函数/常量、`shell` 放布局。问题集中在三处：
+
+1. **少数超载组件**（FileList 453 行/18 props、Browser 405 行/12 hooks、AppShell 202 行同时管布局/会话/抽屉）。
+2. **重复实现**（导航 2 套、上传浮层 2 套、胶囊 2 套、行内按钮反向依赖、模态外壳 3 套、批量条 3 套）。
+3. **设计令牌与业务常量漂移**（调色板直写、硬编码白色、`mstor_upload_conflict` 绕过 STORAGE_KEYS、阈值散落）。
+
+## 2. 组件角度分析
+
+### 2.1 划分粒度与职责边界
+
+| 组件 | 规模 | 现状职责（问题） | 结论 |
+| --- | --- | --- | --- |
+| `components/FileList.tsx` | 453 行 / 18 props | 行布局 + 名称过滤 + 排序 + 列偏好持久化 + 拖拽 + 长按多选 + 虚拟化 + 行内按钮工厂 | **超载**：展示组件不应写 localStorage / 自建 matchMedia |
+| `pages/Browser.tsx` | 405 行 / 12 hooks | 路由参数、查询、选择、键盘、批量、上传、8 个弹窗、DnD、布局 | 可编排，但 DnD/下载策略/详情呈现应下沉 |
+| `shell/AppShell.tsx` | 202 行 | 布局 + 会话动作 + 手写移动抽屉 + 2 个确认框 | 抽屉应独立且复用导航数据源 |
+| `components/AdminUsersSection.tsx` | 282 行 / 8 state | 表格 + 筛选 + 3 个弹窗 + act-as 跳转 | 后续拆分（未在本次实施） |
+| `components/SearchBox.tsx` | 261 行 | 输入 + 分组 + 键盘 + 排序/类型 + 2 个 query | 后续拆分（未在本次实施） |
+
+### 2.2 复用性（本次已消除的重复）
+
+- **导航**：`SidebarNav`（NavItem + 分区）与 `AppShell` 移动抽屉各自渲染一遍 SECTIONS，类名/圆角/行高不一致；抽屉还缺空间切换、存储用量、搜索入口。→ 抽屉改为独立组件并复用 `NavItem`/`sectionsFor`/`WorkspaceSwitcher`/`StorageMeter`/`AccountMenu`。
+- **上传浮层**：`UploadPanel`（Browser 内）与 `GlobalUploadDock`（AppShell 级）同位置渲染、互相遮挡，且 Dock 的进度公式错误。→ 合并为唯一全局 Dock。
+- **胶囊标签**：`Badge` 与 `Pill` 语义完全重叠（docs 已声明 Pill 为唯一出处，但 Badge 仍在 4 处使用）。→ 删除 Badge，统一 Pill。
+- **行内按钮**：`RowAction` 定义在 FileList 里，被 `NodeRowActions`/`TrashPage` 反向依赖。→ 抽到 `components/RowAction.tsx`。
+- **死代码**：`BrowserKpi` + `StorageRing`（零引用）、`nav.ts` 的 `NAV`（零引用）、`VirtualizedList.ROW_HEIGHT`（零引用）、`BrowserToolbar.batchBar`（从未传入）、`FileListHeader.view`（恒为 list）、`FileList.animStyle`（恒返回空对象）。→ 全部删除。
+
+### 2.3 组件间通信
+
+| 机制 | 使用处 | 评价 |
+| --- | --- | --- |
+| props 回调 | 绝大多数 | 主通道，合理 |
+| Context | 仅上传队列（`UploadQueueProvider`） | 合理；但 value 是整包 API，进度更新会重渲染整个消费者子树（后续可拆 state/actions） |
+| 模块级单例 store | `toast()`、`queryClient` | 合理；Toast 已上移到 App 层，公开分享页也能收到反馈 |
+| URL | 目录 `?dir=`、标签 `?tag=`、设置子路由 | 合理；过滤 chips 未进 URL（后续） |
+| localStorage | view / 列偏好 / 侧栏 / 并发 / 冲突 / 续传 / 皮肤密度 | 本次把 skin/density/conflict 三个游离键收进 `STORAGE_KEYS` |
+
+**隐式契约**（重构时已保留）：`containerRef` 依赖行元素的 `data-file-row="index"`；行内容列顺序必须与 `gridStyle` 模板一致；`onDropMove` 同时决定 draggable 与放置目标。
+
+## 3. 参数角度分析（props / 配置 / 状态 / 数据流）
+
+### 3.1 props 与命名
+
+- props 最多：`BrowserDialogs` 23、`FileList` 18、`FileListHeader`/`FileGrid` 12、`BrowserToolbar` 10。
+- 同一概念多种命名：目录目标 `dir` / `parentId` / `to` / `toDirId`；选中态 `selected` / `selection` / `rowSelection` / `checked`；回调 `onXxx` 与直接透传 `setXxx` 混用（`BrowserDialogs`）。
+- 隐式契约诚实度：TrashPage 给 FileList 传空实现 `onOpenDir={() => {}}`，说明「只读列表」模式应显式化（后续）。
+- 已修正的默认值/配置问题：
+  - 撤销文案写死「已移动」（改名也走同一 Snackbar）→ `useFiles` 返回 `{undoId, undoKind}`，文案按 kind 生成。
+  - 撤销倒计时依赖每次渲染新建的 `onClose`，上传进度重渲染会不断重置 → `clearUndo` 改 `useCallback`，Snackbar 以 `key={undoId}` 重挂载，10s 常量进 `lib/constants.ts`。
+  - `mstor_upload_conflict` 硬编码绕过 STORAGE_KEYS → 收口到 `STORAGE_KEYS.uploadConflict`。
+  - `uniqueName`/`ConflictPolicy` 在组件里定义、被 hook 反向 import → 下沉 `lib/conflict.ts`。
+  - `ApiError` 无请求路径，导致全局 401 处理无法区分业务接口与公开分享接口 → 增加 `path` 字段。
+
+### 3.2 状态管理与数据流（本次修复的 P0/P1）
+
+1. **分享提取码 401 被当成会话过期**：`/api/s/*` 的 401（提取码错误）会触发 `handleSessionExpired()`，把已登录用户整页送去 `/auth/renew`。→ `queryClient` 只在 `!error.path.startsWith("/api/s/")` 时续期。
+2. **公开分享页没有 Toast**：`Toaster` 只挂在 AppShell 内，`/s/:token` 在 AppShell 之外。→ Toaster 上移到 `App` 根。
+3. **MemberPanel 失效键写错**：`["workspace-members"]` vs 实际 `["members"]`，角色变更/移除后列表永远不刷新。→ 修正。
+4. **创建分享后「已分享」角标不刷新**：未失效 `["shares"]`。→ 创建成功后 invalidate。
+5. **Ctrl+A 在名称过滤输入框内被劫持**：键盘导航只对 Enter/Delete/F2/Space 判定了输入框。→ 全选前也判断 `inForm`。
+6. **渲染期副作用**：`markSessionActive()` 在 `RequireAuth` 渲染期写 sessionStorage。→ 移入 `useEffect`。
+
+### 3.3 配置项与常量
+
+新增 `client/src/lib/constants.ts` 作为交互阈值/断点唯一出处：紧凑断点、详情栏断点、coarse pointer 查询、虚拟阈值、虚拟回退行数、长按阈值与点击抑制窗口、批量下载间隔、撤销展示时长。FileList / Browser / UndoSnackbar / VirtualizedList 已改为引用常量。
+
+## 4. 布局 / 响应式 / 可访问性 / UX 分析
+
+### 4.1 布局与滚动（已修复 P0）
+
+- **11–49 行目录不可达**：只有 ≥50 行才走虚拟滚动，非虚拟分支没有滚动容器，而外层 `GlassCard` 是 `overflow-hidden`。→ 非虚拟分支补 `md:min-h-0 md:flex-1 md:flex-col` + 内部 `md:overflow-y-auto`（表头固定、单一滚动容器）。
+- **1024–1279 详情栏挤压**：内联详情栏（288px）+ 固定列宽（约 556px 起）超出可用宽度，右侧操作列被裁切。→ 详情栏内联断点从 `lg(1024)` 提到 `xl(1280)`，更窄时回落到详情弹窗（一个 detail 状态仍只对应一个界面）。
+- **底部 80px 死区**：`main` 使用为已删除的底部 Tab 预留的 `.pb-nav`（5rem）。→ 改为 `.pb-safe`（安全区 + 1rem）。
+- **移动端入口缺失**：搜索/空间切换/存储用量/账户只在桌面侧栏。→ 抽屉补齐这些入口（含搜索）。
+- **无跳转链接/文档标题**：→ 增加「跳到主要内容」skip link、`main#main-content`、路由级 `document.title`、文件页 `sr-only h1`。
+
+### 4.2 响应式与触屏交互（已修复 P0）
+
+- **移动端单击=选中、双击=打开**：触屏双击不可靠，点文件夹只是选中。→ coarse pointer 下**单击=打开、长按 500ms=多选**，并用时间戳抑制长按后补发的 click（避免「刚选中又被打开」）；桌面行为不变（单击选中、双击打开、Shift 范围选）。
+- **抽屉不是真对话框**：手写 `div role="dialog"` 无焦点陷阱/Esc/焦点还原/滚动锁。→ 改用 Radix Dialog（与 `ui/Dialog` 同一底座）：焦点陷阱、Esc、遮罩点击、滚动锁定、关闭后焦点还原，标题/描述走 sr-only。
+- **焦点环改变按钮形状**：全局 `:focus-visible` 规则里带 `border-radius: var(--radius-btn)`，圆形图标按钮聚焦时变方形。→ 只保留 box-shadow，颜色改用 `--color-primary`（不再硬编码旧薄荷青）。
+- **对比度**：`ink-3` 用于 11px 文本但仅 3.2–3.7:1。→ 浅色 `#8a857f → #6b665f`（canvas 5.5:1）、slate `#7d8b98 → #5f6c78`（4.9–5.0:1）、暗色 `#74879a → #8b9cae`（5.8:1）、ink 皮肤 `#78828c → #87919b`（5.3:1）。
+- 触控目标：IconButton/Button/抽屉项已有 `.tap`（coarse 下 44px）；行内 `RowAction` 仍为 28px（保持桌面密度，后续可收进「…」菜单）。
+
+### 4.3 视觉令牌治理（已修复 P1）
+
+- 删除 `.state-layer` 重复定义块（其中一份还引用未定义的 `--motion-press`）。
+- 8 处调色板直写改语义令牌：`accent-emerald-600 → accent-primary`、`hover:bg-blue-50 → hover:bg-primary-soft`、`hover:bg-violet-50 → hover:bg-chip-violet-bg`、`bg-gray-300 → bg-line-strong`。
+- 15 处硬编码 `bg-white` 改 `bg-surface-1/2`（Input/Skeleton/FileList 网格卡/表头搜索与菜单/筛选 chips/WorkspaceSwitcher/SearchBox/MemberPanel/ErrorBoundary/PreviewModal/Browser 拖拽层），修复暗色与 `data-skin="ink"` 下的白底混搭。
+- `.glass-strong/.glass-modal` 背景从固定 `rgb(255 255 255 / .8)` 改为基于 `--color-surface-2` 的 `color-mix`，皮肤/暗色下不再强制白玻璃。
+- 圆角 `--radius-chip` 对齐文档（6→8）。
+
+## 5. 问题清单与优先级（汇总）
+
+| 优先级 | 问题 | 处理 |
+| --- | --- | --- |
+| P0 | 分享提取码 401 触发整页重登；公开页无 Toast | ✅ 已修 |
+| P0 | 上传进度算错 100 倍 + 两个上传浮层重叠 | ✅ 已修（合并 Dock） |
+| P0 | 移动端抽屉无焦点陷阱/Esc/焦点还原，导航重复实现 | ✅ Radix 抽屉 + 单一数据源 |
+| P0 | 移动端单击只能选中，无法打开文件 | ✅ coarse 指针单击打开/长按多选 |
+| P0 | 11–49 行列表被 `overflow-hidden` 裁切且不能滚 | ✅ 补滚动容器 |
+| P0 | 1024–1279 详情栏导致行溢出、操作列被裁 | ✅ 详情栏断点提到 xl |
+| P0 | MemberPanel 失效键错误，成员列表不刷新 | ✅ 已修 |
+| P0 | 撤销文案固定「已移动」、倒计时被进度重渲染重置 | ✅ kind + 稳定回调 + key |
+| P1 | 令牌漂移（调色板直写/白底/焦点环/ink-3 对比度） | ✅ 已修 |
+| P1 | Badge/Pill、RowAction、死代码重复 | ✅ 已收敛 |
+| P1 | Ctrl+A 劫持输入框、分享角标不刷新、渲染期写 sessionStorage | ✅ 已修 |
+| P1 | 错误态被空态掩盖（收藏/最近/标签/回收站/分享/审计） | ⏳ 后续 |
+| P1 | 批量条 3 份、模态外壳 3 套、搜索框 4 份、骨架 5 份 | ⏳ 后续 |
+| P1 | 上传 context 全量订阅导致整页重渲染 | ⏳ 后续（拆 state/actions） |
+| P1 | queryKey 未集中、上传逐文件失效 `["files"]`（N×D 请求） | ⏳ 后续 |
+| P2 | MoveDialog 目录树 N+1、无错误态/取消 | ⏳ 后续 |
+| P2 | 服务端契约漂移（AdminUser.role/quota null、search cursor、recordView、分享 password_hash 下发） | ⏳ 需前后端联动 |
+| P2 | PWA 更新提示、theme-color 不一致、/`design` 进主包 | ⏳ 后续 |
+
+## 6. 逐步骤实施（改动理由 → 预期收益）
+
+### Step 1 · 设计令牌与视觉一致性
+
+- 文件：`client/src/index.css`、FileList/FileListHeader/FileFilters/Input/Skeleton/WorkspaceSwitcher/SearchBox/MemberPanel/ErrorBoundary/PreviewModal/Browser。
+- 做了什么：删重复 `.state-layer`；焦点环改用主色令牌并去掉改形状的 border-radius；ink-3 提对比度；`.pb-nav→.pb-safe`；`--radius-chip` 对齐；`.glass-strong` 背景令牌化；8 处调色板直写与 15 处 `bg-white` 全部改语义令牌。
+- 理由：设计系统文档承诺「颜色只用语义令牌 / 焦点环不覆盖组件形状 / ink-3 ≥4.5:1」，实现与文档、暗色/皮肤行为均不一致。
+- 收益：暗色与 ink 皮肤真正可用；键盘焦点环不再破坏圆形按钮；对比度达 WCAG AA；后续新增组件有可依循的单一颜色来源。
+
+### Step 2 · 原语收敛、死代码清理、FileList 减负
+
+- 文件：新增 `components/RowAction.tsx`、`lib/constants.ts`；改 `ui/index.ts`、AccountMenu、FileList、FileListHeader、FileGrid/FileRow（经 FileList）、Field、nav、VirtualizedList、BrowserToolbar、DesignPage、TrashPage、NodeRowActions、三处测试；删除 `ui/Badge.tsx`、`BrowserKpi.tsx`、`StorageRing.tsx`。
+- 做了什么：Badge→Pill 单一出处；RowAction 独立成文件（消除展示组件反向依赖）；`Field` 用 `cloneElement` 注入无障碍属性（保留 ref/元素身份）；FileList 改用 `useMediaQuery`（删除手写 matchMedia）、删死代码、移动端交互修复、非虚拟分支补滚动容器；清理 `NAV/ROW_HEIGHT/batchBar/view/animStyle`。
+- 理由：重复实现是后续改动的最大风险源；展示组件应只负责布局与行契约。
+- 收益：`FileList` 减少约 60 行且职责收敛；原语数量与文档一致；删除 3 个零引用组件与 5 个死导出；非虚拟列表可滚动、移动端可打开文件。
+
+### Step 3 · 外壳与导航单一来源（移动端 + a11y）
+
+- 文件：新增 `shell/MobileNavDrawer.tsx`；重写 `shell/AppShell.tsx`；`nav.ts` 删除 NAV。
+- 做了什么：抽屉改用 Radix Dialog（焦点陷阱/Esc/遮罩/滚动锁/焦点还原）；导航直接复用 `sectionsFor + NavItem`；抽屉底部补 `CommandPalette`（移动端搜索）、`WorkspaceSwitcher`、`StorageMeter`、`AccountMenu`；路由切换自动关闭抽屉；skip link、`main#main-content`、`document.title`、文件页 `sr-only h1`。
+- 理由：手写 dialog 不满足 aria 契约；移动端功能入口缺失；导航两份实现会持续分叉。
+- 收益：移动端可搜索/切空间/看配额/退出；同一批链接只维护一份；新增 `AppShell.test` 抽屉开关与 `a11y.test` 抽屉 axe 用例作为回归闸门。
+
+### Step 4 · 上传浮层合并、会话/错误分流、撤销与失效修正
+
+- 文件：重写 `GlobalUploadDock`；删除 `UploadPanel`；`api/client.ts`、`shell/queryClient.ts`、`App.tsx`、`useFiles`、`UndoSnackbar`、`useKeyboardNav`、`ShareDialog`、`MemberPanel`、`useBrowserUpload`、`lib/{storage,appearance,conflict}.ts`、`Browser`。
+- 做了什么：唯一全局上传 Dock（修复 `size*progress/100` → `size*progress`，单项进度统一 ratio 换算）；`ApiError.path` + `/api/s/*` 401 不再触发重登；Toaster 上移 App；撤销 `{id, kind}` + 稳定回调 + 常量；MemberPanel 失效键修正；创建分享失效 `["shares"]`；Ctrl+A 输入框保护；冲突策略/唯一命名下沉 lib 并收口 STORAGE_KEYS。
+- 收益：修复两个用户可感知的真实 bug（进度 1%、分享页被踢去登录）；两个上传浮层不再互相遮挡；撤销条文案/倒计时正确；错误反馈在公开页可见。
+
+### Step 5 · 页面编排减负、常量集中、详情断点
+
+- 文件：新增 `hooks/useDropUpload.ts`、`components/DropOverlay.tsx`、`lib/constants.ts`；`lib/download.ts`、`Browser.tsx`、`FileList.tsx`、`UndoSnackbar`、`VirtualizedList`。
+- 做了什么：拖拽上传逻辑与覆盖层从 Browser 抽出；批量下载策略收进 `downloadMany`；详情栏断点常量（xl）；虚拟阈值/回退行数/长按/下载间隔/撤销时长集中。
+- 收益：Browser 不再同时承载 DnD 细节；策略可单测/复用；阈值不再散落且互相矛盾。
+
+## 7. 验证
+
+| 闸门 | 结果 |
+| --- | --- |
+| `tsc -p client --noEmit` | 通过 |
+| `eslint .` | 通过 |
+| `vitest run --config vitest.client.config.ts` | 通过：34 个测试文件 / 207 例（基线 33 / 204） |
+| `npm run build` | 通过 |
+| 行为契约 | 既有 `data-testid`（drop-zone/overlay、mobile-drawer、file-list-container、file-grid、file-virtual、dialog-*、empty-state、status-bar、undo-snackbar）、`role=row`、aria-label、localStorage 结构（`mstor_files_table`/`mstor_view`/`mstor_sidebar`）保持不变；仅新增抽屉与 Dock 的回归用例 |
+
+测试改动（均属于契约对齐，非放宽断言）：
+- `ui.test`/`a11y.test`：Badge → Pill（与被测组件一致）。
+- `ShareDialog.test`：为组件补 `QueryClientProvider`（组件创建成功后要失效 `["shares"]`）。
+- 新增 `GlobalUploadDock.test`：0..1 ratio 的回归断言（50% 不能显示成 1%）。
+- 新增 `AppShell.test` 抽屉开关/Esc 用例、`a11y.test` 抽屉 axe 用例。
+
+### 7.1 独立复核后的补修（第二轮）
+
+复核结论 P0=0，另报 3 个 P1，已全部修复并补验：
+
+1. **skip link 聚焦被覆盖**：`focus:z-toast` 不是可生成的 utility（z-toast 是自定义类）。改为常驻 `z-toast`（sr-only 时无副作用），聚焦时 `focus:fixed` 叠加即可置顶。
+2. **抽屉跨 md 断点导致 body 锁死**：Radix 打开时锁滚动，若此时视口跨过 768px，抽屉被 `md:hidden` 隐藏但锁仍存在。抽屉内用 `useMediaQuery(DESKTOP_MEDIA_QUERY)` + effect 自动关闭；同时桌面浮动簇改为按断点条件挂载，避免同一页出现两个 CommandPalette。
+3. **回收站触屏单击无反应**：coarse 分支统一「单击=打开」，但回收站没有打开语义。新增 `FileList.tapOpens`（默认 true，回收站 false），false 时回落为选择；长按抑制窗口改为从松手时刻计时（此前长按超过 600ms 后松手仍可能打开），行上补 `select-none` / `[-webkit-touch-callout:none]`。
+4. 顺带：完成项不再常驻 Dock（只显示进行中/暂停/失败，去掉会误删失败项的「清空已完成」）；slate/ink 皮肤 ink-3 再提对比度；`:focus-visible` 与 `.pb-safe` 层叠问题消除（改用 Tailwind 任意值 utility）；`/design` 补页名；文档 4 处漂移修正。
+
+## 8. 第二轮：网格视图异常修复 + 继续重构
+
+### 8.1 网格视图异常：根因逐条定位
+
+| # | 现象 | 根因（证据） | 修复 |
+| --- | --- | --- | --- |
+| G1 | **选中卡片没有任何高亮** | 卡片容器固定 `bg-surface-1`；构建产物中 `.bg-primary-soft/60`（偏移 24856）在 `.bg-surface-1`（25109）之前，同属性后者胜出 → 选中 tint 被覆盖。列表视图没有常驻背景色所以正常。 | 网格选中改为 `border-primary + ring-2 ring-primary/45`，与底色解耦；新增回归断言 `toHaveClass("border-primary", "ring-2")`。 |
+| G2 | **网格里没有下载/分享/重命名/移动/删除入口** | 列表视图靠操作列渲染 `actionCell`；网格分支只渲染 `FileCard`（缩略图+名称），操作只能右键（触屏无右键）。 | `FileCard` 增加右上操作组：桌面 hover/focus-within 出现、触屏常显；FileList 默认注入 `actionCell`，只读列表（回收站）用 `gridActions` 注入「恢复/彻底删除」，避免把已删除文件渲染成可下载链接。 |
+| G3 | **切到网格后名称过滤输入整个消失** | `FileList` 把「名称过滤 + 列菜单 + 表头」整体只挂在 list 分支；grid 提前 return。 | 抽出 `NameFilterInput`（`FileListHeader.tsx`），网格在卡片区上方渲染过滤条 + 结果计数；列显隐/排序仍只属于列表（网格不适用）。 |
+| G4 | **触屏长按在网格无法多选** | `FileGrid` 只接了 `dragProps/dropProps/onContextMenu`，漏了 `touchSelectProps`；coarse 单击=打开后，网格里只剩 16px checkbox 能选。 | 行事件统一为 `cellHandlers`（右键/长按/拖拽/放置）由 FileList 构造，列表与网格共用；新增长按回归用例。 |
+| G5 | **网格键盘 ↑↓ 只移动一格（沿 DOM 顺序），不是上一行/下一行** | `useKeyboardNav` 只有 `horizontal` 标志，↑↓ 恒 ±1；网格是二维布局。 | 读取容器实际 `grid-template-columns` 的轨道数作为步长（随 2/3/4/6 列断点与详情栏变化），读不到时退化为 1；顺带补 Home/End。新增 3 列网格用例。 |
+| G6 | **Tab 键会逐个停在每张卡片内部按钮上** | `FileCard` 的 `<button>` 无 `tabIndex=-1`，N 个文件 = N 个无名动作的停靠点，与容器 roving focus 重复。 | 卡片改为非交互容器（整卡由容器的 `data-file-row` 焦点承担），与 `FileRow` 名称按钮的 `tabIndex={-1}` 一致。 |
+| G7 | **表格/审计粘性表头背景透明、滚动时文字叠字** | `bg-surface-sunken` 不是 @theme 色名（只有 `--surface-sunken` / `--color-bg-sub`），Tailwind 不生成该类。 | 两处改为 `bg-bg-sub`。 |
+| G8 | **网格卡片对文件夹显示「-」** | `formatBytes(null)` 直接返回 `-`；卡片没有区分文件夹。 | 卡片元信息显示「文件夹」。 |
+
+### 8.2 继续重构（来自第一轮 §8 的 1–3 项）
+
+- **查询三态统一**：新增 `components/AsyncState.tsx` + `ui/ListSkeleton.tsx`。收藏/最近/标签、回收站、分享、审计、平台用户管理统一为 pending → 骨架、error → 可重试错误态（`friendlyMessage` 首次真正接入业务）、ready → 内容；页面不再把请求失败伪装成「空」。同时删掉 4 处手写骨架循环。
+- **批量浮条统一**：新增 `components/SelectionBar.tsx`，`BatchBar`、回收站、分享页共用定位/容器/「已选 N 项」/取消；各页只注入自己的动作按钮。
+- **queryKey 工厂**：新增 `lib/queryKeys.ts`，全部 20+ 处字面量收敛（含 `members` 键、收藏/最近跨页缓存共享、分享详情/子目录）；`["files"]` 前缀失效仍兼容。
+- **上传刷新降噪**：完成项不再逐文件 `invalidateQueries(["files"])`，改为 400ms 合并窗口 + drain 结束立即补一次（N 文件 × D 目录 → 常数级请求），并加卸载清理。
+- **文档/令牌**：修正 design-system 的强调色/圆角/ink 对比度/设置子路由等漂移；新增 `ListSkeleton` 登记；网格契约写入 §4。
+
+### 8.3 验证
+
+| 闸门 | 结果 |
+| --- | --- |
+| `tsc -p client --noEmit` | 通过 |
+| `eslint .` | 通过（0 warning） |
+| `vitest --config vitest.client.config.ts` | **35 文件 / 216 例通过**（新增：网格过滤+操作组、网格选中态、网格长按、网格列步进、Home/End、AsyncState 三态、断网文案、输入框键盘守卫） |
+| `npm run build` | 通过 |
+
+行为契约仍保持：`file-grid` / `file-list-container` / `drop-zone` / `mobile-drawer` 等 testid、`role=row`、aria-label、localStorage 结构不变；网格新增操作组是纯增量的可发现性改进（列表视图 DOM 不变）。
+
+### 8.4 第二轮独立复核后的补修
+
+复核结论 P0=0，另报 2 个 P1 与若干 P2，已修复：
+
+1. **iPad/触屏笔记本上网格操作组「不可见但可点」**：`md:opacity-0 + md:group-hover` 用宽度断点假设了 hover 能力。→ 操作组加 `.grid-card-actions`，在 `@media (hover: none)` 下强制常显（触屏可点区域与视觉一致）。
+2. **AsyncState 在「有缓存 + 后台刷新失败」时丢弃缓存**：TanStack v5 置 `status:"error"` 但保留 `data`。→ `isError && data === undefined` 才整页错误态；有数据时顶部内联「更新失败（显示缓存内容）+ 重试」，与 OfflineBar 语义一致。
+3. 顺带：卡片操作组补 `onTouchStart/Move` 阻断（避免按住操作按钮触发 500ms 长按选中）；网格操作组改为「下载 + 更多菜单」（复用右键菜单 `menuItemsFor`），解决手机 2 列卡片 6 个按钮超宽被裁；列表过滤框不再被 ↑↓/Home/End 劫持；400ms 合并窗口只刷列表、`/api/me` 留到 drain 收尾；`friendlyMessage` 把断网 `TypeError("Failed to fetch")` 映射为中文网络文案；SelectionBar 改安全区偏移；新增 `AsyncState` 三态、断网文案、输入框键盘守卫用例。
+
+## 9. 第三轮：浮层 a11y、目录选择器、按需加载
+
+### 9.1 目录选择器（MoveDialog）重构
+
+| 问题 | 根因 | 修复 |
+| --- | --- | --- |
+| 大目录下「移动/复制」打开很慢 | `listDirOptions` 串行 DFS 递归，每个目录一次 `GET /api/files`（N+1，串行等待） | 改 BFS 逐层并发（每层最多 6 路，避免打爆连接数），层内并行；深度上限保留 8 |
+| 请求失败永远停在「加载中…」 | `.then(setDirs)` 无 catch，`dirs` 恒 null，确定按钮永久禁用 | `LoadState` 三态：loading/error(可重试)/ready；失败显示 `friendlyMessage` + 重试，卸载/关闭后丢弃结果 |
+| 目标列表不是合法 listbox | `role="listbox"` 下只有 `button`，没有 `option`/选中语义 | 改为普通按钮组 + `aria-pressed`，并显示「目标：当前选中」；长路径 `truncate` + title |
+| 排除自身子树 | 递归时 `continue` 跳过 excludeId 后不再入队，后代确实不会被遍历（原实现已正确） | 保留语义并补测试（`listFiles` 不会请求被排除目录） |
+
+新增 [MoveDialog.test.tsx](client/src/components/MoveDialog.test.tsx)：嵌套列表、选中提交、根目录提交、excludeId 子树、失败重试、取消。
+
+### 9.2 浮层与可访问性
+
+- **ConflictDialog → ui/Dialog（Radix）**：删除手写 `role=dialog` 外壳，继承焦点陷阱/Esc/遮罩/焦点还原；a11y 闸门改为对 `baseElement` 扫描（Portal 到 body）。
+- **通知面板**：打开后焦点移入面板，Esc 关闭并把焦点还给铃铛；点外部关闭不抢焦点。
+- **EmptyState**：标题 `h3 → h2`，页面 h1 之下不再跳级；新增 `SearchInput` 统一列表过滤/审计筛选/用户搜索 3 处。
+
+### 9.3 按需加载
+
+`/design` 与 `/platform/*` 改 `React.lazy` + `Suspense`：首屏主 JS 664.06 → 651.6 kB（gzip 211.2 → 208.3 kB），`DesignPage`（7.4 kB）与 `PlatformPage`（10.5 kB）成为独立 chunk；管理页访问时才有网络开销。
+
+### 9.4 验证
+
+| 闸门 | 结果 |
+| --- | --- |
+| `tsc -p client --noEmit` | 通过 |
+| `eslint .` | 通过（0 warning） |
+| `vitest --config vitest.client.config.ts` | **37 文件 / 229 例通过**（新增 MoveDialog 8、ConflictDialog 2、通知 Esc 焦点 1、懒加载路由 1、a11y 拆分 1） |
+| `npm run build` | 通过（含 lazy chunk） |
+
+### 9.5 复核补修
+
+复核结论 P0=0、P1=1，均已修复：
+
+1. **Suspense 位置过高会卸载外壳与上传队列**：`ErrorBoundary > Suspense > Routes` 在懒 chunk 首次加载时会把 AppShell/UploadQueueProvider 整棵卸掉——正好违背「切换路由不丢队列」。→ Suspense 下移到 AppShell 的 `main` 内包 `<Outlet/>`（位于 compact ErrorBoundary 之内）：外壳、侧栏、队列保持挂载；chunk 失败也由页面级边界接住。
+2. **MoveDialog 关闭后仍继续扫描**：`listDirOptions(excludeId, isCancelled?)` 增加取消回调，每层/每批请求前检查；同时修正 BFS 深度与旧 DFS 对齐（最多第 8 层）、收集后按全路径排序（A → A/A1 → B，恢复层级相邻的阅读顺序）、确定按钮 busy 时显示「处理中…」。
+3. a11y 用例拆分：ConflictDialog（Radix modal，扫 baseElement）与 BatchBar/UndoSnackbar（非 modal，扫 container）分开，避免 Radix `hideOthers` 把兄弟节点 aria-hidden 导致空转。
+4. `Input` 改用 `cn()` 合并类名（搜索框背景覆盖不再依赖 CSS 生成顺序）。
+5. 通知面板 Esc 改为 `document` 监听（Tab 走出面板后仍可关闭），并新增批量/取消/排序 3 条 MoveDialog 用例。
+
+## 10. 后续建议（本次未实施）
+
+1. `<AsyncState>`/`<PageState>` 统一加载/失败/空三态，修复收藏/最近/标签/回收站/分享/审计页「失败伪装成空」。
+2. `<SelectionBar>` 统一 BatchBar / TrashPage / SharesPage 的批量条；`<SearchInput>`、`<ListSkeleton>`、`<PageShell>` 抽公共件。
+3. queryKey 工厂 + 上传结束时批量失效一次 `["files"]`（当前逐文件失效，N 文件 × D 目录会放大请求）。
+4. 上传队列 context 拆 state/actions（Browser 只订阅 `add`），消除上传时整页重渲染。
+5. ConflictDialog / PreviewModal / NotificationBell 浮层统一到 `ui/Dialog`，补齐焦点陷阱与 `aria-modal`。
+6. 过滤条件进 URL（可刷新/可后退）并把名称过滤上提到页面，保证「已选集合 = 可见集合」。
+7. 服务端契约对齐：`AdminUser` 角色字段、`quota_bytes` 可空、search cursor、`recordView`、分享返回剔除 `password_hash`。
+8. PWA `onNeedRefresh` 提示与 theme-color 统一（`/design` 已按需加载）。
+9. 目录选择器若要在数千目录下进一步提速，可新增一次性目录树接口（服务端已具备物化路径，可用范围查询返回子树）。

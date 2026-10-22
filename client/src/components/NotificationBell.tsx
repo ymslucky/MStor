@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { listNotifications, markAllNotificationsRead, markNotificationRead } from "../api/notifications";
 import type { Notification } from "../api/notifications";
 import { formatDate } from "../lib/format";
+import { queryKeys } from "../lib/queryKeys";
 import { Button, Panel, Pill, Skeleton } from "./ui";
 
 /** 今天 0 点（本地时区）：分组边界 */
@@ -22,9 +23,16 @@ function startOfToday() {
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  // 关闭时把焦点还给铃铛（Esc/关闭按钮路径），点外面关闭则不抢焦点
+  const close = (restoreFocus = true) => {
+    setOpen(false);
+    if (restoreFocus) buttonRef.current?.focus();
+  };
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const { data, isPending } = useQuery({ queryKey: ["notifications"], queryFn: listNotifications, enabled: open });
+  const { data, isPending } = useQuery({ queryKey: queryKeys.notifications, queryFn: listNotifications, enabled: open });
   const unread = data?.unread ?? 0;
   const items = useMemo(() => data?.items ?? [], [data]);
 
@@ -43,15 +51,15 @@ export function NotificationBell() {
   const read = useMutation({
     mutationFn: markNotificationRead,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      await queryClient.invalidateQueries({ queryKey: ["me"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.notifications });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.me });
     },
   });
   const readAll = useMutation({
     mutationFn: markAllNotificationsRead,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      await queryClient.invalidateQueries({ queryKey: ["me"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.notifications });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.me });
     },
   });
 
@@ -59,10 +67,28 @@ export function NotificationBell() {
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) close(false);
     };
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  // 打开后把焦点移入面板：读屏能进入通知列表
+  useEffect(() => {
+    if (open) panelRef.current?.focus();
+  }, [open]);
+
+  // Esc 挂 document：Tab 走出面板或点击非聚焦区域后焦点可能回 body，面板上的 onKeyDown 会失效
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        close(true);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
   }, [open]);
 
   const openItem = (n: Notification) => {
@@ -77,9 +103,10 @@ export function NotificationBell() {
     <div className="relative" ref={boxRef}>
       <button
         type="button"
+        ref={buttonRef}
         aria-label={unread > 0 ? `通知（${unread} 条未读）` : "通知"}
         aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => (open ? close(true) : setOpen(true))}
         className="state-layer relative flex h-9 w-9 items-center justify-center rounded-xl text-ink-2 hover:text-primary-text"
       >
         <Bell size={18} aria-hidden />
@@ -90,7 +117,14 @@ export function NotificationBell() {
         )}
       </button>
       {open && (
-        <Panel role="dialog" aria-label="通知列表" level="e3" className="absolute right-0 top-11 z-modal w-80 overflow-hidden">
+        <div
+          ref={panelRef}
+          role="dialog"
+          aria-label="通知列表"
+          tabIndex={-1}
+          className="outline-none"
+        >
+        <Panel level="e3" className="absolute right-0 top-11 z-modal w-80 overflow-hidden">
           <div className="flex items-center justify-between gap-2 border-b border-line px-3 py-2">
             <span className="flex items-center gap-1.5 text-sm font-medium text-ink">
               通知
@@ -143,6 +177,7 @@ export function NotificationBell() {
             </ul>
           )}
         </Panel>
+        </div>
       )}
     </div>
   );

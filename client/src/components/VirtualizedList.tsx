@@ -2,6 +2,7 @@ import { Fragment, useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { Node } from "../api/types";
+import { VIRTUAL_FALLBACK_ROWS } from "../lib/constants";
 
 /** 行高兜底值（与 --density-row-h 默认一致；无 CSS 环境按此回退） */
 const FALLBACK_ROW_HEIGHT = 48;
@@ -17,8 +18,6 @@ export function getRowHeight(): number {
   return Number.isFinite(px) && px > 0 ? px : FALLBACK_ROW_HEIGHT;
 }
 
-/** 兼容旧引用：默认行高常量 */
-export const ROW_HEIGHT = FALLBACK_ROW_HEIGHT;
 
 /**
  * 视口内虚拟滚动：容器由上层布局给出确定高度（md:flex-1 / md:min-h-0），
@@ -51,7 +50,6 @@ export default function VirtualizedList({
   }, [focusIndex, virtualizer]);
 
   const items = virtualizer.getVirtualItems();
-  const FALLBACK_ROWS = 30;
 
   return (
     <div
@@ -61,7 +59,7 @@ export default function VirtualizedList({
     >
       <div className="relative w-full" style={{ height: virtualizer.getTotalSize() || nodes.length * rowHeight }}>
         {items.length === 0
-          ? nodes.slice(0, FALLBACK_ROWS).map((n, i) => <Fragment key={n.id}>{row(n, i, i * rowHeight)}</Fragment>)
+          ? nodes.slice(0, VIRTUAL_FALLBACK_ROWS).map((n, i) => <Fragment key={n.id}>{row(n, i, i * rowHeight)}</Fragment>)
           : items.map((vi) => {
               const n = nodes[vi.index];
               return <Fragment key={n.id}>{row(n, vi.index, vi.start)}</Fragment>;

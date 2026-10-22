@@ -7,6 +7,7 @@ import { getAdminSettings, patchAdminSettings } from "../api/me";
 import type { Me } from "../api/types";
 import { MAX_UPLOAD_CONCURRENCY, MIN_UPLOAD_CONCURRENCY, getUploadConcurrency, setUploadConcurrency } from "../lib/settings";
 import { formatBytes } from "../lib/format";
+import { queryKeys } from "../lib/queryKeys";
 import { toast } from "../components/Toaster";
 import { MemberPanel } from "../components/MemberPanel";
 import { Button, Field, Input, Pill, SettingRow, Surface } from "../components/ui";
@@ -76,7 +77,7 @@ function AccountSection({ me }: { me: Me }) {
 
 // 回收站保留天数：服务端动态配置（settings 表），清理任务读取，未配置回退 env
 function TrashRetentionRow() {
-  const query = useQuery({ queryKey: ["admin-settings"], queryFn: getAdminSettings });
+  const query = useQuery({ queryKey: queryKeys.adminSettings, queryFn: getAdminSettings });
   const queryClient = useQueryClient();
   // 服务端值加载后一次性回填；null = 尚未加载，避免受控回填与用户输入冲突
   const [days, setDays] = useState<string | null>(null);
@@ -89,9 +90,9 @@ function TrashRetentionRow() {
     mutationFn: () => patchAdminSettings({ trash_retention_days: parsed }),
     onSuccess: () => {
       toast("回收站保留天数已更新", "info");
-      void queryClient.invalidateQueries({ queryKey: ["admin-settings"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.adminSettings });
       // 同步回收站页描述文字（读取 /api/me 的 trashRetentionDays）
-      void queryClient.invalidateQueries({ queryKey: ["me"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.me });
     },
   });
   return (

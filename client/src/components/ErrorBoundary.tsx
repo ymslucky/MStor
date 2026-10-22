@@ -42,7 +42,7 @@ export class ErrorBoundary extends Component<Props, State> {
     if (!error) return this.props.children;
     const { compact = false, title } = this.props;
     const box = compact
-      ? "w-full rounded-card border border-line bg-white p-8 text-center"
+      ? "w-full rounded-card border border-line bg-surface-1 p-8 text-center"
       : "glass relative z-content w-full max-w-md rounded-card p-8 text-center";
     return (
       <div role="alert" className={compact ? "py-8" : "relative flex min-h-dvh items-center justify-center p-6"}>
@@ -58,7 +58,7 @@ export class ErrorBoundary extends Component<Props, State> {
           </div>
           <details className="mt-6 text-left">
             <summary className="cursor-pointer text-xs text-ink-3">错误详情</summary>
-            <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded-lg border border-line bg-white p-3 text-2xs text-ink-3">
+            <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded-lg border border-line bg-surface-2 p-3 text-2xs text-ink-3">
               {error.message}
             </pre>
           </details>

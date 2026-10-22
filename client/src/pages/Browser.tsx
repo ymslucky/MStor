@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useSearchParams } from "react-router-dom";
-import { TriangleAlert } from "lucide-react";
+import { Download, MoreHorizontal, TriangleAlert } from "lucide-react";
 import type { Node } from "../api/types";
 import Breadcrumb from "../components/Breadcrumb";
 import ContextMenu from "../components/ContextMenu";
@@ -20,8 +20,6 @@ import { useMediaQuery } from "../hooks/useMediaQuery";
 import { BrowserDialogs } from "../components/BrowserDialogs";
 import { NodeRowActions } from "../components/NodeRowActions";
 import { BatchBar } from "../components/BatchBar";
-import UploadPanel from "../components/UploadPanel";
-import { toast } from "../components/Toaster";
 import { Button, EmptyState, GlassCard, Skeleton } from "../components/ui";
 import { useBatchOps } from "../hooks/useBatchOps";
 import { useBrowserDialogs } from "../hooks/useBrowserDialogs";
@@ -30,8 +28,13 @@ import { useFiles } from "../hooks/useFiles";
 import { useFileSelection } from "../hooks/useFileSelection";
 import { useKeyboardNav } from "../hooks/useKeyboardNav";
 import { useUploadQueueContext } from "../hooks/UploadQueueProvider";
-import { collectDirectory, collectUploads, supportsDirectoryPicker } from "../lib/dirscan";
-import { triggerDownload } from "../lib/download";
+import { collectDirectory, supportsDirectoryPicker } from "../lib/dirscan";
+import { downloadMany, triggerDownload } from "../lib/download";
+import { DETAIL_PANE_MEDIA_QUERY } from "../lib/constants";
+import { useDropUpload } from "../hooks/useDropUpload";
+import { DropOverlay } from "../components/DropOverlay";
+import { contentUrl } from "../api/nodes";
+import { RowAction } from "../components/RowAction";
 import { filterNodes } from "../lib/fileFilters";
 import type { TimeFilter, TypeFilter } from "../lib/fileFilters";
 import { STORAGE_KEYS, getString, setString } from "../lib/storage";
@@ -39,7 +42,7 @@ import { STORAGE_KEYS, getString, setString } from "../lib/storage";
 export default function Browser() {
   const [params, setParams] = useSearchParams();
   const dir = params.get("dir") ?? "";
-  const { query, mkDir, rename, move, copy, remove, undo, undoId, clearUndo } = useFiles(dir);
+  const { query, mkDir, rename, move, copy, remove, undo, undoId, undoKind, clearUndo } = useFiles(dir);
   const fileInput = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -48,8 +51,6 @@ export default function Browser() {
   const { preview, setPreview, detail, setDetail, setCreating, setRenaming, setMoving, setCopying, setSharing, setDeleting } = dialogs;
   // 视图偏好持久化，缺省 list
   const [view, setView] = useState<"list" | "grid">(() => (getString(STORAGE_KEYS.view) === "grid" ? "grid" : "list"));
-  // 拖拽上传：dragenter/leave 计数法防子元素闪烁，>0 时显示全屏覆盖层
-  const [dragDepth, setDragDepth] = useState(0);
   // 右键菜单：当前节点 + 指针位置
   const [menu, setMenu] = useState<{ node: Node; x: number; y: number } | null>(null);
   // 前端过滤 chips
@@ -113,17 +114,18 @@ export default function Browser() {
     purgeNow,
   } = useBatchOps({ selectedIds: selection.selected, onClear: selection.clear, onPurged: () => setDeleting(null) });
 
-  // 批量下载：仅文件，300ms 间隔逐个触发（避免浏览器拦截）
+  // 批量下载：仅文件，逐个错峰触发（策略在 lib/download）
   const batchDownload = () => {
-    const files = allNodes.filter((n) => selection.selected.has(n.id) && !n.is_dir);
-    files.forEach((n, i) => window.setTimeout(() => triggerDownload(n.id), i * 300));
+    const ids = allNodes.filter((n) => selection.selected.has(n.id) && !n.is_dir).map((n) => n.id);
+    downloadMany(ids);
   };
 
 
-  // 详情只有一种呈现：桌面 = 右侧布局列，窄屏 = 弹窗（不再用 CSS 隐藏 + Portal 的组合）
-  const isDesktop = useMediaQuery("(min-width: 1024px)");
+  // 详情只有一种呈现：xl+ = 右侧布局列，更窄 = 弹窗（1024–1279 内联详情会把固定列挤出视口）
+  const isDesktop = useMediaQuery(DETAIL_PANE_MEDIA_QUERY);
 
 
+  const drop = useDropUpload({ enqueue: (items) => queue.add(items, dir) });
   const upload = useBrowserUpload({
     dir,
     nodes: allNodes,
@@ -180,6 +182,33 @@ export default function Browser() {
       .catch(() => {});
   };
 
+  // 网格卡片操作组：只放「下载 + 更多」，避免手机 2 列卡片塞 6 个按钮超宽被 overflow-hidden 裁掉；
+  // 「更多」复用列表右键菜单的同一份 menuItemsFor
+  const gridActionsFor = (n: Node) => (
+    <>
+      {!n.is_dir && (
+        <a
+          href={contentUrl(n.id, true)}
+          aria-label={`下载 ${n.name}`}
+          title={`下载 ${n.name}`}
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-primary-text transition-colors hover:bg-primary-soft"
+        >
+          <Download size={14} aria-hidden />
+        </a>
+      )}
+      <RowAction
+        label={`更多操作 ${n.name}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          const rect = e.currentTarget.getBoundingClientRect();
+          setMenu({ node: n, x: rect.right, y: rect.bottom });
+        }}
+      >
+        <MoreHorizontal size={14} aria-hidden />
+      </RowAction>
+    </>
+  );
+
   // 空目录 CTA：复用上传入口与新建文件夹
   const emptyDirActions = (
     <div className="flex flex-wrap justify-center gap-2">
@@ -197,31 +226,9 @@ export default function Browser() {
 
 
   return (
-    <div
-      data-testid="drop-zone"
-      className="md:flex md:min-h-0 md:flex-1 md:flex-col md:overflow-hidden"
-      onDragEnter={(e) => {
-        e.preventDefault();
-        setDragDepth((d) => d + 1);
-      }}
-      onDragOver={(e) => e.preventDefault()}
-      onDragLeave={() => setDragDepth((d) => Math.max(0, d - 1))}
-      onDrop={(e) => {
-        e.preventDefault();
-        setDragDepth(0);
-        const dt = e.dataTransfer;
-        const hasItems = !!dt && ((dt.items?.length ?? 0) > 0 || (dt.files?.length ?? 0) > 0);
-        // 目录树递归采集（含文件与文件夹混合拖入），入队后由队列逐级建目录
-        void collectUploads(dt)
-          .then((items) => {
-            if (items.length) enqueue(items);
-            else if (hasItems) toast("未发现可上传的文件（空文件夹不会产生上传项）");
-          })
-          .catch(() => toast("读取拖入内容失败"));
-      }}
-    >
-      {/* KPI 行：存储用量 + 当前目录统计 */}
-      {/* KPI 卡片已移除：存储用量在底部状态栏，目录统计交给列表头 */}
+    <div data-testid="drop-zone" className="md:flex md:min-h-0 md:flex-1 md:flex-col md:overflow-hidden" {...drop.dropHandlers}>
+      {/* 页面标题（视觉由移动端 TopBar 承担，读屏仍需要一个 h1） */}
+      <h1 className="sr-only">文件</h1>
       <input
         ref={fileInput}
         type="file"
@@ -313,6 +320,7 @@ export default function Browser() {
             onNodeContextMenu={onNodeContextMenu}
             emptyText={filtered ? "没有符合筛选条件的文件" : "该目录为空"}
             emptyActions={filtered ? undefined : emptyDirActions}
+            gridActions={gridActionsFor}
             actions={(n) => (
               <NodeRowActions
                 node={n}
@@ -340,7 +348,6 @@ export default function Browser() {
           </div>
         </GlassCard>
       )}
-      <UploadPanel queue={queue} />
       <BatchBar
         count={selection.selected.size}
         hasFileSelected={hasFileSelected}
@@ -364,7 +371,8 @@ export default function Browser() {
       <PullToRefreshIndicator pull={pull.pull} ready={pull.ready} refreshing={pull.refreshing} />
       {undoId && (
         <UndoSnackbar
-          message="已移动，可在 10 秒内撤销"
+          key={undoId}
+          message={undoKind === "rename" ? "已重命名，可在 10 秒内撤销" : "已移动，可在 10 秒内撤销"}
           onUndo={() => undo.mutate(undoId)}
           onClose={clearUndo}
         />
@@ -390,14 +398,8 @@ export default function Browser() {
         }}
       />      {/* 窄屏详情：弹窗形态（桌面用右侧详情栏，二选一，不并存） */}
       {detail && !isDesktop && <NodeDetailDialog node={detail} onClose={() => setDetail(null)} />}
-      {/* 拖拽全屏覆盖层：白底 80% + 内嵌虚线框；drop/离开窗口后关闭（计数法归零） */}
-      {dragDepth > 0 && (
-        <div data-testid="drop-overlay" className="fixed inset-0 z-overlay bg-white/80">
-          <div className="absolute inset-3 flex items-center justify-center rounded-card border-2 border-dashed border-accent bg-white/60 sm:inset-6">
-            <p className="text-sm font-medium text-ink">松开，上传到当前目录</p>
-          </div>
-        </div>
-      )}
+      {/* 拖拽全屏覆盖层：drop/离开窗口后关闭（计数法归零） */}
+      <DropOverlay open={drop.showOverlay} />
       {/* 右键菜单（移动端无右键，沿用行内按钮） */}
       {menu && <ContextMenu open x={menu.x} y={menu.y} items={menuItemsFor(menu.node)} onClose={() => setMenu(null)} />}
     </div>

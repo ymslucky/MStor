@@ -8,7 +8,9 @@ import { toast } from "../components/Toaster";
  */
 export function makeQueryClient(): QueryClient {
   const onError = (e: unknown) => {
-    if (e instanceof ApiError && e.status === 401) {
+    // 仅业务接口的 401 才触发 Access 重登；/api/s/* 的 401 是分享提取码错误，
+    // 公开分享页没有会话可言，不能把已登录用户送去 /auth/renew
+    if (e instanceof ApiError && e.status === 401 && !e.path?.startsWith("/api/s/")) {
       handleSessionExpired();
       return;
     }

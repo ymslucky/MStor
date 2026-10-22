@@ -155,6 +155,65 @@ test("virtualizes large lists within a window", () => {
   expect(rendered).toBeLessThan(80);
 });
 
+// —— 网格视图：过滤、操作组、选中态、长按选择 ——
+test("grid view keeps the name filter and renders per-card actions", async () => {
+  const user = userEvent.setup();
+  const onToggle = vi.fn();
+  renderWithProviders(
+    <FileList
+      nodes={[node(), node({ id: "f2", name: "world.md" })]}
+      onOpenDir={noop}
+      onOpenFile={noop}
+      view="grid"
+      selectable
+      selected={new Set()}
+      onToggle={onToggle}
+      actions={(n) => (
+        <button type="button" aria-label={`删除 ${n.name}`} onClick={noop}>
+          删
+        </button>
+      )}
+    />,
+  );
+  expect(screen.getByTestId("file-grid")).toBeInTheDocument();
+  // 网格视图此前会丢掉名称过滤输入
+  await user.type(screen.getByLabelText("按名称过滤当前列表"), "wor");
+  expect(screen.getByText("world.md")).toBeInTheDocument();
+  expect(screen.queryByText("hello.txt")).not.toBeInTheDocument();
+  // 操作组是卡片上的独立控件：点击不触发行选择/打开
+  await user.click(screen.getByRole("button", { name: "删除 world.md" }));
+  expect(onToggle).not.toHaveBeenCalled();
+});
+
+test("grid selected card is highlighted with border/ring (background tint would be overridden)", () => {
+  renderWithProviders(
+    <FileList
+      nodes={[node()]}
+      onOpenDir={noop}
+      onOpenFile={noop}
+      view="grid"
+      selectable
+      selected={new Set(["f1"])}
+      onToggle={noop}
+    />,
+  );
+  const cell = screen.getByTitle("hello.txt").closest("[data-file-row]") as HTMLElement;
+  expect(cell).toHaveClass("border-primary", "ring-2");
+});
+
+test("grid long press toggles selection on touch", () => {
+  vi.useFakeTimers();
+  const onToggle = vi.fn();
+  renderWithProviders(
+    <FileList nodes={[node()]} onOpenDir={noop} onOpenFile={noop} view="grid" selectable selected={new Set()} onToggle={onToggle} />,
+  );
+  const cell = screen.getByTitle("hello.txt").closest("[data-file-row]") as HTMLElement;
+  fireEvent.touchStart(cell);
+  vi.advanceTimersByTime(500);
+  expect(onToggle).toHaveBeenCalledWith("f1");
+  vi.useRealTimers();
+});
+
 // —— 拖拽调宽：手柄拖动更新偏好 ——
 test("name column resize handle updates width preference", () => {
   localStorage.removeItem("mstor_files_table");

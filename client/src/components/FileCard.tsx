@@ -9,19 +9,20 @@ interface Props {
   thumbSrc: string | null;
   /** 「已分享」等角标 */
   badge?: ReactNode;
-  /** 左上角浮层（多选 checkbox） */
-  overlay?: ReactNode;
+  /** 右上角操作组（网格视图的操作入口；悬停/聚焦出现，触屏常显） */
+  actions?: ReactNode;
 }
 
 /**
  * 网格视图的单张卡片（纯展示）：交互与拖拽/选择由 FileList 的容器负责，
- * 这里只关心「缩略图区 + 名称/大小」的排版，便于将来在时间线/相册视图复用。
+ * 这里只关心「缩略图区 + 名称/大小 + 操作组」的排版。
+ * 注意：卡片本身不提供 tab 停靠点（整卡由容器的 roving focus 承担），
+ * 否则每个文件都会在 Tab 序列里多出一个无动作的按钮。
  */
-export function FileCard({ node, thumbSrc, badge, overlay }: Props) {
+export function FileCard({ node, thumbSrc, badge, actions }: Props) {
   return (
     <>
-      {overlay}
-      <button type="button" className="block w-full text-left" title={node.name}>
+      <div className="block w-full text-left" title={node.name}>
         <div className="flex h-28 items-center justify-center overflow-hidden bg-bg-sub">
           {thumbSrc ? (
             <img
@@ -41,9 +42,23 @@ export function FileCard({ node, thumbSrc, badge, overlay }: Props) {
             <span className="truncate text-sm text-ink">{truncateMiddle(node.name, 20)}</span>
             {badge}
           </div>
-          <div className="text-xs tabular-nums text-ink-faint">{formatBytes(node.size)}</div>
+          <div className="text-xs tabular-nums text-ink-faint">
+            {node.is_dir ? "文件夹" : formatBytes(node.size)}
+          </div>
         </div>
-      </button>
+      </div>
+      {actions && (
+        <div
+          // md 是宽度断点而非 hover 能力：iPad/触屏笔记本同样 ≥md，必须用 (hover:none) 兜底常显
+          className="grid-card-actions absolute top-1.5 right-1.5 z-content flex items-center gap-0.5 rounded-lg border border-line bg-surface-1/95 px-1 py-0.5 shadow-soft transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+          onClick={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+        >
+          {actions}
+        </div>
+      )}
     </>
   );
 }

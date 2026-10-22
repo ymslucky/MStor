@@ -22,7 +22,7 @@ async function fetchTextHead(id: string): Promise<string> {
 
 // 下载保持 <a>（下载语义 + href 断言），仅图标化并复用 IconButton 视觉规格
 const iconAction =
-  "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-line bg-white text-ink-2 transition-colors hover:border-accent/40 hover:bg-accent-soft hover:text-accent";
+  "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-line bg-surface-2 text-ink-2 transition-colors hover:border-primary/40 hover:bg-primary-soft hover:text-primary-text";
 
 export default function PreviewModal({ node, onClose }: Props) {
   const kind = previewKind(node.mime);
@@ -91,7 +91,7 @@ export default function PreviewModal({ node, onClose }: Props) {
             {kind === "video" && <video src={contentUrl(node.id)} controls className="max-h-[80vh] w-full" />}
             {kind === "audio" && <audio src={contentUrl(node.id)} controls className="w-80" />}
             {kind === "pdf" && (
-              <iframe src={contentUrl(node.id)} title={node.name} className="h-[80vh] w-[80vw] rounded bg-white" />
+              <iframe src={contentUrl(node.id)} title={node.name} className="h-[80vh] w-[80vw] rounded bg-surface-2" />
             )}
             {kind === "text" && (
               <pre className="max-h-[80vh] w-[80vw] overflow-auto rounded-xl border border-line bg-bg-sub p-4 text-sm text-ink">

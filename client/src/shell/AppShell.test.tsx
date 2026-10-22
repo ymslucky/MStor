@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, expect, test, vi } from "vitest";
@@ -59,6 +59,17 @@ test("shows user name, quota and nav links", async () => {
   expect(screen.getAllByText(/40 B/).length).toBeGreaterThanOrEqual(1); // usedBytes（侧栏 StorageMeter）
   // 移动顶栏与桌面档案行各有一个退出按钮，点击均走确认弹窗
   expect(screen.getAllByRole("button", { name: "退出" })).toHaveLength(2);
+});
+
+test("mobile drawer opens from top bar and closes on Escape", async () => {
+  const { user } = renderShell();
+  await screen.findByText("Alice");
+  await user.click(screen.getByRole("button", { name: "打开导航" }));
+  const drawer = await screen.findByTestId("mobile-drawer");
+  expect(within(drawer).getByRole("link", { name: "文件" })).toBeInTheDocument();
+  expect(within(drawer).getByRole("button", { name: "关闭导航" })).toBeInTheDocument();
+  await user.keyboard("{Escape}");
+  await waitFor(() => expect(screen.queryByTestId("mobile-drawer")).not.toBeInTheDocument());
 });
 
 test("sidebar toggle collapses, expands and persists to localStorage", async () => {

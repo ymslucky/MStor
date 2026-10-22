@@ -2,6 +2,8 @@ import { SESSION_KEYS, STORAGE_KEYS, getSession, getString, removeSession, setSe
 import { renewSession } from "../lib/renew";
 
 export class ApiError extends Error {
+  /** 失败请求的路径：用于区分「业务接口会话过期」与「公开分享接口的提取码错误」 */
+  path?: string;
   constructor(
     public status: number,
     public code: string,
@@ -25,6 +27,10 @@ const FRIENDLY_MESSAGES: Record<string, string> = {
 export function friendlyMessage(e: unknown): string {
   if (e instanceof ApiError) return FRIENDLY_MESSAGES[e.code] ?? e.message;
   if (e instanceof DOMException && e.name === "AbortError") return "已取消";
+  // fetch 断网抛 TypeError("Failed to fetch")：不要把这个英文原文直接展示给用户
+  if (e instanceof TypeError || (e instanceof Error && /failed to fetch|networkerror/i.test(e.message))) {
+    return FRIENDLY_MESSAGES.NETWORK;
+  }
   return e instanceof Error ? e.message : "操作失败，请重试";
 }
 
@@ -87,7 +93,9 @@ export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
     body: rest.json !== undefined ? JSON.stringify(rest.json) : (rest.body as BodyInit | null | undefined),
   });
   if (res.status === 401 && !path.startsWith("/api/s/")) {
-    throw new ApiError(401, "UNAUTHORIZED", "请先登录");
+    const err = new ApiError(401, "UNAUTHORIZED", "请先登录");
+    err.path = path;
+    throw err;
   }
   if (!res.ok) {
     let code = "INTERNAL";
@@ -99,7 +107,9 @@ export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
     } catch {
       // 非 JSON 错误体，保留默认文案
     }
-    throw new ApiError(res.status, code, FRIENDLY_MESSAGES[code] ?? message);
+    const err = new ApiError(res.status, code, FRIENDLY_MESSAGES[code] ?? message);
+    err.path = path;
+    throw err;
   }
   return (await res.json()) as T;
 }

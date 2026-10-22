@@ -2,7 +2,7 @@ import { screen } from "@testing-library/react";
 import { FolderOpen, X } from "lucide-react";
 import { expect, test } from "vitest";
 import { renderWithProviders } from "../../test/utils";
-import { Badge, Button, EmptyState, IconButton } from "./index";
+import { Button, EmptyState, IconButton, Pill } from "./index";
 
 test("Button renders variant classes and respects disabled", () => {
   renderWithProviders(
@@ -35,18 +35,18 @@ test("EmptyState renders lucide icon, title, description and action", () => {
   );
   // 图标位：Lucide svg 渲染于 empty-state 容器内
   expect(screen.getByTestId("empty-state").querySelector("svg")).not.toBeNull();
-  expect(screen.getByText("该目录为空")).toBeInTheDocument();
+  expect(screen.getByRole("heading", { level: 2, name: "该目录为空" })).toBeInTheDocument();
   expect(screen.getByText("拖拽文件即可上传")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "上传" })).toBeInTheDocument();
 });
 
-test("Badge renders tone classes", () => {
+test("Pill renders tone classes", () => {
   renderWithProviders(
     <>
-      <Badge>默认</Badge>
-      <Badge tone="accent">新</Badge>
-      <Badge tone="danger">超限</Badge>
-      <Badge tone="success">已完成</Badge>
+      <Pill>默认</Pill>
+      <Pill tone="accent">新</Pill>
+      <Pill tone="danger">超限</Pill>
+      <Pill tone="success">已完成</Pill>
     </>,
   );
   expect(screen.getByText("默认")).toHaveClass("bg-bg-sub");

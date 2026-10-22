@@ -8,6 +8,7 @@ import { NodeIcon } from "../components/NodeIcon";
 import { toast } from "../components/Toaster";
 import { Button, GlassCard, Input } from "../components/ui";
 import { formatBytes } from "../lib/format";
+import { queryKeys } from "../lib/queryKeys";
 
 interface Crumb {
   id: string;
@@ -24,7 +25,7 @@ export default function SharePage() {
   const [current, setCurrent] = useState<{ id: string; name: string } | null>(null);
 
   const info = useQuery({
-    queryKey: ["share", token, entered ? usedPassword : ""],
+    queryKey: queryKeys.share(token, entered ? usedPassword : ""),
     queryFn: () => fetchShare(token, entered ? usedPassword : undefined),
     retry: false,
   });
@@ -35,7 +36,7 @@ export default function SharePage() {
 
   // 子目录请求同样用已提交的密码，避免实时输入影响请求
   const children = useQuery({
-    queryKey: ["share-children", token, current?.id ?? "", usedPassword],
+    queryKey: queryKeys.shareChildren(token, current?.id ?? "", usedPassword),
     queryFn: () => fetchShareChildren(token, current!.id, usedPassword || undefined),
     enabled: !!current,
   });

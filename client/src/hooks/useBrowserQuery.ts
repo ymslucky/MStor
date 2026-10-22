@@ -4,6 +4,7 @@ import { addFavorite, listFavorites, removeFavorite } from "../api/library";
 import { listShares } from "../api/shares";
 import type { Node } from "../api/types";
 import { toast } from "../components/Toaster";
+import { queryKeys } from "../lib/queryKeys";
 import { usePullToRefresh } from "./usePullToRefresh";
 
 type FilesQuery = { refetch: () => Promise<unknown>; data?: { nodes?: Node[] } };
@@ -13,8 +14,8 @@ type FilesQuery = { refetch: () => Promise<unknown>; data?: { nodes?: Node[] } }
  * 与交互（选择/批量/上传）无关，因此可以独立测试与复用。
  */
 export function useBrowserQuery(query: FilesQuery) {
-  const sharesQuery = useQuery({ queryKey: ["shares"], queryFn: listShares });
-  const favorites = useQuery({ queryKey: ["favorites"], queryFn: listFavorites });
+  const sharesQuery = useQuery({ queryKey: queryKeys.shares, queryFn: listShares });
+  const favorites = useQuery({ queryKey: queryKeys.favorites, queryFn: listFavorites });
 
   const allNodes = useMemo(() => query.data?.nodes ?? [], [query.data]);
 

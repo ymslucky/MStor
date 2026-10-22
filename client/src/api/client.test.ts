@@ -24,6 +24,8 @@ test("friendlyMessage：映射码用文案，未知码保留原文，非 Error �
   expect(friendlyMessage(new ApiError(409, "CONFLICT", "名称已存在"))).toBe("名称已存在");
   expect(friendlyMessage(new DOMException("x", "AbortError"))).toBe("已取消");
   expect(friendlyMessage(new Error("任意错误"))).toBe("任意错误");
+  // fetch 断网抛 TypeError("Failed to fetch")：展示中文网络文案而不是英文原文
+  expect(friendlyMessage(new TypeError("Failed to fetch"))).toBe("网络连接异常，请检查网络后重试");
   expect(friendlyMessage("字符串")).toBe("操作失败，请重试");
 });
 

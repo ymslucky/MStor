@@ -1,11 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Ban, CircleCheck, LogIn, Mail, Pencil, Search, Users } from "lucide-react";
+import { Ban, CircleCheck, LogIn, Mail, Pencil, Users } from "lucide-react";
 import { listAdminUsers, patchAdminUser } from "../api/me";
 import type { AdminUser } from "../api/types";
 import { STORAGE_KEYS, setString } from "../lib/storage";
 import { formatBytes } from "../lib/format";
-import { Button, ConfirmDialog, Dialog, EmptyState, Field, IconButton, Input, Pill, Skeleton, Surface } from "./ui";
+import { queryKeys } from "../lib/queryKeys";
+import { AsyncState } from "./AsyncState";
+import { SearchInput } from "./SearchInput";
+import { Button, ConfirmDialog, Dialog, EmptyState, Field, IconButton, Input, Pill, Surface } from "./ui";
 
 const GB = 1024 ** 3;
 const quotaGb = (bytes: number) => Math.round(bytes / GB);
@@ -78,7 +81,7 @@ function UserRow({ u, selfId, onQuota, onEmail, onDisable }: { u: AdminUser; sel
   const queryClient = useQueryClient();
   const patch = useMutation({
     mutationFn: (body: PatchBody) => patchAdminUser(u.id, body),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-users"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.adminUsers }),
   });
   const disabled = u.disabled_at !== null;
   return (
@@ -139,7 +142,7 @@ function UserRow({ u, selfId, onQuota, onEmail, onDisable }: { u: AdminUser; sel
  */
 export function AdminUsersSection({ selfId }: { selfId: string }) {
   const queryClient = useQueryClient();
-  const users = useQuery({ queryKey: ["admin-users"], queryFn: listAdminUsers });
+  const users = useQuery({ queryKey: queryKeys.adminUsers, queryFn: listAdminUsers });
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
   const [quotaUser, setQuotaUser] = useState<AdminUser | null>(null);
@@ -148,7 +151,7 @@ export function AdminUsersSection({ selfId }: { selfId: string }) {
 
   const patch = useMutation({
     mutationFn: ({ id, body }: { id: string; body: PatchBody }) => patchAdminUser(id, body),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-users"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.adminUsers }),
   });
 
   const rows = useMemo(() => {
@@ -163,16 +166,7 @@ export function AdminUsersSection({ selfId }: { selfId: string }) {
   return (
     <Surface className="overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-3 py-2">
-        <div className="relative">
-          <Search size={14} aria-hidden className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-ink-3" />
-          <Input
-            aria-label="搜索用户"
-            placeholder="按名字或邮箱搜索…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            className="h-8 w-56 pl-8 text-xs"
-          />
-        </div>
+        <SearchInput label="搜索用户" placeholder="按名字或邮箱搜索…" value={q} onChange={setQ} className="w-56" />
         <div className="flex items-center gap-2">
           <select
             aria-label="状态筛选"
@@ -192,35 +186,30 @@ export function AdminUsersSection({ selfId }: { selfId: string }) {
         Cloudflare Access 首登按「绑定邮箱」锚定存量账号；关闭自动建号期间，未绑定的新身份会被拒绝。
       </p>
 
-      {users.isPending ? (
-        <div className="space-y-2 p-3">
-          {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-10 w-full" />
-          ))}
-        </div>
-      ) : rows.length === 0 ? (
-        <EmptyState
-          icon={Users}
-          title={users.data?.users.length ? "没有匹配的用户" : "还没有平台用户"}
-          description={users.data?.users.length ? "换个关键字，或把状态筛选改回「全部」" : "Cloudflare Access 首登后会自动建号"}
-          action={
-            users.data?.users.length ? (
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setQ("");
-                  setStatus("all");
-                }}
-              >
-                清除筛选
-              </Button>
-            ) : undefined
-          }
-        />
-      ) : (
-        <div className="overflow-x-auto">
+      <AsyncState query={users} skeletonRows={4} skeletonClassName="p-3">
+        {rows.length === 0 ? (
+          <EmptyState
+            icon={Users}
+            title={users.data?.users.length ? "没有匹配的用户" : "还没有平台用户"}
+            description={users.data?.users.length ? "换个关键字，或把状态筛选改回「全部」" : "Cloudflare Access 首登后会自动建号"}
+            action={
+              users.data?.users.length ? (
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setQ("");
+                    setStatus("all");
+                  }}
+                >
+                  清除筛选
+                </Button>
+              ) : undefined
+            }
+          />
+        ) : (
+          <div className="overflow-x-auto">
           <table className="w-full min-w-[36rem] border-collapse text-sm">
-            <thead className="sticky top-0 bg-surface-sunken">
+            <thead className="sticky top-0 bg-bg-sub">
               <tr className="text-left text-2xs text-ink-3">
                 <th scope="col" className="px-3 py-2 font-medium">用户</th>
                 <th scope="col" className="px-3 py-2 font-medium">角色</th>
@@ -241,9 +230,10 @@ export function AdminUsersSection({ selfId }: { selfId: string }) {
                 />
               ))}
             </tbody>
-          </table>
-        </div>
-      )}
+            </table>
+          </div>
+        )}
+      </AsyncState>
 
       {quotaUser && (
         <QuotaDialog

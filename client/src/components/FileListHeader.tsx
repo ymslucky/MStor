@@ -1,9 +1,10 @@
 import { Fragment } from "react";
 import type { CSSProperties } from "react";
-import { ArrowDown, ArrowUp, Check, Columns3, EyeOff, ListFilter, Search } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, Columns3, EyeOff, ListFilter } from "lucide-react";
 import { flexRender } from "@tanstack/react-table";
 import { FILE_COLUMNS } from "../hooks/useFileTable";
 import type { FileTable } from "../hooks/useFileTable";
+import { SearchInput } from "./SearchInput";
 import { Button } from "./ui";
 
 const TH = "select-none px-2 py-2 text-center text-xs font-medium text-ink-faint";
@@ -15,8 +16,6 @@ const VISIBILITY_ITEMS = [
 ] as const;
 
 interface Props {
-  /** 只在列表视图渲染 */
-  view?: "list" | "grid";
   nameFilter: string;
   onNameFilter: (value: string) => void;
   columnsOpen: boolean;
@@ -33,12 +32,34 @@ interface Props {
   dragging: boolean;
 }
 
+/** 名称过滤输入：列表与网格视图共用（网格没有表头，但同样需要即时过滤） */
+export function NameFilterInput({
+  value,
+  onChange,
+  className = "",
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  className?: string;
+}) {
+  return (
+    <SearchInput
+      type="search"
+      label="按名称过滤当前列表"
+      placeholder="按名称过滤当前列表…"
+      value={value}
+      onChange={onChange}
+      className={className}
+      inputClassName="bg-surface-2"
+    />
+  );
+}
+
 /**
  * 列表头部：名称过滤 + 列显隐菜单 + 表头组（排序 / 拖拽调宽）。
  * 表头单元格与列宽模板都取自 table 的列模型，不再手写 th 类名与 grid 模板字符串。
  */
 export function FileListHeader({
-  view,
   nameFilter,
   onNameFilter,
   columnsOpen,
@@ -51,8 +72,6 @@ export function FileListHeader({
   onToggleAll,
   dragging,
 }: Props) {
-  if (view !== "list") return null;
-
   const sortIcon = (dir: false | "asc" | "desc") => {
     if (dir === "asc") return <ArrowUp size={12} aria-hidden />;
     if (dir === "desc") return <ArrowDown size={12} aria-hidden />;
@@ -64,21 +83,7 @@ export function FileListHeader({
   return (
     <>
       <div className="mb-2 flex items-center justify-between gap-2">
-        <div className="relative">
-          <Search
-            size={14}
-            aria-hidden
-            className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-ink-faint"
-          />
-          <input
-            type="search"
-            value={nameFilter}
-            onChange={(e) => onNameFilter(e.target.value)}
-            placeholder="按名称过滤当前列表…"
-            aria-label="按名称过滤当前列表"
-            className="h-8 w-56 rounded-lg border border-line bg-white pl-8 pr-2 text-xs text-ink placeholder:text-ink-faint focus:border-accent/50 focus:outline-none"
-          />
-        </div>
+        <NameFilterInput value={nameFilter} onChange={onNameFilter} className="w-56" />
         <div className="relative">
           <Button size="sm" variant="ghost" aria-expanded={columnsOpen} aria-haspopup="menu" onClick={onToggleColumns}>
             <Columns3 size={14} aria-hidden className="mr-1" />
@@ -87,7 +92,7 @@ export function FileListHeader({
           {columnsOpen && (
             <div
               role="menu"
-              className="absolute right-0 z-sticky mt-1 w-40 rounded-xl border border-line bg-white p-1 shadow-card"
+              className="absolute right-0 z-sticky mt-1 w-40 rounded-xl border border-line bg-surface-2 p-1 shadow-card"
             >
               {VISIBILITY_ITEMS.map((item) => {
                 const column = table.getColumn(item.id);
@@ -104,7 +109,7 @@ export function FileListHeader({
                       type="checkbox"
                       checked={visible}
                       onChange={() => column.toggleVisibility()}
-                      className="h-3.5 w-3.5 accent-emerald-600"
+                      className="h-3.5 w-3.5 accent-primary"
                     />
                     {visible ? (
                       <Check size={12} aria-hidden className="text-success-text" />
@@ -148,7 +153,7 @@ export function FileListHeader({
                       checked={allSelected}
                       onChange={onToggleAll}
                       disabled={dragging}
-                      className="h-4 w-4 cursor-pointer accent-emerald-600"
+                      className="h-4 w-4 cursor-pointer accent-primary"
                     />
                   </div>
                 );

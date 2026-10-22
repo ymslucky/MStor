@@ -4,17 +4,21 @@ import { RotateCcw, Trash2 } from "lucide-react";
 import { batchPurge, batchRestore, listTrash, purgeNode, restoreNode } from "../api/trash";
 import { getMe } from "../api/me";
 import type { Node } from "../api/types";
-import FileList, { RowAction } from "../components/FileList";
+import { AsyncState } from "../components/AsyncState";
+import FileList from "../components/FileList";
+import { RowAction } from "../components/RowAction";
+import { SelectionBar } from "../components/SelectionBar";
 import { toast } from "../components/Toaster";
-import { Button, ConfirmDialog, GlassCard, Surface } from "../components/ui";
+import { Button, ConfirmDialog, GlassCard } from "../components/ui";
 import { useFileSelection } from "../hooks/useFileSelection";
 import { formatBytes, formatDate } from "../lib/format";
+import { queryKeys } from "../lib/queryKeys";
 
 export default function TrashPage() {
   const queryClient = useQueryClient();
-  const query = useQuery({ queryKey: ["trash"], queryFn: listTrash });
+  const query = useQuery({ queryKey: queryKeys.trash, queryFn: listTrash });
   // 保留天数随动态配置：设置页变更后 invalidate ["me"] 即同步
-  const meQuery = useQuery({ queryKey: ["me"], queryFn: getMe });
+  const meQuery = useQuery({ queryKey: queryKeys.me, queryFn: getMe });
   const retentionDays = meQuery.data?.trashRetentionDays ?? 30;
   const nodes = query.data?.nodes ?? [];
   const ids = nodes.map((n) => n.id);
@@ -25,13 +29,25 @@ export default function TrashPage() {
   const [purgingAll, setPurgingAll] = useState(false);
   const [busy, setBusy] = useState(false);
   const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: ["trash"] });
-    void queryClient.invalidateQueries({ queryKey: ["files"] });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.trash });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.filesAll });
     // 彻底删除会释放配额，恢复会占用配额，都需要刷新配额条
-    void queryClient.invalidateQueries({ queryKey: ["me"] });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.me });
   };
   const restore = useMutation({ mutationFn: (id: string) => restoreNode(id), onSuccess: invalidate });
   const purge = useMutation({ mutationFn: (id: string) => purgeNode(id), onSuccess: invalidate });
+
+  // 行内动作：列表与网格共用（网格不渲染删除时间等长文本）
+  const rowActions = (n: Node) => (
+    <>
+      <RowAction label="恢复" tone="blue" onClick={() => restore.mutate(n.id)}>
+        <RotateCcw size={14} aria-hidden />
+      </RowAction>
+      <RowAction label="彻底删除" tone="danger" onClick={() => setPurging(n)}>
+        <Trash2 size={14} aria-hidden />
+      </RowAction>
+    </>
+  );
 
   // 批量还原：还原是安全操作，不需要确认
   const runBatchRestore = async () => {
@@ -79,9 +95,8 @@ export default function TrashPage() {
         )}
       </div>
       <p className="mb-3 text-xs text-ink-faint">回收站内容保留 {retentionDays} 天后自动清理；彻底删除不可恢复。</p>
-      {query.isPending && <div className="py-16 text-center text-sm text-ink-dim">加载中…</div>}
-      {query.data && (
-        <GlassCard className="p-3 sm:p-4">
+      <GlassCard className="p-3 sm:p-4">
+        <AsyncState query={query} skeletonRows={4}>
           <FileList
             nodes={nodes}
             selectable
@@ -90,40 +105,28 @@ export default function TrashPage() {
             onSelectRange={selection.selectRange}
             onOpenDir={() => {}}
             onOpenFile={() => {}}
+            tapOpens={false}
             emptyText="回收站为空"
             actions={(n: Node) => (
               <>
                 <span className="hidden text-xs text-ink-faint lg:inline">
                   {formatBytes(n.size)} · 删除于 {n.deleted_at ? formatDate(n.deleted_at) : "-"}
                 </span>
-                <RowAction label="恢复" tone="blue" onClick={() => restore.mutate(n.id)}>
-                  <RotateCcw size={14} aria-hidden />
-                </RowAction>
-                <RowAction label="彻底删除" tone="danger" onClick={() => setPurging(n)}>
-                  <Trash2 size={14} aria-hidden />
-                </RowAction>
+                {rowActions(n)}
               </>
             )}
+            gridActions={rowActions}
           />
-        </GlassCard>
-      )}
-      {/* 批量操作条：选中 ≥1 项时浮出，移动端避让底部导航（bottom-20） */}
-      {selection.count > 0 && !batchPurging && !purgingAll && (
-        <div className="fixed inset-x-0 bottom-20 z-overlay flex justify-center px-4 sm:bottom-6">
-          <Surface className="flex items-center gap-1.5 p-2">
-            <span className="whitespace-nowrap px-2 text-sm font-medium text-ink">已选 {selection.count} 项</span>
-            <Button size="sm" disabled={busy} onClick={() => void runBatchRestore()}>
-              还原
-            </Button>
-            <Button size="sm" variant="danger" disabled={busy} aria-label="批量彻底删除" onClick={() => setBatchPurging(true)}>
-              彻底删除
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => selection.clear()}>
-              取消
-            </Button>
-          </Surface>
-        </div>
-      )}
+        </AsyncState>
+      </GlassCard>
+      <SelectionBar count={selection.count} hidden={batchPurging || purgingAll} onClear={selection.clear}>
+        <Button size="sm" disabled={busy} onClick={() => void runBatchRestore()}>
+          还原
+        </Button>
+        <Button size="sm" variant="danger" disabled={busy} aria-label="批量彻底删除" onClick={() => setBatchPurging(true)}>
+          彻底删除
+        </Button>
+      </SelectionBar>
       {purging && (
         <ConfirmDialog
           open

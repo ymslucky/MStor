@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { batchDeleteNodes, batchMoveNodes, deleteNodePermanently } from "../api/nodes";
 import { toast } from "../components/Toaster";
+import { queryKeys } from "../lib/queryKeys";
 
 interface Options {
   /** 当前选中节点 id 快照（批量操作开始时读取） */
@@ -27,9 +28,9 @@ export function useBatchOps({ selectedIds, onClear, onPurged }: Options) {
   const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
 
   const invalidateAll = (permanent = false) => {
-    void queryClient.invalidateQueries({ queryKey: ["files"] });
-    void queryClient.invalidateQueries({ queryKey: ["trash"] });
-    if (permanent) void queryClient.invalidateQueries({ queryKey: ["me"] });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.filesAll });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.trash });
+    if (permanent) void queryClient.invalidateQueries({ queryKey: queryKeys.me });
   };
 
   // 批量请求分块并行：每块 100 个 id（服务端集合式处理，单请求毫秒级），2 路并发；进度按已处理条目推进

@@ -2,7 +2,7 @@
 export function Skeleton({ className = "" }: { className?: string }) {
   return (
     <div
-      className={`animate-pulse relative overflow-hidden rounded-card bg-white/50 ${className}`}
+      className={`animate-pulse relative overflow-hidden rounded-card bg-surface-2/60 ${className}`}
       aria-hidden
       style={{
         backgroundImage:

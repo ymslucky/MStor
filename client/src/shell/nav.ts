@@ -41,9 +41,6 @@ export const SECTIONS: NavSection[] = [
   },
 ];
 
-/** 扁平视图（移动端抽屉等只需顺序遍历的场景） */
-export const NAV: NavItem[] = SECTIONS.flatMap((s) => s.items);
-
 /** 按权限过滤后的分区：非平台管理员看不到「平台」组 */
 export function sectionsFor(isPlatformAdmin: boolean): NavSection[] {
   return SECTIONS.map((s) => ({
@@ -63,4 +60,5 @@ export const PAGE_TITLES: Record<string, string> = {
   "/settings": "设置",
   "/platform/users": "用户管理",
   "/platform/audit": "日志审计",
+  "/design": "设计系统",
 };

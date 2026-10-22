@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { Search } from "lucide-react";
 import { formatDate } from "../lib/format";
-import { Input, Pill, Surface } from "./ui";
+import { SearchInput } from "./SearchInput";
+import { Pill, Surface } from "./ui";
 
 export interface AuditEvent {
   action: string;
@@ -43,16 +43,7 @@ export function AuditTable({ events }: { events: AuditEvent[] }) {
   return (
     <Surface className="overflow-hidden">
       <div className="flex items-center justify-between gap-2 border-b border-line px-3 py-2">
-        <div className="relative">
-          <Search size={14} aria-hidden className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-ink-3" />
-          <Input
-            aria-label="筛选审计事件"
-            placeholder="筛选动作或操作者…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            className="h-8 w-56 pl-8 text-xs"
-          />
-        </div>
+        <SearchInput label="筛选审计事件" placeholder="筛选动作或操作者…" value={q} onChange={setQ} className="w-56" />
         <span className="num shrink-0 text-2xs text-ink-3">{rows.length} 条</span>
       </div>
 
@@ -60,7 +51,7 @@ export function AuditTable({ events }: { events: AuditEvent[] }) {
         <p className="px-3 py-8 text-center text-sm text-ink-3">{events.length === 0 ? "暂无审计事件" : "没有匹配的事件"}</p>
       ) : (
         <table className="w-full border-collapse text-sm">
-          <thead className="sticky top-0 bg-surface-sunken">
+          <thead className="sticky top-0 bg-bg-sub">
             <tr className="text-left text-2xs text-ink-3">
               <th scope="col" className="px-3 py-2 font-medium">动作</th>
               <th scope="col" className="hidden px-3 py-2 font-medium sm:table-cell">操作者</th>

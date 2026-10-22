@@ -2,12 +2,13 @@ import { render, screen } from "@testing-library/react";
 import { renderWithProviders } from "./utils";
 import { describe, expect, test, vi } from "vitest";
 import { axe } from "vitest-axe";
-import { Badge, Button, Field, IconButton, Input, ListRow, NavItem, Panel, SettingRow } from "../components/ui";
+import { Button, Field, IconButton, Input, ListRow, NavItem, Panel, Pill, SettingRow } from "../components/ui";
 import { Dialog } from "../components/ui/Dialog";
 import { ConflictDialog } from "../components/ConflictDialog";
 import { BatchBar } from "../components/BatchBar";
 import { UndoSnackbar } from "../components/UndoSnackbar";
 import { StatusBar } from "../components/StatusBar";
+import { MobileNavDrawer } from "../shell/MobileNavDrawer";
 import { AdminUsersSection } from "../components/AdminUsersSection";
 import { CommandPalette } from "../components/CommandPalette";
 import { NotificationBell } from "../components/NotificationBell";
@@ -60,12 +61,12 @@ vi.mock("../api/notifications", () => ({
 }));
 
 describe("无障碍闸门", () => {
-  test("原语（Button/Badge/Input/IconButton）", async () => {
+  test("原语（Button/Pill/Input/IconButton）", async () => {
     const { container } = wrap(
       <div>
         <Button>保存</Button>
         <Button variant="ghost">取消</Button>
-        <Badge tone="accent">已分享</Badge>
+        <Pill tone="accent">已分享</Pill>
         <Input aria-label="名称" placeholder="名称" />
         <IconButton label="关闭">
           <Cloud size={16} aria-hidden />
@@ -84,10 +85,16 @@ describe("无障碍闸门", () => {
     expect(await axe(baseElement)).toHaveNoViolations();
   });
 
-  test("ConflictDialog / BatchBar / UndoSnackbar", async () => {
+  test("ConflictDialog（Radix modal，Portal 到 body）", async () => {
+    const { baseElement } = wrap(
+      <ConflictDialog names={["a.txt"]} remember={false} onRememberChange={() => {}} onDecide={() => {}} onCancel={() => {}} />,
+    );
+    expect(await axe(baseElement)).toHaveNoViolations();
+  });
+
+  test("BatchBar / UndoSnackbar（非 modal，独立扫描避免被 modal 的 aria-hidden 隐藏）", async () => {
     const { container } = wrap(
       <div>
-        <ConflictDialog names={["a.txt"]} remember={false} onRememberChange={() => {}} onDecide={() => {}} onCancel={() => {}} />
         <BatchBar count={2} hasFileSelected onDownload={() => {}} onMove={() => {}} onDelete={() => {}} onClear={() => {}} />
         <UndoSnackbar message="已移动" onUndo={() => {}} onClose={() => {}} />
       </div>,
@@ -142,5 +149,13 @@ describe("无障碍闸门", () => {
   test("StatusBar", async () => {
     const { container } = wrap(<StatusBar me={ME} />);
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  test("移动端导航抽屉（Radix Dialog 承载焦点与 Esc）", async () => {
+    const { baseElement } = wrap(
+      <MobileNavDrawer open onClose={() => {}} me={ME} onSwitchWorkspace={() => {}} onLogout={() => {}} />,
+    );
+    expect(await screen.findByTestId("mobile-drawer")).toBeInTheDocument();
+    expect(await axe(baseElement)).toHaveNoViolations();
   });
 });

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { Suspense, useEffect, useState } from "react";
+import { Outlet, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { clearSessionFlag } from "../api/client";
 import { setUploadLimits } from "../api/uploads";
@@ -15,16 +15,18 @@ import { AccountMenu } from "./AccountMenu";
 import { TopBar } from "./TopBar";
 import { CommandPalette } from "../components/CommandPalette";
 import { NotificationBell } from "../components/NotificationBell";
-import { PAGE_TITLES, sectionsFor } from "./nav";
+import { PAGE_TITLES } from "./nav";
 import { useMe, useSidebarCollapsed } from "./hooks";
+import { useMediaQuery } from "../hooks/useMediaQuery";
+import { DESKTOP_MEDIA_QUERY } from "../lib/constants";
 import StorageMeter from "../components/StorageMeter";
 import OfflineBar from "../components/OfflineBar";
-import { Toaster } from "../components/Toaster";
+import { MobileNavDrawer } from "./MobileNavDrawer";
 
 /**
  * 外壳只负责「布局 + 会话级动作」：
  * 侧栏 = SidebarNav + WorkspaceSwitcher + StorageMeter + AccountMenu；
- * 顶栏 = TopBar；内容 = Outlet；底部 = StatusBar（桌面）+ 移动 Tab。
+ * 顶栏 = TopBar；内容 = Outlet；底部 = StatusBar（桌面）。
  * 队列与浮层在导出层包住，切换路由不丢队列。
  */
 function AppShellLayout() {
@@ -33,14 +35,24 @@ function AppShellLayout() {
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [exitActOpen, setExitActOpen] = useState(false);
   const { collapsed, toggle } = useSidebarCollapsed();
+  // 桌面浮动簇（搜索/通知）只在桌面挂载：移动端搜索在抽屉里，避免同一页两个 CommandPalette 实例
+  const isDesktop = useMediaQuery(DESKTOP_MEDIA_QUERY);
   // 移动端导航抽屉（替代底部 Tab，避免与批量条/浮层抢底部空间）
   const [menuOpen, setMenuOpen] = useState(false);
   const { pathname } = useLocation();
+
+  const title = PAGE_TITLES[pathname] ?? (pathname.startsWith("/settings") ? "设置" : "MStor");
 
   // 上传上限由服务端下发（/api/me.limits），前端队列在此同步，避免前后端硬编码漂移
   useEffect(() => {
     setUploadLimits(me?.limits);
   }, [me]);
+
+  // 路由切换：关闭移动抽屉 + 更新文档标题（读屏/多标签/历史都能区分页面）
+  useEffect(() => {
+    setMenuOpen(false);
+    document.title = `${title} · MStor`;
+  }, [pathname, title]);
 
   if (!me) return <div className="p-8 text-center text-ink-dim">加载中…</div>;
 
@@ -58,6 +70,12 @@ function AppShellLayout() {
 
   return (
     <div className="relative min-h-dvh">
+      <a
+        href="#main-content"
+        className="z-toast sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:rounded-btn focus:bg-surface-1 focus:px-3 focus:py-2 focus:text-sm focus:text-ink focus:shadow-lift"
+      >
+        跳到主要内容
+      </a>
       <div className="glow-radial" aria-hidden />
       <div className="relative z-content md:flex md:h-dvh">
         <aside
@@ -80,12 +98,11 @@ function AppShellLayout() {
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <TopBar
-            title={PAGE_TITLES[pathname] ?? (pathname.startsWith("/settings") ? "设置" : "MStor")}
-            onLogout={() => setLogoutOpen(true)}
-            onOpenMenu={() => setMenuOpen(true)}
-          />
-          <main className="min-w-0 flex-1 px-4 py-4 pb-nav sm:px-6 sm:py-6 md:flex md:min-h-0 md:flex-col md:py-4">
+          <TopBar title={title} onLogout={() => setLogoutOpen(true)} onOpenMenu={() => setMenuOpen(true)} />
+          <main
+            id="main-content"
+            className="min-w-0 flex-1 px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6 sm:py-6 md:flex md:min-h-0 md:flex-col md:py-4 md:pb-4"
+          >
             {actAs && (
               <div className="mb-4 flex flex-wrap items-center gap-x-2 rounded-xl bg-warn-soft px-4 py-2 text-xs text-warn-text">
                 正在以管理员身份查看「{me.name}」的空间
@@ -94,70 +111,46 @@ function AppShellLayout() {
                 </button>
               </div>
             )}
-            {/* 页面级兜底：页面崩溃时侧栏与导航仍在；key=pathname 使切页自动复位 */}
+            {/* 页面级兜底：页面崩溃时侧栏与导航仍在；key=pathname 使切页自动复位。
+                Suspense 必须放在这里（而不是 App 根）：懒路由首次加载时不能卸载外壳与上传队列，
+                chunk 加载失败也由这个 compact 边界接住，而不是整页白屏/整页报错。 */}
             <ErrorBoundary key={pathname} compact title="这个页面出错了">
-              <Outlet context={me} />
+              <Suspense
+                fallback={
+                  <div className="p-8 text-center text-sm text-ink-2" aria-busy="true">
+                    加载中…
+                  </div>
+                }
+              >
+                <Outlet context={me} />
+              </Suspense>
             </ErrorBoundary>
           </main>
-          {/* 桌面端浮动簇：搜索（⌘K）与通知气泡；移动端这些在顶栏与抽屉里 */}
-          <div className="pointer-events-none fixed right-5 bottom-14 z-overlay hidden flex-col items-end gap-2 md:flex">
-            <div className="pointer-events-auto">
-              <NotificationBell />
+          {/* 桌面端浮动簇：搜索（⌘K）与通知气泡；移动端这些在抽屉里（按断点条件挂载，避免重复实例） */}
+          {isDesktop && (
+            <div className="pointer-events-none fixed right-5 bottom-14 z-overlay flex flex-col items-end gap-2">
+              <div className="pointer-events-auto">
+                <NotificationBell />
+              </div>
+              <div className="pointer-events-auto">
+                <CommandPalette />
+              </div>
             </div>
-            <div className="pointer-events-auto">
-              <CommandPalette />
-            </div>
-          </div>
+          )}
           <StatusBar me={me} />
         </div>
       </div>
 
-      {/* 移动端导航抽屉 */}
-      {menuOpen && (
-        <div className="fixed inset-0 z-modal md:hidden" onClick={() => setMenuOpen(false)}>
-          <div className="absolute inset-0 bg-ink/40 backdrop-blur-sm" />
-          <div
-            role="dialog"
-            aria-label="导航"
-            data-testid="mobile-drawer"
-            className="anim-pop absolute inset-y-0 left-0 flex w-64 flex-col bg-surface-1 shadow-glass"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <SidebarNav collapsed={false} onToggle={() => setMenuOpen(false)} isPlatformAdmin={account.role === "admin"} />
-            <div className="space-y-1 border-t border-line px-2 py-3">
-              {sectionsFor(account.role === "admin")
-                .flatMap((s) => s.items)
-                .map(({ to, label, Icon }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  end={to === "/"}
-                  onClick={() => setMenuOpen(false)}
-                  className={({ isActive }) =>
-                    `flex min-h-[44px] items-center gap-3 rounded-xl px-3 text-sm transition-colors ${
-                      isActive ? "bg-primary-soft font-medium text-primary-text" : "text-ink-2 hover:bg-primary-soft/60"
-                    }`
-                  }
-                >
-                  <Icon size={18} aria-hidden />
-                  {label}
-                </NavLink>
-              ))}
-              <NavLink
-                to="/settings"
-                onClick={() => setMenuOpen(false)}
-                className={({ isActive }) =>
-                  `flex min-h-[44px] items-center gap-3 rounded-xl px-3 text-sm transition-colors ${
-                    isActive ? "bg-primary-soft font-medium text-primary-text" : "text-ink-2 hover:bg-primary-soft/60"
-                  }`
-                }
-              >
-                设置
-              </NavLink>
-            </div>
-          </div>
-        </div>
-      )}
+      <MobileNavDrawer
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        me={me}
+        onSwitchWorkspace={switchWorkspace}
+        onLogout={() => {
+          setMenuOpen(false);
+          setLogoutOpen(true);
+        }}
+      />
       <ConfirmDialog
         open={logoutOpen}
         title="退出登录"
@@ -186,7 +179,6 @@ function AppShellLayout() {
         onCancel={() => setExitActOpen(false)}
       />
       <OfflineBar />
-      <Toaster />
     </div>
   );
 }

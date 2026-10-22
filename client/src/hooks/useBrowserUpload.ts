@@ -1,10 +1,10 @@
 import { useCallback, useMemo, useState } from "react";
 import type { Node } from "../api/types";
-import { uniqueName } from "../components/ConflictDialog";
-import type { ConflictPolicy } from "../components/ConflictDialog";
-import { getString, setString } from "../lib/storage";
+import { uniqueName } from "../lib/conflict";
+import type { ConflictPolicy } from "../lib/conflict";
+import { STORAGE_KEYS, getString, setString } from "../lib/storage";
 
-const CONFLICT_KEY = "mstor_upload_conflict";
+const CONFLICT_KEY = STORAGE_KEYS.uploadConflict;
 
 interface Deps {
   dir: string;

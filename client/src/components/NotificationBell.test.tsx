@@ -70,6 +70,16 @@ test("未读优先 + 今天/更早分组 + 未读 Pill，全部已读调用接�
   await waitFor(() => expect(markAllNotificationsRead).toHaveBeenCalled());
 });
 
+test("Escape 关闭面板并把焦点还给铃铛", async () => {
+  const { user } = renderWith();
+  const bell = screen.getByRole("button", { name: /通知/ });
+  await user.click(bell);
+  await screen.findByText("今天");
+  await user.keyboard("{Escape}");
+  await waitFor(() => expect(screen.queryByText("今天")).not.toBeInTheDocument());
+  expect(bell).toHaveFocus();
+});
+
 test("单条点击跳转并标记已读", async () => {
   const { user } = renderWith();
   await user.click(screen.getByRole("button", { name: /通知/ }));

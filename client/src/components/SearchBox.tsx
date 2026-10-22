@@ -9,6 +9,7 @@ import type { SearchKind, SearchSort } from "../api/search";
 import { listRecent } from "../api/library";
 import type { Node } from "../api/types";
 import { useDebounce } from "../hooks/useDebounce";
+import { queryKeys } from "../lib/queryKeys";
 import { NodeIcon } from "./NodeIcon";
 import { Button } from "./ui";
 
@@ -60,11 +61,11 @@ export default function SearchBox({ autoFocus, onNavigate }: { autoFocus?: boole
   const kw = dq.trim();
 
   const { data, isFetching } = useQuery({
-    queryKey: ["search", dq, sort, kind],
+    queryKey: queryKeys.search(dq, sort, kind),
     queryFn: () => searchNodes({ q: dq, sort, type: kind }),
     enabled: kw.length > 0,
   });
-  const recent = useQuery({ queryKey: ["library-recent"], queryFn: listRecent, enabled: open && kw.length === 0 });
+  const recent = useQuery({ queryKey: queryKeys.recent, queryFn: listRecent, enabled: open && kw.length === 0 });
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
@@ -167,7 +168,7 @@ export default function SearchBox({ autoFocus, onNavigate }: { autoFocus?: boole
         aria-label="搜索"
         placeholder="搜索文件名…（↑↓ 移动 · Enter 打开 · Tab 切分组）"
         autoFocus={autoFocus}
-        className="w-full rounded-xl border border-line bg-white px-2.5 py-1.5 text-sm text-ink placeholder:text-ink-faint focus:border-accent focus:outline-none"
+        className="w-full rounded-xl border border-line bg-surface-2 px-2.5 py-1.5 text-sm text-ink placeholder:text-ink-faint focus:border-accent focus:outline-none"
         value={q}
         onChange={(e) => {
           setQ(e.target.value);

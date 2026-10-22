@@ -1,6 +1,6 @@
 import { FolderInput, Link2, Pencil, Star, Trash2 } from "lucide-react";
 import type { Node } from "../api/types";
-import { RowAction } from "./FileList";
+import { RowAction } from "./RowAction";
 
 /** 行内操作组：分享 / 重命名 / 移动 / 删除（菜单、键盘、行内按钮共用同一组语义） */
 export function NodeRowActions({

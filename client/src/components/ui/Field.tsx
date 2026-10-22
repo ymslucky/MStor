@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { cloneElement, useId } from "react";
 import type * as React from "react";
 import { cn } from "../../lib/cn";
 
@@ -34,12 +34,8 @@ export function Field({
         {label}
         {required && <span aria-hidden className="ml-0.5 text-danger-text">*</span>}
       </label>
-      {/* 只注入无障碍属性，不改控件自身样式 */}
-      {(() => {
-        const Control = children.type;
-        const props = children.props;
-        return <Control {...props} id={controlId} aria-describedby={describedBy} aria-invalid={!!error} />;
-      })()}
+      {/* 只注入无障碍属性，不改控件自身样式（cloneElement 保留 ref/元素身份） */}
+      {cloneElement(children, { id: controlId, "aria-describedby": describedBy, "aria-invalid": !!error })}
       {hint && (
         <p id={hintId} className="text-2xs text-ink-3">
           {hint}

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { UserPlus } from "lucide-react";
 import { createInvitation, listInvitations, listMembers, removeMember, revokeInvitation, updateMemberRole } from "../api/workspaces";
 import { formatDate } from "../lib/format";
+import { queryKeys } from "../lib/queryKeys";
 import { Button, ConfirmDialog, Field, Input, ListRow, Pill, SettingRow, Surface } from "./ui";
 import { toast } from "./Toaster";
 
@@ -24,7 +25,7 @@ export function MemberPanel() {
     setBusy(userId);
     try {
       await updateMemberRole(userId, next);
-      await queryClient.invalidateQueries({ queryKey: ["workspace-members"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.members });
     } catch (e) {
       toast(e instanceof Error ? e.message : "修改角色失败");
     } finally {
@@ -36,21 +37,21 @@ export function MemberPanel() {
     setBusy(userId);
     try {
       await removeMember(userId);
-      await queryClient.invalidateQueries({ queryKey: ["workspace-members"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.members });
     } catch (e) {
       toast(e instanceof Error ? e.message : "移除成员失败");
     } finally {
       setBusy(null);
     }
   };
-  const members = useQuery({ queryKey: ["members"], queryFn: listMembers });
-  const invites = useQuery({ queryKey: ["invitations"], queryFn: listInvitations });
+  const members = useQuery({ queryKey: queryKeys.members, queryFn: listMembers });
+  const invites = useQuery({ queryKey: queryKeys.invitations, queryFn: listInvitations });
 
   const invite = useMutation({
     mutationFn: () => createInvitation(email.trim(), role),
     onSuccess: async (r) => {
       setEmail("");
-      await queryClient.invalidateQueries({ queryKey: ["invitations"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.invitations });
       // 链接只此一次可见：直接放进提示，让管理员立刻转达
       toast(`邀请已创建：${r.url}`, "info");
     },
@@ -60,7 +61,7 @@ export function MemberPanel() {
   const revoke = useMutation({
     mutationFn: (tokenOrEmail: string) => revokeInvitation(tokenOrEmail),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["invitations"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.invitations });
       toast("邀请已撤销", "info");
     },
     onError: (e) => toast(e instanceof Error ? e.message : "撤销失败", "error"),
@@ -88,7 +89,7 @@ export function MemberPanel() {
             <select
               value={role}
               onChange={(e) => setRole(e.target.value === "admin" ? "admin" : "member")}
-              className="min-h-[44px] rounded-xl border border-line bg-white px-3 text-sm text-ink"
+              className="min-h-[44px] rounded-xl border border-line bg-surface-2 px-3 text-sm text-ink"
             >
               <option value="member">成员</option>
               <option value="admin">管理员</option>

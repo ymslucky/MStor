@@ -1,21 +1,26 @@
+import { lazy, useEffect } from "react";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Navigate, Route, Routes, useOutletContext, useSearchParams } from "react-router-dom";
 import { ApiError, handleSessionExpired, markSessionActive } from "./api/client";
 import { getMe } from "./api/me";
 import type { Me } from "./api/types";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { Toaster } from "./components/Toaster";
 import { Button } from "./components/ui";
 import { nextTarget, renewSession } from "./lib/renew";
+import { queryKeys } from "./lib/queryKeys";
 import AppShell from "./shell/AppShell";
 import { makeQueryClient } from "./shell/queryClient";
 import Browser from "./pages/Browser";
 import SettingsPage from "./pages/SettingsPage";
-import DesignPage from "./pages/DesignPage";
-import PlatformPage from "./pages/PlatformPage";
 import LibraryPage from "./pages/LibraryPage";
 import SharePage from "./pages/SharePage";
 import SharesPage from "./pages/SharesPage";
 import TrashPage from "./pages/TrashPage";
+
+// 低频/管理页按需加载：设计系统页与平台管理页不进入首屏主包
+const DesignPage = lazy(() => import("./pages/DesignPage"));
+const PlatformPage = lazy(() => import("./pages/PlatformPage"));
 
 const queryClient = makeQueryClient();
 
@@ -47,7 +52,12 @@ function AccessDeniedHint({ message }: { message?: string }) {
 // /api/me 成功 → 标记「曾登录」（会话中途过期时经 /auth/renew 触发 Access 重登）；
 // 401 → 曾登录则续期导航一次（边缘接管登录），否则渲染未授权提示页
 function RequireAuth() {
-  const query = useQuery({ queryKey: ["me"], queryFn: getMe });
+  const query = useQuery({ queryKey: queryKeys.me, queryFn: getMe });
+  const authed = query.isSuccess;
+  // 会话标记是副作用：放到 effect 里，避免渲染期写 sessionStorage
+  useEffect(() => {
+    if (authed) markSessionActive();
+  }, [authed]);
   if (query.isPending) return <div className="p-8 text-center text-ink-dim">加载中…</div>;
   if (query.isError) {
     if (query.error instanceof ApiError && query.error.status === 401 && handleSessionExpired()) {
@@ -59,7 +69,6 @@ function RequireAuth() {
       />
     );
   }
-  markSessionActive();
   return <AppShell />;
 }
 
@@ -83,17 +92,19 @@ export default function App() {
             <Route path="/shares" element={<SharesPage />} />
             <Route path="/trash" element={<TrashPage />} />
             <Route path="/favorites" element={<LibraryPage kind="favorites" />} />
-          <Route path="/recent" element={<LibraryPage kind="recent" />} />
-          <Route path="/tags" element={<LibraryPage kind="tags" />} />
-          <Route path="/design" element={<DesignPage />} />
-          <Route path="/settings" element={<Navigate to="/settings/account" replace />} />
-          <Route path="/settings/:tab" element={<SettingsRoute />} />
-          <Route path="/platform/users" element={<PlatformPage kind="users" />} />
-          <Route path="/platform/audit" element={<PlatformPage kind="audit" />} />
+            <Route path="/recent" element={<LibraryPage kind="recent" />} />
+            <Route path="/tags" element={<LibraryPage kind="tags" />} />
+            <Route path="/design" element={<DesignPage />} />
+            <Route path="/settings" element={<Navigate to="/settings/account" replace />} />
+            <Route path="/settings/:tab" element={<SettingsRoute />} />
+            <Route path="/platform/users" element={<PlatformPage kind="users" />} />
+            <Route path="/platform/audit" element={<PlatformPage kind="audit" />} />
           </Route>
           {/* 兜底：任何未匹配路径（含陈旧 SW 缓存的 /cdn-cgi/* 授权回调）回首页，避免渲染空白页 */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        {/* Toaster 提到全局：/s/:token 公开分享页在 AppShell 之外，也需要错误/成功反馈 */}
+        <Toaster />
       </ErrorBoundary>
     </QueryClientProvider>
   );

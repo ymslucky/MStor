@@ -1,10 +1,11 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ensureDir } from "../api/nodes";
 import { abortUpload, getSmallFileLimit, instantUpload, sha256Hex, uploadLarge, uploadSmall } from "../api/uploads";
 import type { Part } from "../api/uploads";
 import type { PendingUpload } from "../lib/dirscan";
 import { clearResume, fingerprint, loadResume, saveResume } from "../lib/resume";
+import { queryKeys } from "../lib/queryKeys";
 import { getUploadConcurrency } from "../lib/settings";
 import { SpeedTracker } from "../lib/speed";
 
@@ -43,6 +44,23 @@ export function useUploadQueue() {
   // 速度采样器 + 进度节流时间戳（key → …），完成/失败/重试时清理
   const speeds = useRef(new Map<number, SpeedTracker>());
   const lastEmit = useRef(new Map<number, number>());
+  // 列表刷新合并：上传完成不再逐文件失效 ["files"]（N 个文件 × D 个已缓存目录 = N×D 次请求），
+  // 改为 400ms 窗口内最多一次，drain 结束时立即补一次
+  const refreshTimer = useRef<number | null>(null);
+  const scheduleFilesRefresh = useCallback(() => {
+    if (refreshTimer.current !== null) return;
+    refreshTimer.current = window.setTimeout(() => {
+      refreshTimer.current = null;
+      // 窗口内只刷列表：/api/me 驱动配额条，长批量时每 400ms 刷一次太吵，留到 drain 收尾统一刷
+      void queryClient.invalidateQueries({ queryKey: queryKeys.filesAll });
+    }, 400);
+  }, [queryClient]);
+  useEffect(
+    () => () => {
+      if (refreshTimer.current !== null) window.clearTimeout(refreshTimer.current);
+    },
+    [],
+  );
 
   const update = useCallback((key: number, patch: Partial<QueueItem>) => {
     itemsRef.current = itemsRef.current.map((it) => (it.key === key ? { ...it, ...patch } : it));
@@ -168,8 +186,7 @@ export function useUploadQueue() {
             partAcc.current.delete(next.key);
             update(next.key, { status: "done", progress: 1, speed: undefined });
             resetSampling(next.key);
-            void queryClient.invalidateQueries({ queryKey: ["files"] });
-            void queryClient.invalidateQueries({ queryKey: ["me"] });
+            scheduleFilesRefresh();
           }
         } catch (e) {
           // 取消/暂停触发的失败：保持 cancel 已写入的状态
@@ -186,7 +203,14 @@ export function useUploadQueue() {
     };
     await Promise.all(Array.from({ length: getUploadConcurrency() }, worker));
     running.current = false;
-  }, [ensureDirs, onProgress, queryClient, resetSampling, stashResume, update]);
+    // drain 结束：合并窗口里的最后一次刷新立即落地，避免用户切页后仍看到旧列表
+    if (refreshTimer.current !== null) {
+      window.clearTimeout(refreshTimer.current);
+      refreshTimer.current = null;
+      void queryClient.invalidateQueries({ queryKey: queryKeys.filesAll });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.me });
+    }
+  }, [ensureDirs, onProgress, queryClient, resetSampling, scheduleFilesRefresh, stashResume, update]);
 
   const add = useCallback(
     (items: (File | PendingUpload)[], parentId: string) => {

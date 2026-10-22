@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type * as React from "react";
 import type {
   CSSProperties,
@@ -13,23 +13,33 @@ import { Copy, Download, FolderOpen } from "lucide-react";
 import { contentUrl } from "../api/nodes";
 import { FileGrid } from "./FileGrid";
 import { FileRowCells } from "./FileRow";
-import { FileListHeader } from "./FileListHeader";
+import { FileListHeader, NameFilterInput } from "./FileListHeader";
 import type { Node } from "../api/types";
 import { compareNodes, useColumnPrefs } from "../hooks/useColumnPrefs";
 import { useFileTable } from "../hooks/useFileTable";
+import { useMediaQuery } from "../hooks/useMediaQuery";
+import {
+  COARSE_POINTER_MEDIA_QUERY,
+  COMPACT_MEDIA_QUERY,
+  LONG_PRESS_CLICK_GUARD_MS,
+  LONG_PRESS_MS,
+  VIRTUAL_THRESHOLD,
+} from "../lib/constants";
 import { hasNodeDrag, readNodeDrag, setNodeDrag } from "../lib/dnd";
-import { Badge, EmptyState } from "./ui";
+import { Pill, EmptyState } from "./ui";
 import { toast } from "./Toaster";
 import VirtualizedList, { getRowHeight } from "./VirtualizedList";
-
-/** 列表 ≥50 行启用虚拟滚动 */
-const VIRTUAL_THRESHOLD = 50;
+import { RowAction } from "./RowAction";
 
 /** 未受控时的空选择集（引用稳定：行选择状态由它派生，避免每次渲染重发布） */
 const EMPTY_SELECTED: ReadonlySet<string> = new Set();
 
 /** 长按多选计时器：全局唯一（同一时刻只可能有一个手指在长按） */
 let longPressTimer: number | null = null;
+/** 本轮触摸是否已触发长按（松手时把点击抑制窗口从松手时刻重新计时） */
+let longPressFired = false;
+/** 最近一次长按完成的时间：用于抑制长按后浏览器补发的 click（否则会立刻打开） */
+let lastLongPressAt = 0;
 
 type DragHandlers = Pick<React.HTMLAttributes<HTMLElement>, "onDragStart" | "onDragEnd"> & { draggable?: boolean };
 type DropHandlers = Pick<React.HTMLAttributes<HTMLElement>, "onDragOver" | "onDragLeave" | "onDrop">;
@@ -39,10 +49,14 @@ interface Props {
   onOpenDir: (id: string) => void;
   onOpenFile: (node: Node) => void;
   actions?: (node: Node) => ReactNode;
+  /** 网格视图的右上角操作组（默认复用 actions；只读列表可给不同动作，如回收站的恢复/彻底删除） */
+  gridActions?: (node: Node) => ReactNode;
   emptyText?: string;
   /** 空目录 CTA（上传/新建），与「加载失败/搜索无结果」区分 */
   emptyActions?: ReactNode;
-  /** 批量选择：显示行首 checkbox；单击行=选中（双击打开） */
+  /** 触屏单击是否打开节点：只读列表（如回收站）没有打开语义，设为 false 时回落为选择 */
+  tapOpens?: boolean;
+  /** 批量选择：显示行首 checkbox；桌面单击=选中（双击打开）/ 触屏单击=打开（长按选中） */
   selectable?: boolean;
   selected?: ReadonlySet<string>;
   onToggle?: (id: string) => void;
@@ -54,7 +68,7 @@ interface Props {
   view?: "list" | "grid";
   /** 行/卡片右键菜单（桌面端） */
   onNodeContextMenu?: (e: ReactMouseEvent<HTMLElement>, node: Node) => void;
-  /** 显示「已分享」Badge 的节点 id */
+  /** 显示「已分享」Pill 的节点 id */
   sharedIds?: ReadonlySet<string>;
   /** 键盘导航：焦点行 ring 高亮 */
   focusIndex?: number;
@@ -65,39 +79,17 @@ interface Props {
   onDropMove?: (id: string, toDirId: string) => void;
 }
 
-// 紧凑行内图标按钮（h-7 w-7）：操作列专用，颜色由调用方传入
-export function RowAction({
-  label,
-  tone = "neutral",
-  className = "",
-  ...rest
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  label: string;
-  tone?: "neutral" | "blue" | "violet" | "amber" | "danger";
-}) {
-  const tones: Record<string, string> = {
-    neutral: "text-ink-2 hover:bg-bg-sub hover:text-ink",
-    blue: "text-primary-text hover:bg-blue-50",
-    violet: "text-chip-violet-fg hover:bg-violet-50",
-    amber: "text-warn-text hover:bg-warn-soft",
-    danger: "text-danger-text hover:bg-danger-soft",
-  };
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      title={label}
-      className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors ${tones[tone]} ${className}`}
-      {...rest}
-    />
-  );
-}
-
+/**
+ * 文件列表：只负责「行布局 + 行契约（role=row / data-file-row）+ 拖拽/选择事件绑定」。
+ * 过滤、排序、列偏好、虚拟化分别由 useColumnPrefs / useFileTable / VirtualizedList 承担，
+ * 名称过滤留在本组件但状态不外泄（过滤后的行序即渲染与键盘导航的行序）。
+ */
 export default function FileList({
   nodes,
   onOpenDir,
   onOpenFile,
   actions,
+  gridActions,
   emptyText = "该目录为空",
   emptyActions,
   selectable = false,
@@ -105,6 +97,7 @@ export default function FileList({
   onToggle,
   onSelectRange,
   onRowFocus,
+  tapOpens = true,
   view = "list",
   onNodeContextMenu,
   sharedIds,
@@ -121,20 +114,10 @@ export default function FileList({
   const [colMenuOpen, setColMenuOpen] = useState(false);
   // 名称过滤（当前列表内即时过滤，会话级不持久化）
   const [nameFilter, setNameFilter] = useState("");
-
   // 移动端（<sm）压缩为 [选择][图标][名称][操作]，隐藏大小/时间列
-  const [isSmall, setIsSmall] = useState(() =>
-    typeof window !== "undefined" && typeof window.matchMedia === "function"
-      ? window.matchMedia("(max-width: 639px)").matches
-      : false,
-  );
-  useEffect(() => {
-    if (typeof window.matchMedia !== "function") return;
-    const mq = window.matchMedia("(max-width: 639px)");
-    const onChange = (e: MediaQueryListEvent) => setIsSmall(e.matches);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
+  const isSmall = useMediaQuery(COMPACT_MEDIA_QUERY);
+  // 触屏：单击行=打开（双击在触屏不可靠），长按=进入多选
+  const coarsePointer = useMediaQuery(COARSE_POINTER_MEDIA_QUERY);
 
   // 过滤 + 排序（文件夹置顶）
   const display = useMemo(() => {
@@ -164,11 +147,22 @@ export default function FileList({
   // 入场动画仅小列表（≤10 项，stagger 20ms）
   const animate = display.length <= 10 && !virtual;
 
-  // 行单击：selectable 时切换选中（Shift=范围），双击打开；不可选时单击打开
+  // 行单击：桌面=选中（Shift=范围），双击打开；触屏=单击打开（长按选中）。
+  // 长按结束会补发一次 click，用时间戳抑制，避免选中后又被打开。
   const rowClick = (n: Node, i: number) => (e: ReactMouseEvent) => {
     if (draggingId) return;
+    if (Date.now() - lastLongPressAt < LONG_PRESS_CLICK_GUARD_MS) {
+      lastLongPressAt = 0;
+      e.preventDefault();
+      return;
+    }
     onRowFocus?.(i);
     if (selectable && onToggle) {
+      // 触屏单击=打开；只读列表（回收站）没有「打开」语义，回落为选择
+      if (coarsePointer && tapOpens) {
+        open(n);
+        return;
+      }
       if (e.shiftKey && onSelectRange) {
         e.preventDefault();
         onSelectRange(n.id);
@@ -196,7 +190,7 @@ export default function FileList({
         disabled={!!draggingId}
         onChange={() => onToggle(n.id)}
         onClick={(e) => e.stopPropagation()}
-        className={`h-4 w-4 shrink-0 cursor-pointer accent-emerald-600 ${cls}`}
+        className={`h-4 w-4 shrink-0 cursor-pointer accent-primary ${cls}`}
       />
     ) : null;
 
@@ -215,6 +209,19 @@ export default function FileList({
       focusIndex === i ? "ring-2 ring-primary" : "",
       dragOverId === n.id ? "ring-2 ring-primary" : "",
       selected.has(n.id) && selectable ? "bg-primary-soft/60" : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+  // 网格选中态：卡片自带 bg-surface-1，背景 tint 会被 CSS 顺序覆盖（构建产物中 surface-1 在 primary-soft/60 之后），
+  // 因此网格改用「描边 + ring」表达选中，与底色解耦
+  const gridCellClass = (i: number, n: Node) =>
+    [
+      "group relative overflow-hidden rounded-card border border-line bg-surface-1 shadow-card select-none [-webkit-touch-callout:none]",
+      focusIndex === i ? "ring-2 ring-primary" : "",
+      dragOverId === n.id ? "ring-2 ring-primary" : "",
+      selected.has(n.id) && selectable ? "border-primary ring-2 ring-primary/45" : "",
+      animate ? "anim-item-in" : "",
     ]
       .filter(Boolean)
       .join(" ");
@@ -260,9 +267,7 @@ export default function FileList({
         }
       : {};
 
-  const sharedBadge = (n: Node) => (sharedIds?.has(n.id) ? <Badge tone="accent">已分享</Badge> : null);
-  // 入场不做逐行延迟：长列表会形成波浪，且每行一个动画等于每行一次合成
-  const animStyle = (_i: number): CSSProperties => ({});
+  const sharedBadge = (n: Node) => (sharedIds?.has(n.id) ? <Pill tone="accent">已分享</Pill> : null);
 
   const copyName = (n: Node) => {
     void navigator.clipboard?.writeText(n.name);
@@ -282,7 +287,7 @@ export default function FileList({
           href={contentUrl(n.id, true)}
           aria-label={`下载 ${n.name}`}
           title={`下载 ${n.name}`}
-          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-primary-text transition-colors hover:bg-blue-50"
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-primary-text transition-colors hover:bg-primary-soft"
         >
           <Download size={14} aria-hidden />
         </a>
@@ -293,7 +298,6 @@ export default function FileList({
 
   const listHeader = (
     <FileListHeader
-      view={view}
       nameFilter={nameFilter}
       onNameFilter={setNameFilter}
       columnsOpen={colMenuOpen}
@@ -338,6 +342,11 @@ export default function FileList({
       window.clearTimeout(longPressTimer);
       longPressTimer = null;
     }
+    // 松手/移动结束时重置抑制窗口：长按可能持续数秒，窗口必须从结束时刻算起
+    if (longPressFired) {
+      lastLongPressAt = Date.now();
+      longPressFired = false;
+    }
   };
   const touchSelectProps = (n: Node) =>
     selectable && onToggle
@@ -346,8 +355,9 @@ export default function FileList({
             cancelLongPress();
             longPressTimer = window.setTimeout(() => {
               longPressTimer = null;
+              longPressFired = true;
               onToggle(n.id);
-            }, 500);
+            }, LONG_PRESS_MS);
           },
           onTouchEnd: cancelLongPress,
           onTouchMove: cancelLongPress,
@@ -355,7 +365,7 @@ export default function FileList({
         }
       : {};
 
-  const rowEvents = (n: Node, _i: number) => ({
+  const rowEvents = (n: Node) => ({
     onContextMenu: (e: ReactMouseEvent<HTMLElement>) => onNodeContextMenu?.(e, n),
     ...touchSelectProps(n),
     ...dragProps(n),
@@ -370,11 +380,11 @@ export default function FileList({
         data-file-row={i}
         tabIndex={-1}
         role="row"
-        className={`group absolute inset-x-0 top-0 rounded-lg px-2 text-sm hover:bg-bg-sub ${rowCls(i, n)}`}
+        className={`group absolute inset-x-0 top-0 rounded-lg px-2 text-sm select-none [-webkit-touch-callout:none] hover:bg-bg-sub ${rowCls(i, n)}`}
         style={{ height: getRowHeight(), transform: `translateY(${top}px)`, ...gridStyle, ...dropHoverStyle(n) }}
         onClick={rowClick(n, i)}
         onDoubleClick={rowDoubleClick(n, i)}
-        {...rowEvents(n, i)}
+        {...rowEvents(n)}
       >
         {rowCells(row)}
       </div>
@@ -383,23 +393,30 @@ export default function FileList({
 
   if (view === "grid") {
     return (
-      <FileGrid
-        nodes={display}
-        containerRef={containerRef}
-        onContainerKeyDown={onContainerKeyDown}
-        cellClass={(i, n) => `group relative overflow-hidden rounded-card border border-line bg-white shadow-card ${rowCls(i, n)} ${animate ? "anim-item-in" : ""}`}
-        cellStyle={(i, n) => ({ ...animStyle(i), ...dropHoverStyle(n) })}
-        onClick={rowClick}
-        onDoubleClick={rowDoubleClick}
-        onContextMenu={onNodeContextMenu}
-        dragProps={dragProps}
-        dropProps={folderDropProps}
-        overlay={(n) => (selectable ? checkbox(n, "absolute top-2 left-2 z-content") : null)}
-        badge={sharedBadge}
-      />
+      <div className="md:flex md:min-h-0 md:flex-1 md:flex-col">
+        {/* 网格同样提供名称过滤（此前切到网格后过滤输入整个消失，只能切回列表过滤） */}
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <NameFilterInput value={nameFilter} onChange={setNameFilter} className="w-full sm:w-56" />
+          <span className="num text-2xs text-ink-3">{display.length} 项</span>
+        </div>
+        <FileGrid
+          nodes={display}
+          containerRef={containerRef}
+          onContainerKeyDown={onContainerKeyDown}
+          cellClass={gridCellClass}
+          cellStyle={(_i, n) => dropHoverStyle(n)}
+          onClick={rowClick}
+          onDoubleClick={rowDoubleClick}
+          cellHandlers={rowEvents}
+          overlay={(n) => (selectable ? checkbox(n, "absolute top-2 left-2 z-content") : null)}
+          badge={sharedBadge}
+          actions={gridActions ?? actionCell}
+        />
+      </div>
     );
   }
 
+  // 列表体：普通列表与虚拟列表共用同一份行内容；行序即 display 顺序
   const listBody = (
     <div className="relative">
       {rows.map((row, i) => {
@@ -410,11 +427,11 @@ export default function FileList({
             data-file-row={i}
             tabIndex={-1}
             role="row"
-            className={`group border-b border-line/70 text-sm hover:bg-bg-sub ${i % 2 === 1 ? "bg-bg-sub/40" : ""} ${rowCls(i, n)} ${animate ? "anim-item-in" : ""}`}
-            style={{ ...gridStyle, height: getRowHeight(), padding: "0 8px", ...animStyle(i), ...dropHoverStyle(n) }}
+            className={`group border-b border-line/70 text-sm select-none [-webkit-touch-callout:none] hover:bg-bg-sub ${i % 2 === 1 ? "bg-bg-sub/40" : ""} ${rowCls(i, n)} ${animate ? "anim-item-in" : ""}`}
+            style={{ ...gridStyle, height: getRowHeight(), padding: "0 8px", ...dropHoverStyle(n) }}
             onClick={rowClick(n, i)}
             onDoubleClick={rowDoubleClick(n, i)}
-            {...rowEvents(n, i)}
+            {...rowEvents(n)}
           >
             {rowCells(row)}
           </div>
@@ -433,7 +450,6 @@ export default function FileList({
         className="md:flex md:min-h-0 md:flex-1 md:flex-col"
       >
         {listHeader}
-
         <VirtualizedList
           nodes={display}
           focusIndex={focusIndex}
@@ -443,11 +459,17 @@ export default function FileList({
     );
   }
 
+  // 非虚拟分支也必须有滚动容器：≤49 行时列表高度可能超过视口（父级是 overflow-hidden）
   return (
-    <div ref={containerRef} data-testid="file-list-container" tabIndex={0} onKeyDown={onContainerKeyDown}>
+    <div
+      ref={containerRef}
+      data-testid="file-list-container"
+      tabIndex={0}
+      onKeyDown={onContainerKeyDown}
+      className="md:flex md:min-h-0 md:flex-1 md:flex-col"
+    >
       {listHeader}
-
-      {listBody}
+      <div className="md:min-h-0 md:flex-1 md:overflow-y-auto">{listBody}</div>
     </div>
   );
 }

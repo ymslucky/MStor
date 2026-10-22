@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Badge, Button, Dialog, Field, GlassCard, IconButton, Input, ListRow, NavItem, Panel, Pill, Skeleton, Surface } from "../components/ui";
+import { Button, Dialog, Field, GlassCard, IconButton, Input, ListRow, ListSkeleton, NavItem, Panel, Pill, Skeleton, Surface } from "../components/ui";
 import { cn } from "../lib/cn";
 import { readDensity, readSkin, setDensity, setSkin } from "../lib/appearance";
 import type { Density, Skin } from "../lib/appearance";
@@ -163,12 +163,6 @@ export default function DesignPage() {
             </IconButton>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge>默认</Badge>
-            <Badge tone="accent">强调</Badge>
-            <Badge tone="success">成功</Badge>
-            <Badge tone="danger">危险</Badge>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
             <Pill>已过期</Pill>
             <Pill tone="accent">已分享</Pill>
             <Pill tone="success">已完成</Pill>
@@ -198,6 +192,7 @@ export default function DesignPage() {
               <Skeleton className="h-9 w-9" />
               <Skeleton className="h-4 flex-1" />
             </div>
+            <ListSkeleton rows={2} />
           </div>
           <Button variant="ghost" onClick={() => setDialogOpen(true)}>
             打开 Dialog（Radix：焦点陷阱 / Esc / aria）

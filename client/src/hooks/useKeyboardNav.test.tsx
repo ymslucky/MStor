@@ -6,6 +6,8 @@ import { useKeyboardNav } from "./useKeyboardNav";
 function Harness({
   count,
   horizontal,
+  gridStyle,
+  withInput,
   onOpen,
   onDelete,
   onRename,
@@ -14,6 +16,8 @@ function Harness({
 }: {
   count: number;
   horizontal?: boolean;
+  gridStyle?: { display: string; gridTemplateColumns: string };
+  withInput?: boolean;
   onOpen?: (i: number) => void;
   onDelete?: (i: number) => void;
   onRename?: (i: number) => void;
@@ -32,7 +36,8 @@ function Harness({
     onSelectAll,
   });
   return (
-    <div ref={ref} data-testid="nav-container" onKeyDown={nav.onKeyDown}>
+    <div ref={ref} data-testid="nav-container" style={gridStyle} onKeyDown={nav.onKeyDown}>
+      {withInput && <input data-testid="filter" aria-label="过滤" />}
       {Array.from({ length: count }, (_, i) => (
         <div key={i} data-file-row={i} tabIndex={-1}>{`row-${i}`}</div>
       ))}
@@ -115,6 +120,39 @@ test("vertical mode: ArrowRight/ArrowLeft are ignored", () => {
   fireEvent.keyDown(c, { key: "ArrowRight" });
   fireEvent.keyDown(c, { key: "ArrowLeft" });
   expect(document.activeElement).toBe(document.body);
+});
+
+test("grid mode: ArrowDown/ArrowUp move by rendered column count", () => {
+  render(<Harness count={7} horizontal gridStyle={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr" }} />);
+  const c = screen.getByTestId("nav-container");
+  fireEvent.keyDown(c, { key: "ArrowDown" }); // 0
+  fireEvent.keyDown(c, { key: "ArrowDown" }); // 3
+  expect(document.activeElement).toBe(row(3));
+  fireEvent.keyDown(c, { key: "ArrowDown" }); // 6
+  expect(document.activeElement).toBe(row(6));
+  fireEvent.keyDown(c, { key: "ArrowDown" }); // 钳制
+  expect(document.activeElement).toBe(row(6));
+  fireEvent.keyDown(c, { key: "ArrowUp" }); // 3
+  expect(document.activeElement).toBe(row(3));
+});
+
+test("form controls keep arrow/Home/End keys (no list navigation)", () => {
+  render(<Harness count={3} withInput />);
+  const input = screen.getByTestId("filter");
+  input.focus();
+  fireEvent.keyDown(input, { key: "ArrowDown" });
+  fireEvent.keyDown(input, { key: "Home" });
+  fireEvent.keyDown(input, { key: "End" });
+  expect(document.activeElement).toBe(input);
+});
+
+test("Home/End jump to first/last row", () => {
+  render(<Harness count={5} />);
+  const c = screen.getByTestId("nav-container");
+  fireEvent.keyDown(c, { key: "End" });
+  expect(document.activeElement).toBe(row(4));
+  fireEvent.keyDown(c, { key: "Home" });
+  expect(document.activeElement).toBe(row(0));
 });
 
 test("Ctrl/Cmd+A calls onSelectAll", () => {

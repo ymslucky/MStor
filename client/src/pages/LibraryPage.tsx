@@ -5,8 +5,10 @@ import { listFavorites, listRecent, listTags, listTagged } from "../api/library"
 import type { TagRow } from "../api/library";
 import { contentUrl } from "../api/nodes";
 import type { Node } from "../api/types";
-import { EmptyState, GlassCard, Pill, Skeleton } from "../components/ui";
+import { AsyncState } from "../components/AsyncState";
+import { EmptyState, GlassCard, Pill } from "../components/ui";
 import { NodeIcon } from "../components/NodeIcon";
+import { queryKeys } from "../lib/queryKeys";
 import { formatBytes, formatDate } from "../lib/format";
 
 type Kind = "favorites" | "recent" | "tags";
@@ -39,7 +41,12 @@ export default function LibraryPage({ kind }: { kind: Kind }) {
   const meta = COPY[kind];
 
   const query = useQuery({
-    queryKey: ["library", kind, tagId],
+    queryKey:
+      kind === "favorites"
+        ? queryKeys.favorites
+        : kind === "recent"
+          ? queryKeys.recent
+          : queryKeys.library("tags", tagId),
     queryFn: () =>
       kind === "favorites"
         ? listFavorites()
@@ -78,21 +85,17 @@ export default function LibraryPage({ kind }: { kind: Kind }) {
       )}
 
       <GlassCard className="p-2">
-        {query.isPending ? (
-          <div className="space-y-2 p-2">
-            {[0, 1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-10 w-full" />
-            ))}
-          </div>
-        ) : nodes.length === 0 ? (
-          <EmptyState icon={meta.icon} title={tagId ? "该标签下暂无文件" : meta.empty} />
-        ) : (
-          <div className="divide-y divide-line">
-            {nodes.map((n) => (
-              <NodeRow key={n.id} node={n} />
-            ))}
-          </div>
-        )}
+        <AsyncState query={query} skeletonRows={4} skeletonClassName="p-2">
+          {nodes.length === 0 ? (
+            <EmptyState icon={meta.icon} title={tagId ? "该标签下暂无文件" : meta.empty} />
+          ) : (
+            <div className="divide-y divide-line">
+              {nodes.map((n) => (
+                <NodeRow key={n.id} node={n} />
+              ))}
+            </div>
+          )}
+        </AsyncState>
       </GlassCard>
     </div>
   );

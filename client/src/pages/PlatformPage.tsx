@@ -4,8 +4,9 @@ import { ShieldCheck, Users } from "lucide-react";
 import type { Me } from "../api/types";
 import { getAdminOverview } from "../api/me";
 import { AuditTable } from "../components/AuditTable";
-import { Skeleton } from "../components/ui";
+import { AsyncState } from "../components/AsyncState";
 import { AdminUsersSection } from "../components/AdminUsersSection";
+import { queryKeys } from "../lib/queryKeys";
 
 type Kind = "users" | "audit";
 
@@ -24,7 +25,7 @@ export default function PlatformPage({ kind, me: injected }: { kind: Kind; me?: 
   const account = me.self ?? me;
   const meta = COPY[kind];
   const Icon = kind === "users" ? Users : ShieldCheck;
-  const overview = useQuery({ queryKey: ["admin-overview"], queryFn: getAdminOverview, enabled: kind === "audit" && account.role === "admin" });
+  const overview = useQuery({ queryKey: queryKeys.adminOverview, queryFn: getAdminOverview, enabled: kind === "audit" && account.role === "admin" });
 
   if (account.role !== "admin") {
     return (
@@ -46,14 +47,10 @@ export default function PlatformPage({ kind, me: injected }: { kind: Kind; me?: 
       </header>
       {kind === "users" ? (
         <AdminUsersSection selfId={account.id} />
-      ) : overview.isPending ? (
-        <div className="space-y-2">
-          {[0, 1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-10 w-full" />
-          ))}
-        </div>
       ) : (
-        <AuditTable events={overview.data?.recentAudit ?? []} />
+        <AsyncState query={overview} skeletonRows={5}>
+          <AuditTable events={overview.data?.recentAudit ?? []} />
+        </AsyncState>
       )}
     </div>
   );

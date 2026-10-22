@@ -13,7 +13,7 @@ function FilterChips<T extends string>({
   value: T;
   onChange: (v: T) => void;
 }) {
-  const idle = "rounded-full border border-line bg-white px-2.5 py-1 text-xs text-ink-2 transition-colors hover:border-accent/40";
+  const idle = "rounded-full border border-line bg-surface-1 px-2.5 py-1 text-xs text-ink-2 transition-colors hover:border-accent/40";
   const active = "rounded-full border border-primary bg-primary-soft px-2.5 py-1 text-xs font-medium text-primary-text";
   return (
     <div role="group" aria-label={label} className="flex items-center gap-1">

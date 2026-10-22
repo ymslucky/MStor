@@ -1,3 +1,4 @@
+import { SelectionBar } from "./SelectionBar";
 import { Button } from "./ui";
 
 interface Props {
@@ -11,28 +12,21 @@ interface Props {
   hidden?: boolean;
 }
 
-/** 批量操作条：选中 ≥1 项时浮出（移动端避让底部导航，故 bottom-20） */
+/** 文件页批量操作条：定位/容器/取消按钮由 SelectionBar 统一，这里只保留文件页自己的动作 */
 export function BatchBar({ count, hasFileSelected, onDownload, onMove, onDelete, onClear, hidden }: Props) {
-  if (count <= 0 || hidden) return null;
   return (
-    <div className="fixed inset-x-0 bottom-20 z-overlay flex justify-center px-4 sm:bottom-6">
-      <div className="glass flex items-center gap-1.5 rounded-card p-2">
-        <span className="whitespace-nowrap px-2 text-sm font-medium text-ink">已选 {count} 项</span>
-        {hasFileSelected && (
-          <Button size="sm" onClick={onDownload}>
-            下载
-          </Button>
-        )}
-        <Button size="sm" onClick={onMove}>
-          移动
+    <SelectionBar count={count} hidden={hidden} onClear={onClear}>
+      {hasFileSelected && (
+        <Button size="sm" onClick={onDownload}>
+          下载
         </Button>
-        <Button size="sm" variant="danger" onClick={onDelete}>
-          删除
-        </Button>
-        <Button size="sm" variant="ghost" onClick={onClear}>
-          取消
-        </Button>
-      </div>
-    </div>
+      )}
+      <Button size="sm" onClick={onMove}>
+        移动
+      </Button>
+      <Button size="sm" variant="danger" onClick={onDelete}>
+        删除
+      </Button>
+    </SelectionBar>
   );
 }

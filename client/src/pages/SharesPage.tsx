@@ -3,16 +3,19 @@ import { useState } from "react";
 import { Ban, Link2 } from "lucide-react";
 import { batchRevokeShares, listShares, revokeShare } from "../api/shares";
 import type { Share } from "../api/types";
+import { AsyncState } from "../components/AsyncState";
 import { NodeIcon } from "../components/NodeIcon";
+import { SelectionBar } from "../components/SelectionBar";
 import { toast } from "../components/Toaster";
-import { Button, ConfirmDialog, EmptyState, GlassCard, IconButton, Pill, Surface } from "../components/ui";
+import { Button, ConfirmDialog, EmptyState, GlassCard, IconButton, Pill } from "../components/ui";
 import { useFileSelection } from "../hooks/useFileSelection";
 import { formatBytes, formatDate } from "../lib/format";
+import { queryKeys } from "../lib/queryKeys";
 
 export default function SharesPage() {
   const queryClient = useQueryClient();
-  const query = useQuery({ queryKey: ["shares"], queryFn: listShares });
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["shares"] });
+  const query = useQuery({ queryKey: queryKeys.shares, queryFn: listShares });
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: queryKeys.shares });
   const revoke = useMutation({ mutationFn: (id: string) => revokeShare(id), onSuccess: invalidate });
   const [revoking, setRevoking] = useState<Share | null>(null);
   // 批量撤销状态
@@ -57,8 +60,10 @@ export default function SharesPage() {
           </label>
         )}
       </div>
-      {!shares.length && <EmptyState icon={Link2} title="暂无分享" />}
-      {shares.length > 0 && (
+      <AsyncState query={query} skeletonRows={4}>
+        {shares.length === 0 ? (
+          <EmptyState icon={Link2} title="暂无分享" />
+        ) : (
         <GlassCard className="p-3 sm:p-4">
           <table className="w-full text-sm">
             <tbody>
@@ -107,21 +112,14 @@ export default function SharesPage() {
             </tbody>
           </table>
         </GlassCard>
-      )}
-      {/* 批量操作条：移动端避让底部导航（bottom-20） */}
-      {selection.count > 0 && !batchRevoking && (
-        <div className="fixed inset-x-0 bottom-20 z-overlay flex justify-center px-4 sm:bottom-6">
-          <Surface className="flex items-center gap-1.5 p-2">
-            <span className="whitespace-nowrap px-2 text-sm font-medium text-ink">已选 {selection.count} 项</span>
-            <Button size="sm" variant="danger" disabled={busy} onClick={() => setBatchRevoking(true)}>
-              撤销
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => selection.clear()}>
-              取消
-            </Button>
-          </Surface>
-        </div>
-      )}
+        )}
+      </AsyncState>
+      {/* 批量操作条：与文件页/回收站共用 SelectionBar */}
+      <SelectionBar count={selection.count} hidden={batchRevoking} onClear={selection.clear}>
+        <Button size="sm" variant="danger" disabled={busy} onClick={() => setBatchRevoking(true)}>
+          撤销
+        </Button>
+      </SelectionBar>
       {revoking && (
         <ConfirmDialog
           open

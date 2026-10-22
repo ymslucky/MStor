@@ -13,8 +13,6 @@ interface Props {
   onCreateDir: () => void;
   onUploadFiles: () => void;
   onUploadFolder: () => void;
-  /** 批量操作条槽位（选中项 > 0 时由页面注入） */
-  batchBar?: React.ReactNode;
 }
 
 /** 文件页工具条：左侧前端过滤 chips，右侧新建/上传/视图切换；下方可挂批量操作条 */
@@ -28,7 +26,6 @@ export function BrowserToolbar({
   onCreateDir,
   onUploadFiles,
   onUploadFolder,
-  batchBar,
 }: Props) {
   return (
     <>
@@ -57,7 +54,6 @@ export function BrowserToolbar({
           </div>
         </div>
       </div>
-      {batchBar}
     </>
   );
 }

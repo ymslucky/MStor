@@ -1,4 +1,5 @@
 import type { JSX } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
@@ -51,6 +52,8 @@ test("创建成功后渲染分享链接二维码", async () => {
 });
 
 function renderWith(ui: JSX.Element) {
-  const utils = render(ui);
+  // ShareDialog 创建成功后会失效 ["shares"] 缓存，需要 QueryClientProvider
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  const utils = render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
   return { ...utils, user: userEvent.setup() };
 }

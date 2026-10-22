@@ -1,4 +1,4 @@
-﻿import { render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { expect, test, vi } from "vitest";
 import App from "./App";
@@ -23,6 +23,15 @@ test("未知路径回首页兜底（陈旧 SW 缓存的 /cdn-cgi/* 回调不再�
     </MemoryRouter>,
   );
   expect(await screen.findByText("MStor")).toBeInTheDocument();
+});
+
+test("懒加载的 /design 页经 Suspense 正常渲染", async () => {
+  render(
+    <MemoryRouter initialEntries={["/design"]}>
+      <App />
+    </MemoryRouter>,
+  );
+  expect(await screen.findByText("设计系统 v6")).toBeInTheDocument();
 });
 
 test("/auth/renew 落地后按 next 回跳应用内路径", async () => {
