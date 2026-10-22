@@ -3,7 +3,6 @@ import { useState } from "react";
 import { Clock, Star, Tag as TagIcon } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { createTag, deleteTag, listFavorites, listRecent, listTags, listTagged } from "../api/library";
-import type { TagRow } from "../api/library";
 import { contentUrl } from "../api/nodes";
 import type { Node } from "../api/types";
 import { AsyncState } from "../components/AsyncState";
@@ -67,8 +66,14 @@ export default function LibraryPage({ kind }: { kind: Kind }) {
     onError: (e) => toast(e instanceof Error ? e.message : "删除标签失败"),
   });
 
-  const query = useQuery({
+  // 标签列表独立查询：选中某个标签时仍需保留可切换的标签 pills
+  const tagsQuery = useQuery({
+    queryKey: queryKeys.library("tags", null),
+    queryFn: listTags,
+    enabled: kind === "tags",
     meta: { silent: true },
+  });
+  const nodesQuery = useQuery({
     queryKey:
       kind === "favorites"
         ? queryKeys.favorites
@@ -82,11 +87,14 @@ export default function LibraryPage({ kind }: { kind: Kind }) {
           ? listRecent()
           : tagId
             ? listTagged(tagId)
-            : listTags().then((r: { tags: TagRow[] }) => ({ nodes: [] as Node[], tags: r.tags })),
+            : Promise.resolve({ nodes: [] as Node[] }),
+    // 标签页未选标签时不请求节点；收藏/最近始终请求
+    enabled: kind !== "tags" || !!tagId,
+    meta: { silent: true },
   });
 
-  const tags = (query.data as { tags?: { id: string; name: string; color?: string | null }[] } | undefined)?.tags;
-  const nodes = (query.data as { nodes?: Node[] } | undefined)?.nodes ?? [];
+  const tags = tagsQuery.data?.tags;
+  const nodes = nodesQuery.data?.nodes ?? [];
 
   return (
     <div className="md:pb-4">
@@ -140,17 +148,29 @@ export default function LibraryPage({ kind }: { kind: Kind }) {
       )}
 
       <GlassCard className="p-2">
-        <AsyncState query={query} skeletonRows={4} skeletonClassName="p-2">
-          {nodes.length === 0 ? (
-            <EmptyState icon={meta.icon} title={tagId ? "该标签下暂无文件" : meta.empty} />
-          ) : (
-            <div className="divide-y divide-line">
-              {nodes.map((n) => (
-                <NodeRow key={n.id} node={n} />
-              ))}
-            </div>
-          )}
-        </AsyncState>
+        {kind === "tags" && !tagId ? (
+          <AsyncState query={tagsQuery} skeletonRows={3} skeletonClassName="p-2">
+            {tags && tags.length > 0 ? (
+              <p className="px-3 py-8 text-center text-sm text-ink-3">
+                选择一个标签查看其中的文件，或在文件右键/详情里用「标签…」添加。
+              </p>
+            ) : (
+              <EmptyState icon={meta.icon} title={meta.empty} description="先在上方创建一个标签" />
+            )}
+          </AsyncState>
+        ) : (
+          <AsyncState query={nodesQuery} skeletonRows={4} skeletonClassName="p-2">
+            {nodes.length === 0 ? (
+              <EmptyState icon={meta.icon} title={tagId ? "该标签下暂无文件" : meta.empty} />
+            ) : (
+              <div className="divide-y divide-line">
+                {nodes.map((n) => (
+                  <NodeRow key={n.id} node={n} />
+                ))}
+              </div>
+            )}
+          </AsyncState>
+        )}
       </GlassCard>
 
       <ConfirmDialog

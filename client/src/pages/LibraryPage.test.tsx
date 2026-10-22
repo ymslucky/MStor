@@ -49,6 +49,9 @@ test("选中标签后可删除该标签（二次确认）", async () => {
   await screen.findByText("家庭");
   await user.click(screen.getByRole("button", { name: "家庭" }));
   await waitFor(() => expect(listTagged).toHaveBeenCalledWith("t1"));
+  // 选中标签后仍保留标签 pills，可直接切换（不再消失）
+  expect(screen.getByRole("button", { name: "全部标签" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "家庭" })).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "删除该标签" }));
   await user.click(within(await screen.findByTestId("dialog-panel")).getByRole("button", { name: "删除" }));
   await waitFor(() => expect(deleteTag).toHaveBeenCalledWith("t1"));

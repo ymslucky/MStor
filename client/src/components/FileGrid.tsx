@@ -52,7 +52,7 @@ export function FileGrid({
       data-testid="file-grid"
       tabIndex={0}
       onKeyDown={onContainerKeyDown}
-      className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 md:min-h-0 md:flex-1 md:overflow-y-auto"
+      className="grid grid-cols-2 gap-3 content-start auto-rows-max sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 md:min-h-0 md:flex-1 md:overflow-y-auto"
     >
       {nodes.map((n, i) => {
         const isImage = !n.is_dir && !!n.mime?.startsWith("image/");

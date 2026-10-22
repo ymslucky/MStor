@@ -3,7 +3,7 @@
 > **令牌唯一来源**：`client/src/index.css` 的 `@theme`（含暗色覆盖）。
 > **原语唯一来源**：`client/src/components/ui/*`；页面骨架 `components/layout/PageHeader` + `shell/AppHeader`。
 > **可视化验收**：应用内 `/design` 页（`pages/DesignPage.tsx`）——新增令牌/原语**必须先在此登记**。
-> **v7 实机基线**：`docs/design/v7/files-desktop.png`（1440×900）与 `files-mobile.png`（390×844）。
+> **v7 实机基线**：`docs/design/v7/` 下 `files-desktop` / `files-mobile`（1440×900 / 390×844）、`grid-desktop`、`dark-desktop`、`tags-desktop`、`platform-users`。
 > 类名合并统一走 `client/src/lib/cn.ts`（clsx + tailwind-merge）。
 
 ## 1. 方向：从「演示型玻璃拟态」到「安静、内容优先的工作台」
@@ -191,3 +191,9 @@ AppHeader（全端，h-14）：移动=菜单 + 品牌；桌面=当前空间 · M
 - **面包屑**：根级「全部文件」升级为 16px 半粗页面锚点，根级时带 `aria-current`。
 - **设置页**：内容宽度限制在 `max-w-3xl`，表单不再横跨 1200px。
 - 视觉复核：headless Chrome + mock API 对 1440×900 / 390×844 / 设置页截图检查，无横向溢出、无裁切。
+
+### v7.2 网格与标签页修正
+
+- **网格卡片**：`FileGrid` 加 `content-start auto-rows-max`，卡片按内容高度排列，不再被 grid 拉伸成带大片空白的 300px 高卡片。
+- **标签页**：标签列表改为独立查询；选中某标签后仍保留「全部标签 / 各标签」pills，可直接切换（此前选中即失去标签导航）。发布/删除后同时失效标签列表与标签节点。
+- 补充 `grid-desktop` / `dark-desktop` / `tags-desktop` / `platform-users` 截图基线；暗色与亮色共用同一套层级与强调色。
