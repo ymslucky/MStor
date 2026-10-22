@@ -366,6 +366,11 @@ const CASES = [
     check: "!!document.querySelector('[data-testid=\"dialog-panel\"]')",
   },
   {
+    name: "list-selected", path: "/", width: 1440, height: 900, marker: "全部文件",
+    action: "(() => { [...document.querySelectorAll('[data-file-row] input[type=checkbox]')].slice(0,2).forEach(c=>c.click()); return true; })()",
+    check: "document.body.innerText.includes('已选 2 项')",
+  },
+  {
     name: "grid-desktop", path: "/", width: 1440, height: 900, marker: "项目资料",
     setup: "localStorage.setItem('mstor_view','grid'); location.reload(); true",
     check: "!!document.querySelector('[data-testid=\"file-grid\"]')",
@@ -374,6 +379,12 @@ const CASES = [
     name: "grid-mobile", path: "/", width: 390, height: 844, marker: "项目资料",
     setup: "localStorage.setItem('mstor_view','grid'); location.reload(); true",
     check: "!!document.querySelector('[data-testid=\"file-grid\"]')",
+  },
+  {
+    name: "grid-selected", path: "/", width: 1440, height: 900, marker: "项目资料",
+    setup: "localStorage.setItem('mstor_view','grid'); location.reload(); true",
+    action: "(() => { [...document.querySelectorAll('[data-file-row] input[type=checkbox]')].slice(0,2).forEach(c=>c.click()); return true; })()",
+    check: "document.body.innerText.includes('已选 2 项')",
   },
 ];
 

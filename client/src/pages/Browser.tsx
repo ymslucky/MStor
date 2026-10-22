@@ -110,6 +110,7 @@ export default function Browser() {
       if (n) setRenaming(n);
     },
     onSelectAll: () => selection.selectAll(),
+    onClearSelection: selection.clear,
   });
 
   const switchView = (v: "list" | "grid") => {

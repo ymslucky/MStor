@@ -65,6 +65,7 @@ base 4px；常用 4 / 8 / 12 / 16 / 24 / 32 / 48。
 Button：高度 32 / 36，圆角 8，1px 边；hover 只改背景色，不位移、不缩放、不加投影。
 Card：1px 发丝边 + 圆角 8；内容卡片无投影；只有浮层使用 lift。
 Input：高度 36，1px 边，焦点时 border 变 accent，不加外发光。
+Selection：列表整行 accent tint + 3px 左侧 rail，hover 保持选中色；网格整卡 tint + accent 边/ring；表头部分选中显示 indeterminate；Esc 清空选择，不依赖焦点在行上。
 Table：表头 11px 大写弱化色；行高 44；行 hover 只改背景。
 Dialog：桌面居中圆角 12，移动端底部抽屉；遮罩不使用重模糊。
 Command palette：单纵向面板；输入 → 分段筛选 → 结果滚动 → 键盘提示；禁止输入框下再套绝对定位下拉。

@@ -20,6 +20,8 @@ export interface KeyboardNavOptions {
   onPreview?: (index: number) => void;
   /** Ctrl/Cmd+A 全选 */
   onSelectAll?: () => void;
+  /** Esc 清空选择 */
+  onClearSelection?: () => void;
 }
 
 // 焦点落在表单控件时，Enter/Space/Delete 交给控件本身（checkbox 等）
@@ -37,6 +39,7 @@ export function useKeyboardNav({
   onRename,
   onPreview,
   onSelectAll,
+  onClearSelection,
 }: KeyboardNavOptions) {
   const [focusIndex, setFocusIndex] = useState(-1);
 
@@ -70,6 +73,12 @@ export function useKeyboardNav({
     const inForm = !!target?.closest?.(FORM_CONTROL);
     const onNativeAction = !!target?.closest?.(NATIVE_ACTION);
     const hit = focusIndex >= 0 && focusIndex < count;
+    // Esc 清空选择：即使焦点在行首 checkbox 上也要生效
+    if (e.key === "Escape") {
+      e.preventDefault();
+      onClearSelection?.();
+      return;
+    }
     // 焦点在输入框/下拉/文本域时，方向键、Home/End 属于控件本身（移动光标），不能劫持为列表导航
     if (inForm) return;
     switch (e.key) {

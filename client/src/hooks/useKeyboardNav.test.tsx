@@ -13,6 +13,7 @@ function Harness({
   onRename,
   onPreview,
   onSelectAll,
+  onClearSelection,
 }: {
   count: number;
   horizontal?: boolean;
@@ -23,6 +24,7 @@ function Harness({
   onRename?: (i: number) => void;
   onPreview?: (i: number) => void;
   onSelectAll?: () => void;
+  onClearSelection?: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const nav = useKeyboardNav({
@@ -34,6 +36,7 @@ function Harness({
     onRename,
     onPreview,
     onSelectAll,
+    onClearSelection,
   });
   return (
     <div ref={ref} data-testid="nav-container" style={gridStyle} onKeyDown={nav.onKeyDown}>
@@ -58,6 +61,13 @@ test("ArrowDown/ArrowUp move focus and clamp at edges", () => {
   expect(document.activeElement).toBe(row(0));
   fireEvent.keyDown(c, { key: "ArrowUp" }); // 顶部钳制
   expect(document.activeElement).toBe(row(0));
+});
+
+test("Escape clears the current selection", () => {
+  const onClearSelection = vi.fn();
+  render(<Harness count={3} onClearSelection={onClearSelection} />);
+  fireEvent.keyDown(screen.getByTestId("nav-container"), { key: "Escape" });
+  expect(onClearSelection).toHaveBeenCalledTimes(1);
 });
 
 test("Enter opens, Delete deletes, F2 renames, Space previews at focus index", () => {

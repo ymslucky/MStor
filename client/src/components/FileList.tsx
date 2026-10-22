@@ -199,6 +199,7 @@ export default function FileList({
 
   // 表头全选：当前列表全选/清除（再次点击取反）
   const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
+  const someSelected = rows.some((r) => selected.has(r.id));
   const toggleAll = () => {
     if (!onToggle || draggingId) return;
     for (const r of rows) {
@@ -211,7 +212,9 @@ export default function FileList({
     [
       focusIndex === i ? "ring-2 ring-primary" : "",
       dragOverId === n.id ? "ring-2 ring-primary" : "",
-      selected.has(n.id) && selectable ? "bg-primary-soft/70 shadow-[inset_2px_0_0_var(--color-primary)]" : "",
+      selected.has(n.id) && selectable
+        ? "bg-primary-soft shadow-[inset_3px_0_0_var(--color-primary)] hover:bg-primary-soft"
+        : "hover:bg-bg-sub/70",
     ]
       .filter(Boolean)
       .join(" ");
@@ -223,7 +226,7 @@ export default function FileList({
       "group relative overflow-hidden rounded-card border border-line bg-surface-1 transition-colors select-none [-webkit-touch-callout:none] hover:border-line-strong",
       focusIndex === i ? "ring-2 ring-primary" : "",
       dragOverId === n.id ? "ring-2 ring-primary" : "",
-      selected.has(n.id) && selectable ? "border-primary ring-2 ring-primary/45" : "",
+      selected.has(n.id) && selectable ? "border-primary ring-2 ring-primary/30" : "",
       animate ? "anim-item-in" : "",
     ]
       .filter(Boolean)
@@ -336,6 +339,7 @@ export default function FileList({
       gridStyle={gridStyle}
       onResetNameWidth={() => updatePref((p) => ({ ...p, nameW: undefined }))}
       allSelected={allSelected}
+      someSelected={someSelected}
       onToggleAll={toggleAll}
       dragging={!!draggingId}
     />
@@ -409,7 +413,7 @@ export default function FileList({
         data-file-row={i}
         tabIndex={-1}
         role="row"
-        className={`group absolute inset-x-0 top-0 rounded-md px-2 text-sm select-none [-webkit-touch-callout:none] hover:bg-bg-sub/70 ${rowCls(i, n)}`}
+        className={`group absolute inset-x-0 top-0 rounded-md px-2 text-sm select-none [-webkit-touch-callout:none] ${rowCls(i, n)}`}
         style={{ height: getRowHeight(), transform: `translateY(${top}px)`, ...gridStyle, ...dropHoverStyle(n) }}
         onClick={rowClick(n, i)}
         onDoubleClick={rowDoubleClick(n, i)}
@@ -433,7 +437,10 @@ export default function FileList({
           containerRef={containerRef}
           onContainerKeyDown={onContainerKeyDown}
           cellClass={gridCellClass}
-          cellStyle={(_i, n) => dropHoverStyle(n)}
+          cellStyle={(_i, n) => ({
+            ...dropHoverStyle(n),
+            ...(selected.has(n.id) && selectable ? { backgroundColor: "var(--color-primary-soft)" } : {}),
+          })}
           onClick={rowClick}
           onDoubleClick={rowDoubleClick}
           cellHandlers={rowEvents}
@@ -456,7 +463,7 @@ export default function FileList({
             data-file-row={i}
             tabIndex={-1}
             role="row"
-            className={`group border-b border-line/60 text-sm select-none [-webkit-touch-callout:none] transition-colors hover:bg-bg-sub/70 ${rowCls(i, n)} ${animate ? "anim-item-in" : ""}`}
+            className={`group border-b border-line/60 text-sm select-none [-webkit-touch-callout:none] transition-colors ${rowCls(i, n)} ${animate ? "anim-item-in" : ""}`}
             style={{ ...gridStyle, height: getRowHeight(), padding: "0 8px", ...dropHoverStyle(n) }}
             onClick={rowClick(n, i)}
             onDoubleClick={rowDoubleClick(n, i)}

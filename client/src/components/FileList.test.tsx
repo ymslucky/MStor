@@ -83,6 +83,27 @@ test("row single click toggles selection, double click opens, action clicks do n
   expect(onToggle).not.toHaveBeenCalled();
 });
 
+test("部分选中时表头全选框显示 indeterminate", () => {
+  renderWithProviders(
+    <FileList
+      nodes={[node(), node({ id: "f2", name: "world.md" })]}
+      onOpenDir={noop}
+      onOpenFile={noop}
+      selectable
+      selected={new Set(["f1"])}
+      onToggle={vi.fn()}
+      actions={(n) => (
+        <button type="button" aria-label={`删除 ${n.name}`} onClick={noop}>
+          删
+        </button>
+      )}
+    />,
+  );
+  const all = screen.getByLabelText("全选") as HTMLInputElement;
+  expect(all.indeterminate).toBe(true);
+  expect(all).toHaveAttribute("aria-checked", "mixed");
+});
+
 // —— 名称过滤 ——
 test("name filter narrows the list", async () => {
   const { user } = renderList([node(), node({ id: "f2", name: "world.md" })]);

@@ -527,8 +527,8 @@
 
 ### 19.14 功能与操作体验验证
 
-- 逐功能走查 + 自动化复核发现并修复 20 个问题：邀请撤销 404、审计操作者空白、分享子目录 loading、分享下载 objectURL、提取码空提交不重试、命令面板空态文案、预览层语义/焦点、成员加载错误、入群通知链接、平台兜底 header、重复 title。
-- 详见 [functional-audit.md](functional-audit.md)；闸门：客户端 262 例、server 本地 29 项、visual 20/20（像素 0.00%）。
+- 逐功能走查 + 自动化复核发现并修复 21 个问题：邀请撤销 404、审计操作者空白、分享子目录 loading、分享下载 objectURL、提取码空提交不重试、命令面板空态文案、预览层语义/焦点、成员加载错误、入群通知链接、平台兜底 header、重复 title、选中态弱/不稳定。
+- 详见 [functional-audit.md](functional-audit.md)；闸门：客户端 264 例、server 本地 29 项、visual 22/22（像素 0.00%）。
 
 ### 19.16 命令面板重构
 
@@ -548,12 +548,18 @@
 - 设置页/平台表格的表头、行高、弹窗密度统一到 v7 节奏。
 - 接入 Playwright 三断点视觉回归，给 v7 建立截图基线。
 
-### 19.17 OpenDesign 校准（v8）
+### 19.17 选中态系统（v8.1）
+
+- 列表选中行改为完整 accent tint + 3px 左侧 rail，hover 保持选中色；表头全选增加 indeterminate。
+- 网格选中卡用 inline tint + border/ring，避免背景类被 surface-1 覆盖；新增 list-selected / grid-selected 基线。
+- Esc 在列表/网格/行首 checkbox 焦点下均可清空选择；补充 FileList/useKeyboardNav 用例。
+
+### 19.18 OpenDesign 校准（v8）
 
 - 调研 OpenDesign 的 9 段 DESIGN.md schema 与 150+ 品牌设计系统，重点分析 Stripe（克制编辑感）、Linear（工程极简）、Vercel（高对比排版）的 prose 约束与 anti-patterns。
 - 新增根目录 DESIGN.md，把 MStor 的颜色角色、字体、间距、布局、组件、动效、语气、品牌与反模式写成可维护的设计意图。
 - v8 落地：导航改为中性底 + 2px accent rail；内容卡片取消投影；card 圆角 8；删除 hover 位移/缩放与按钮 active 缩放；浮层去掉 backdrop blur；启用 Inter optical sizing 与标题 balance；移除 spring 令牌。
-- 视觉基线 20/20，像素差异 0.00%。
+- 视觉基线 22/22，像素差异 0.00%。
 
 ## 20. 后续建议（本次未实施）
 

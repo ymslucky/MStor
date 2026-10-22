@@ -28,6 +28,7 @@ interface Props {
   /** 恢复名称列默认宽度（双击拖拽手柄） */
   onResetNameWidth: () => void;
   allSelected: boolean;
+  someSelected: boolean;
   onToggleAll: () => void;
   dragging: boolean;
 }
@@ -69,6 +70,7 @@ export function FileListHeader({
   gridStyle,
   onResetNameWidth,
   allSelected,
+  someSelected,
   onToggleAll,
   dragging,
 }: Props) {
@@ -152,7 +154,11 @@ export function FileListHeader({
                     <input
                       type="checkbox"
                       aria-label="全选"
+                      aria-checked={someSelected && !allSelected ? "mixed" : allSelected}
                       checked={allSelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = someSelected && !allSelected;
+                      }}
                       onChange={onToggleAll}
                       disabled={dragging}
                       className="h-4 w-4 cursor-pointer accent-primary"
