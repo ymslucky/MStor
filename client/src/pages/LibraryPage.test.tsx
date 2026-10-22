@@ -47,6 +47,19 @@ test("标签页可新建标签", async () => {
   await waitFor(() => expect(createTag).toHaveBeenCalledWith("旅行", "#be123c"));
 });
 
+test("选中标签后可重命名", async () => {
+  const { user } = renderPage();
+  await screen.findByText("家庭");
+  await user.click(screen.getByRole("button", { name: "家庭" }));
+  await waitFor(() => expect(listTagged).toHaveBeenCalledWith("t1"));
+  await user.click(screen.getByRole("button", { name: "重命名" }));
+  const input = screen.getByLabelText("标签名称");
+  await user.clear(input);
+  await user.type(input, "家用");
+  await user.click(screen.getByRole("button", { name: "保存" }));
+  await waitFor(() => expect(updateTag).toHaveBeenCalledWith("t1", { name: "家用" }));
+});
+
 test("选中标签后可修改颜色", async () => {
   const { user } = renderPage();
   await screen.findByText("家庭");

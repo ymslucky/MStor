@@ -8,7 +8,7 @@ import type { Node } from "../api/types";
 import { AsyncState } from "../components/AsyncState";
 import { PageHeader } from "../components/layout/PageHeader";
 import { toast } from "../components/Toaster";
-import { Button, ConfirmDialog, EmptyState, GlassCard, Input, Pill } from "../components/ui";
+import { Button, ConfirmDialog, Dialog, EmptyState, GlassCard, Input, Pill } from "../components/ui";
 import { NodeIcon } from "../components/NodeIcon";
 import { queryKeys } from "../lib/queryKeys";
 import { formatBytes, formatDate } from "../lib/format";
@@ -46,6 +46,8 @@ export default function LibraryPage({ kind }: { kind: Kind }) {
   const [newTag, setNewTag] = useState("");
   const [newTagColor, setNewTagColor] = useState<string>(DEFAULT_TAG_COLOR);
   const [deletingTag, setDeletingTag] = useState(false);
+  const [renamingTag, setRenamingTag] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
   const invalidateTags = () => queryClient.invalidateQueries({ queryKey: ["library", "tags"] });
 
   const create = useMutation({
@@ -59,9 +61,10 @@ export default function LibraryPage({ kind }: { kind: Kind }) {
     onError: (e) => toast(e instanceof Error ? e.message : "创建标签失败"),
   });
   const update = useMutation({
-    mutationFn: ({ id, color }: { id: string; color: string | null }) => updateTag(id, { color }),
+    mutationFn: ({ id, ...body }: { id: string; name?: string; color?: string | null }) => updateTag(id, body),
     onSuccess: () => {
-      toast("标签颜色已更新", "info");
+      setRenamingTag(false);
+      toast("标签已更新", "info");
       void invalidateTags();
     },
     onError: (e) => toast(e instanceof Error ? e.message : "更新标签失败"),
@@ -167,6 +170,17 @@ export default function LibraryPage({ kind }: { kind: Kind }) {
                   ))}
                 </select>
               </label>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  if (!selectedTag) return;
+                  setRenameValue(selectedTag.name);
+                  setRenamingTag(true);
+                }}
+              >
+                重命名
+              </Button>
               <Button size="sm" variant="danger" onClick={() => setDeletingTag(true)}>
                 删除该标签
               </Button>
@@ -219,6 +233,42 @@ export default function LibraryPage({ kind }: { kind: Kind }) {
         )}
       </GlassCard>
 
+      <Dialog
+        open={renamingTag}
+        onClose={() => setRenamingTag(false)}
+        title="重命名标签"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setRenamingTag(false)}>
+              取消
+            </Button>
+            <Button type="submit" form="rename-tag-form" disabled={!renameValue.trim() || update.isPending}>
+              保存
+            </Button>
+          </>
+        }
+      >
+        <form
+          id="rename-tag-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const name = renameValue.trim();
+            if (name && tagId) update.mutate({ id: tagId, name });
+          }}
+        >
+          <label className="block text-xs text-ink-3" htmlFor="tag-rename-input">
+            标签名称
+          </label>
+          <Input
+            id="tag-rename-input"
+            aria-label="标签名称"
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            maxLength={32}
+            className="mt-1"
+          />
+        </form>
+      </Dialog>
       <ConfirmDialog
         open={deletingTag}
         danger
