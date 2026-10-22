@@ -11,6 +11,13 @@ test("pending 渲染骨架并标记 aria-busy", () => {
   expect(screen.queryByText("内容")).not.toBeInTheDocument();
 });
 
+test("enabled:false 的查询（fetchStatus=idle）不会永久显示骨架", () => {
+  render(
+    <AsyncState query={{ ...base, isPending: true, fetchStatus: "idle" }}>禁用查询内容</AsyncState>,
+  );
+  expect(screen.getByText("禁用查询内容")).toBeInTheDocument();
+});
+
 test("error 且无缓存数据：显示可重试错误态，不渲染内容", async () => {
   const refetch = vi.fn();
   const user = userEvent.setup();

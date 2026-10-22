@@ -16,7 +16,7 @@ import { queryKeys } from "../lib/queryKeys";
 
 export default function TrashPage() {
   const queryClient = useQueryClient();
-  const query = useQuery({ queryKey: queryKeys.trash, queryFn: listTrash });
+  const query = useQuery({ queryKey: queryKeys.trash, queryFn: listTrash, meta: { silent: true } });
   // 保留天数随动态配置：设置页变更后 invalidate ["me"] 即同步
   const meQuery = useQuery({ queryKey: queryKeys.me, queryFn: getMe });
   const retentionDays = meQuery.data?.trashRetentionDays ?? 30;

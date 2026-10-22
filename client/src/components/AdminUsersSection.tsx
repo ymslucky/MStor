@@ -19,7 +19,7 @@ import { Button, ConfirmDialog, EmptyState, Surface } from "./ui";
  */
 export function AdminUsersSection({ selfId }: { selfId: string }) {
   const queryClient = useQueryClient();
-  const users = useQuery({ queryKey: queryKeys.adminUsers, queryFn: listAdminUsers });
+  const users = useQuery({ queryKey: queryKeys.adminUsers, queryFn: listAdminUsers, meta: { silent: true } });
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
   const [quotaUser, setQuotaUser] = useState<AdminUser | null>(null);

@@ -7,13 +7,18 @@ import { toast } from "../components/Toaster";
  * 从 AppShell 抽出——它和 UI 结构无关，放进独立模块便于单测与复用。
  */
 export function makeQueryClient(): QueryClient {
-  const onError = (e: unknown) => {
+  // QueryCache 的第二参是 Query（含 meta）；MutationCache 的第二参是 variables。
+  // 用 unknown 接收后按结构读取 meta，避免为两套签名写两份重复逻辑。
+  const onError = (e: unknown, context?: unknown) => {
     // 仅业务接口的 401 才触发 Access 重登；/api/s/* 的 401 是分享提取码错误，
     // 公开分享页没有会话可言，不能把已登录用户送去 /auth/renew
     if (e instanceof ApiError && e.status === 401 && !e.path?.startsWith("/api/s/")) {
       handleSessionExpired();
       return;
     }
+    // 页面用 AsyncState 内联展示错误时（meta.silent=true），不要再全局弹一条重复 toast
+    const meta = (context as { meta?: { silent?: boolean } } | undefined)?.meta;
+    if (meta?.silent) return;
     toast(e instanceof Error ? e.message : "请求失败");
   };
   return new QueryClient({

@@ -12,7 +12,12 @@ export type UndoKind = "move" | "rename";
  */
 export function useFiles(parentId: string) {
   const queryClient = useQueryClient();
-  const query = useQuery({ queryKey: queryKeys.files(parentId), queryFn: () => listFiles(parentId) });
+  const query = useQuery({
+    queryKey: queryKeys.files(parentId),
+    queryFn: () => listFiles(parentId),
+    // Browser 自带错误卡片与重试按钮，无需全局再弹 toast
+    meta: { silent: true },
+  });
   const invalidate = useCallback(
     () => queryClient.invalidateQueries({ queryKey: queryKeys.filesAll }),
     [queryClient],

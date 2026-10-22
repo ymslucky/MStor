@@ -25,7 +25,12 @@ export default function PlatformPage({ kind, me: injected }: { kind: Kind; me?: 
   const account = me.self ?? me;
   const meta = COPY[kind];
   const Icon = kind === "users" ? Users : ShieldCheck;
-  const overview = useQuery({ queryKey: queryKeys.adminOverview, queryFn: getAdminOverview, enabled: kind === "audit" && account.role === "admin" });
+  const overview = useQuery({
+    queryKey: queryKeys.adminOverview,
+    queryFn: getAdminOverview,
+    enabled: kind === "audit" && account.role === "admin",
+    meta: { silent: true },
+  });
 
   if (account.role !== "admin") {
     return (

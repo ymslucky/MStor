@@ -10,6 +10,8 @@ interface QueryLike {
   error: unknown;
   /** 有缓存数据时错误只做「内联降级」，不替换内容（离线缓存界面） */
   data?: unknown;
+  /** React Query 的 fetchStatus：idle + pending 说明查询被 enabled:false 禁用，不能当成加载中 */
+  fetchStatus?: "fetching" | "paused" | "idle";
   refetch: () => unknown;
 }
 
@@ -32,7 +34,11 @@ export function AsyncState({
   skeletonClassName?: string;
   children: ReactNode;
 }) {
-  if (query.isPending) return <ListSkeleton rows={skeletonRows} className={skeletonClassName} />;
+  if (query.isPending) {
+    // enabled:false 的查询会永远 pending 且 fetchStatus=idle：直接渲染 children（由调用方保证数据存在）
+    if (query.fetchStatus === "idle") return <>{children}</>;
+    return <ListSkeleton rows={skeletonRows} className={skeletonClassName} />;
+  }
   if (query.isError && query.data === undefined) {
     return (
       <EmptyState

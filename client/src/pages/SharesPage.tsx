@@ -14,7 +14,7 @@ import { queryKeys } from "../lib/queryKeys";
 
 export default function SharesPage() {
   const queryClient = useQueryClient();
-  const query = useQuery({ queryKey: queryKeys.shares, queryFn: listShares });
+  const query = useQuery({ queryKey: queryKeys.shares, queryFn: listShares, meta: { silent: true } });
   const invalidate = () => queryClient.invalidateQueries({ queryKey: queryKeys.shares });
   const revoke = useMutation({ mutationFn: (id: string) => revokeShare(id), onSuccess: invalidate });
   const [revoking, setRevoking] = useState<Share | null>(null);

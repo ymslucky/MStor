@@ -41,6 +41,7 @@ export default function LibraryPage({ kind }: { kind: Kind }) {
   const meta = COPY[kind];
 
   const query = useQuery({
+    meta: { silent: true },
     queryKey:
       kind === "favorites"
         ? queryKeys.favorites

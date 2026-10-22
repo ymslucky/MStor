@@ -25,6 +25,7 @@ export default function SharePage() {
   const [current, setCurrent] = useState<{ id: string; name: string } | null>(null);
 
   const info = useQuery({
+    meta: { silent: true },
     queryKey: queryKeys.share(token, entered ? usedPassword : ""),
     queryFn: () => fetchShare(token, entered ? usedPassword : undefined),
     retry: false,
@@ -36,6 +37,7 @@ export default function SharePage() {
 
   // 子目录请求同样用已提交的密码，避免实时输入影响请求
   const children = useQuery({
+    meta: { silent: true },
     queryKey: queryKeys.shareChildren(token, current?.id ?? "", usedPassword),
     queryFn: () => fetchShareChildren(token, current!.id, usedPassword || undefined),
     enabled: !!current,
