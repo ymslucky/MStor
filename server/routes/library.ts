@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "../env";
 import { addFavorite, listFavorites, listRecent, recordView, removeFavorite } from "../data/library";
 import { errors } from "../lib/errors";
-import { attachTag, createTag, deleteTag, detachTag, listNodeTags, listTagNodes, listTags } from "../data/tags";
+import { attachTag, createTag, deleteTag, detachTag, listNodeTags, listTagNodes, listTags, updateTag } from "../data/tags";
 
 // 收藏与最近访问：都是「当前空间 + 当前用户」维度，节点必须属于该空间
 export const library = new Hono<AppEnv>();
@@ -39,6 +39,12 @@ library.post("/tags", async (c) => {
   const { name, color } = await c.req.json<{ name?: unknown; color?: unknown }>();
   const tag = await createTag(c.env.DB, c.get("workspace").id, name, color);
   return c.json(tag, 201);
+});
+
+library.patch("/tags/:tagId", async (c) => {
+  const { name, color } = await c.req.json<{ name?: unknown; color?: unknown }>();
+  const tag = await updateTag(c.env.DB, c.get("workspace").id, c.req.param("tagId"), name, color);
+  return c.json(tag);
 });
 
 library.delete("/tags/:tagId", async (c) => {

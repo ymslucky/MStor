@@ -209,3 +209,10 @@ AppHeader（全端，h-14）：移动=菜单 + 品牌；桌面=当前空间 · M
 - 表格统一：表头 `text-2xs uppercase tracking-wide text-ink-3`；行 `py-2.5`、分隔线、hover 用 `bg-bg-sub/70`；分享页补「名称 / 分享信息 / 操作」表头。
 - 审计动作补齐常见标签（上传、创建分享、登录、重命名、移动），避免裸 action key。
 - 新增 `scripts/visual-check.mjs` + `npm run visual:check`：自起静态服务器 + mock API + headless Chrome/CDP，覆盖 1440/390、暗色、网格、设置、标签、平台、回收站、分享共 10 个页面；断言核心标记存在且 `scrollWidth <= viewportWidth`，截图输出到 `.tmp-build/visual`。前置 `npm run build`，可用 `CHROME_BIN` 指定浏览器。
+
+### v7.5 标签颜色编辑
+
+- 新增 `PATCH /api/library/tags/:tagId`：可更新 `name` / `color`（`color: null` 清除），服务端校验 `#hex` 并对跨空间 id 返回 404。
+- LibraryPage 选中标签后出现「颜色」选择器，改色即时写入并刷新 pills/色点；新建与编辑共用同一色板。
+- 服务端本地 shim 覆盖改色 200、非法色 400、跨租户 404；客户端覆盖改色 mutation。
+- 分享空态收进 `GlassCard`，与其他列表页空态结构一致。

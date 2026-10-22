@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Clock, Star, Tag as TagIcon } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
-import { createTag, deleteTag, listFavorites, listRecent, listTags, listTagged } from "../api/library";
+import { createTag, deleteTag, listFavorites, listRecent, listTags, listTagged, updateTag } from "../api/library";
 import { contentUrl } from "../api/nodes";
 import type { Node } from "../api/types";
 import { AsyncState } from "../components/AsyncState";
@@ -58,6 +58,14 @@ export default function LibraryPage({ kind }: { kind: Kind }) {
     },
     onError: (e) => toast(e instanceof Error ? e.message : "创建标签失败"),
   });
+  const update = useMutation({
+    mutationFn: ({ id, color }: { id: string; color: string | null }) => updateTag(id, { color }),
+    onSuccess: () => {
+      toast("标签颜色已更新", "info");
+      void invalidateTags();
+    },
+    onError: (e) => toast(e instanceof Error ? e.message : "更新标签失败"),
+  });
   const removeTag = useMutation({
     mutationFn: (id: string) => deleteTag(id),
     onSuccess: () => {
@@ -97,6 +105,7 @@ export default function LibraryPage({ kind }: { kind: Kind }) {
   });
 
   const tags = tagsQuery.data?.tags;
+  const selectedTag = tags?.find((t) => t.id === tagId);
   const nodes = nodesQuery.data?.nodes ?? [];
 
   return (
@@ -138,9 +147,30 @@ export default function LibraryPage({ kind }: { kind: Kind }) {
             </Button>
           </form>
           {tagId && (
-            <Button size="sm" variant="danger" onClick={() => setDeletingTag(true)}>
-              删除该标签
-            </Button>
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-1.5 text-xs text-ink-3">
+                颜色
+                <select
+                  aria-label="修改标签颜色"
+                  value={selectedTag?.color ?? ""}
+                  disabled={update.isPending}
+                  onChange={(e) => {
+                    if (tagId) update.mutate({ id: tagId, color: e.target.value || null });
+                  }}
+                  className="h-8 rounded-btn border border-line bg-surface-1 px-2 text-xs text-ink"
+                >
+                  <option value="">无</option>
+                  {TAG_COLORS.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Button size="sm" variant="danger" onClick={() => setDeletingTag(true)}>
+                删除该标签
+              </Button>
+            </div>
           )}
         </div>
       )}

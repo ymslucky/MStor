@@ -36,6 +36,10 @@ export const listNodeTags = (nodeId: string) => api<{ tags: TagRow[] }>(`/api/li
 export const createTag = (name: string, color?: string | null) =>
   api<TagRow>("/api/library/tags", { method: "POST", json: { name, color } });
 
+/** 更新标签（颜色传 null 清除；name 可选） */
+export const updateTag = (tagId: string, body: { name?: string; color?: string | null }) =>
+  api<TagRow>(`/api/library/tags/${tagId}`, { method: "PATCH", json: body });
+
 export const deleteTag = (tagId: string) =>
   api<{ ok: true }>(`/api/library/tags/${tagId}`, { method: "DELETE" });
 

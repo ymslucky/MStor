@@ -491,7 +491,13 @@
 - 审计动作标签补齐 upload / share.create / auth.login 等，避免直接显示 action key。
 - 新增 `npm run visual:check`（`scripts/visual-check.mjs`）：Node 静态服务器 + mock API + 本机 Chrome headless/CDP，覆盖 10 个页面与 1440/390 视口，自动断言标记与横向溢出；本轮运行 **10/10 通过**。
 
-### 19.8 下一步视觉细化
+### 19.8 标签颜色编辑与空态收口
+
+- 服务端新增 `PATCH /api/library/tags/:tagId`（name/color，color null 清除；非法色 400、跨租户 404），客户端新增 `updateTag`；LibraryPage 选中标签后可直接改色，pills 色点即时刷新。
+- 分享页空态放进 `GlassCard`，与收藏/最近/标签/回收站保持同一空态结构。
+- 服务端本地 shim 增至 29 项并覆盖改色 200/400/404；客户端 **250 例**通过；visual:check 10/10。
+
+### 19.9 下一步视觉细化
 
 - 网格卡片与文件类型图标再收敛一轮（缩略图比例、角标位置）。
 - 设置页/平台表格的表头、行高、弹窗密度统一到 v7 节奏。

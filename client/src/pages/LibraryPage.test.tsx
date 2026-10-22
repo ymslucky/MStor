@@ -10,10 +10,11 @@ vi.mock("../api/library", () => ({
   listFavorites: vi.fn(),
   listRecent: vi.fn(),
   createTag: vi.fn(),
+  updateTag: vi.fn(),
   deleteTag: vi.fn(),
 }));
 
-import { createTag, deleteTag, listTagged, listTags } from "../api/library";
+import { createTag, deleteTag, listTagged, listTags, updateTag } from "../api/library";
 import LibraryPage from "./LibraryPage";
 
 function renderPage() {
@@ -33,6 +34,7 @@ beforeEach(() => {
   vi.mocked(listTags).mockResolvedValue({ tags: [{ id: "t1", name: "家庭", nodes: 2 }] });
   vi.mocked(listTagged).mockResolvedValue({ nodes: [] });
   vi.mocked(createTag).mockResolvedValue({ id: "t2", name: "旅行" });
+  vi.mocked(updateTag).mockResolvedValue({ id: "t1", name: "家庭", color: "#0f766e" });
   vi.mocked(deleteTag).mockResolvedValue({ ok: true });
 });
 
@@ -43,6 +45,15 @@ test("标签页可新建标签", async () => {
   await user.selectOptions(screen.getByLabelText("标签颜色"), "#be123c");
   await user.click(screen.getByRole("button", { name: "新建标签" }));
   await waitFor(() => expect(createTag).toHaveBeenCalledWith("旅行", "#be123c"));
+});
+
+test("选中标签后可修改颜色", async () => {
+  const { user } = renderPage();
+  await screen.findByText("家庭");
+  await user.click(screen.getByRole("button", { name: "家庭" }));
+  await waitFor(() => expect(listTagged).toHaveBeenCalledWith("t1"));
+  await user.selectOptions(screen.getByLabelText("修改标签颜色"), "#0f766e");
+  await waitFor(() => expect(updateTag).toHaveBeenCalledWith("t1", { color: "#0f766e" }));
 });
 
 test("选中标签后可删除该标签（二次确认）", async () => {

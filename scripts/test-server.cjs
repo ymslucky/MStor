@@ -821,6 +821,25 @@ async function main() {
       body: JSON.stringify({ name: "重要" }),
     });
     assertEqual(dup.status, 409, "同名标签应 409，实际 " + dup.status);
+    const patched = await call(env, "/api/library/tags/" + tagId, {
+      method: "PATCH",
+      headers: { ...alice, "content-type": "application/json" },
+      body: JSON.stringify({ color: "#00ff00" }),
+    });
+    assertEqual(patched.status, 200, "改标签颜色应 200，实际 " + patched.status);
+    assertEqual(patched.json.color, "#00ff00", "标签颜色应已更新");
+    const badColor = await call(env, "/api/library/tags/" + tagId, {
+      method: "PATCH",
+      headers: { ...alice, "content-type": "application/json" },
+      body: JSON.stringify({ color: "red" }),
+    });
+    assertEqual(badColor.status, 400, "非法颜色应 400，实际 " + badColor.status);
+    const bobPatch = await call(env, "/api/library/tags/" + tagId, {
+      method: "PATCH",
+      headers: { ...bob, "content-type": "application/json" },
+      body: JSON.stringify({ color: "#000000" }),
+    });
+    assertEqual(bobPatch.status, 404, "跨租户改标签应 404，实际 " + bobPatch.status);
     const attach = await call(env, "/api/library/tags/" + tagId + "/nodes/" + nodeId, { method: "PUT", headers: alice });
     assertEqual(attach.status, 200, "打标签应 200");
     const list = await call(env, "/api/library/tags", { headers: alice });

@@ -66,7 +66,9 @@ export default function SharesPage() {
       />
       <AsyncState query={query} skeletonRows={4}>
         {shares.length === 0 ? (
-          <EmptyState icon={Link2} title="暂无分享" />
+          <GlassCard className="p-2">
+            <EmptyState icon={Link2} title="暂无分享" description="在文件详情点「分享」即可生成公开链接" />
+          </GlassCard>
         ) : (
         <GlassCard className="p-3 sm:p-4">
           <table className="w-full border-collapse text-sm">

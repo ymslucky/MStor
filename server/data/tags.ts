@@ -50,6 +50,39 @@ export async function createTag(db: D1Database, workspaceId: string, rawName: un
   return { id, workspace_id: workspaceId, name, color: safeColor, created_at: now };
 }
 
+/** 更新标签名/颜色（颜色传 null 表示清除；至少提供一个字段） */
+export async function updateTag(
+  db: D1Database,
+  workspaceId: string,
+  tagId: string,
+  rawName: unknown,
+  color: unknown,
+): Promise<TagRow> {
+  const sets: string[] = [];
+  const binds: (string | null)[] = [];
+  if (rawName !== undefined) {
+    sets.push("name = ?");
+    binds.push(normalizeName(rawName));
+  }
+  if (color !== undefined) {
+    if (color !== null && !(typeof color === "string" && /^#[0-9a-f]{3,8}$/i.test(color))) {
+      throw errors.badRequest("颜色格式无效");
+    }
+    sets.push("color = ?");
+    binds.push(color as string | null);
+  }
+  if (sets.length === 0) throw errors.badRequest("没有需要更新的字段");
+  binds.push(tagId, workspaceId);
+  const res = await db
+    .prepare(`UPDATE tags SET ${sets.join(", ")} WHERE id = ? AND workspace_id = ?`)
+    .bind(...binds)
+    .run();
+  if (!res.meta.changes) throw errors.notFound();
+  const row = await db.prepare("SELECT * FROM tags WHERE id = ?1 AND workspace_id = ?2").bind(tagId, workspaceId).first<TagRow>();
+  if (!row) throw errors.notFound();
+  return row;
+}
+
 export async function deleteTag(db: D1Database, workspaceId: string, tagId: string): Promise<void> {
   const res = await db.prepare("DELETE FROM tags WHERE id = ?1 AND workspace_id = ?2").bind(tagId, workspaceId).run();
   if (!res.meta.changes) throw errors.notFound();
