@@ -39,7 +39,7 @@ export function MobileNavDrawer({
   return (
     <RadixDialog.Root open={open} onOpenChange={(next) => !next && onClose()}>
       <RadixDialog.Portal>
-        <RadixDialog.Overlay className="anim-fade fixed inset-0 z-modal bg-ink/40 backdrop-blur-sm md:hidden" />
+        <RadixDialog.Overlay className="anim-fade fixed inset-0 z-modal bg-ink/40 md:hidden" />
         <RadixDialog.Content
           data-testid="mobile-drawer"
           className="anim-pop fixed inset-y-0 left-0 z-modal flex w-72 max-w-[85vw] flex-col bg-surface-1 shadow-glass outline-none md:hidden"

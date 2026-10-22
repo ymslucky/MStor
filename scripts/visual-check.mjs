@@ -392,6 +392,10 @@ async function main() {
     const { cmd, evaluate } = session;
     await cmd("Page.enable");
     await cmd("Runtime.enable");
+    // 视觉基线不包含 PWA 安装/离线 toast：屏蔽 service worker，保持截图可复现
+    await cmd("Page.addScriptToEvaluateOnNewDocument", {
+      source: "try { Object.defineProperty(navigator, 'serviceWorker', { value: undefined, configurable: true }); } catch {}",
+    });
 
     for (const c of CASES) {
       await cmd("Emulation.setDeviceMetricsOverride", {

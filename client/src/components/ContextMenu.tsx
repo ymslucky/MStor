@@ -102,7 +102,7 @@ export default function ContextMenu({ open, x, y, items, onClose }: Props) {
           type="button"
           onClick={item.onClick}
           className={cn(
-            "flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-primary-soft/60 focus-visible:bg-primary-soft/60",
+            "flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-bg-sub focus-visible:bg-bg-sub",
             item.danger ? "text-danger-text" : "text-ink",
           )}
         >

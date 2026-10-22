@@ -1,10 +1,24 @@
-# MStor 设计系统 v7（权威版）· Calm Workspace
+# MStor 设计系统 v8（权威版）· Quiet Workspace
 
 > **令牌唯一来源**：`client/src/index.css` 的 `@theme`（含暗色覆盖）。
 > **原语唯一来源**：`client/src/components/ui/*`；页面骨架 `components/layout/PageHeader` + `shell/AppHeader`。
 > **可视化验收**：应用内 `/design` 页（`pages/DesignPage.tsx`）——新增令牌/原语**必须先在此登记**。
 > **v7 实机基线**：`docs/design/v7/` 下 `files-desktop` / `files-mobile`（1440×900 / 390×844）、`grid-desktop`、`dark-desktop`、`tags-desktop`、`platform-users`、`platform-audit`、`shares-desktop`、`settings-desktop`、`trash-desktop`、`grid-mobile`、`palette`、`palette-mobile`、`notifications`、`share-dialog`、`create-dialog`、`batch-bar`、`preview`、`settings-members`、`create-mobile`（共 20 张）。
+> **设计意图来源**：根目录 DESIGN.md（OpenDesign 9 段 schema 的 MStor 版本）。
 > 类名合并统一走 `client/src/lib/cn.ts`（clsx + tailwind-merge）。
+
+## 0. v8 校准：向 OpenDesign 的设计系统学习
+
+OpenDesign 的 152 个品牌设计系统把「令牌」和「意图」放在同一份 DESIGN.md 里：Color、Typography、Spacing、Layout、Components、Motion、Voice、Brand、Anti-patterns。其 Stripe / Linear / Vercel 对照实验说明：仅靠 tokens 会收敛成通用 SaaS，真正决定辨识度的是 prose 约束与 anti-patterns。
+
+v8 借鉴并落地：
+
+- **Stripe 的 restrained tech-editorial**：单一强调色只做 punctuation（主按钮/选中/焦点/链接），导航选中改为中性底 + 2px accent rail，不再整块 accent tint。
+- **Linear 的 engineering-first minimal**：内容卡片取消投影，只用 1px 发丝边；card 圆角收紧到 8；删除 hover 位移/缩放、按钮 active 缩放，过渡只改颜色。
+- **Vercel 的高对比排版**：启用 Inter optical sizing；标题用 text-wrap: balance；数字统一 tabular；正文不低于 12px。
+- **Anti-patterns 变成规则**：写进根目录 DESIGN.md，禁止渐变/光晕/玻璃模糊、内容卡片投影、hover translate/scale、bouncy easing、裸调色板、绝对定位嵌套下拉。
+- 视觉基线保持 20 张；visual:check 屏蔽 service worker，避免 PWA toast 污染截图。
+- 新增 design-guard 测试扫描 UI 源码，禁止 hover 位移/缩放、active 缩放、玻璃模糊、spring、渐变背景回潮。
 
 ## 1. 方向：从「演示型玻璃拟态」到「安静、内容优先的工作台」
 
@@ -30,8 +44,8 @@ v7 的取舍：
 | 描边 | `line #e4e7ec` / `line-strong #cfd4dc` |
 | 强调 | `primary #4f46e5` / `primary-text #4338ca` / `primary-soft #eef2ff`（暗色 `#818cf8 / #a5b4fc / 16% tint`） |
 | 状态 | 成功 `#067647/#05603a/#ecfdf3`、警告 `#b54708/#93370d/#fffaeb`、危险 `#b42318/#912018/#fef3f2` |
-| 圆角 | `chip 6` / `btn,input 8` / `card 10` / `panel 12` |
-| 阴影 | `soft`（1px）/ `card`（轻浮起）/ `lift`（弹窗）；禁用大范围彩色投影 |
+| 圆角 | `chip 6` / `btn,input 8` / `card 8` / `panel 12` |
+| 阴影 | 内容卡片只用边框；浮层用 `card`（一级）/ `lift`（弹窗）；禁用彩色投影 |
 | 字号 | 2xs 11 / xs 12 / sm 13 / base 14 / lg 16 / xl 20 / 2xl 24 |
 | 动效 | `--ease-out-soft` + `duration-fast 120` / `slow 180` / `320→240`；`prefers-reduced-motion` 全归零 |
 

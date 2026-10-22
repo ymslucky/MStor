@@ -528,7 +528,7 @@
 ### 19.14 功能与操作体验验证
 
 - 逐功能走查 + 自动化复核发现并修复 20 个问题：邀请撤销 404、审计操作者空白、分享子目录 loading、分享下载 objectURL、提取码空提交不重试、命令面板空态文案、预览层语义/焦点、成员加载错误、入群通知链接、平台兜底 header、重复 title。
-- 详见 [functional-audit.md](functional-audit.md)；闸门：客户端 261 例、server 本地 29 项、visual 20/20（像素 0.00%）。
+- 详见 [functional-audit.md](functional-audit.md)；闸门：客户端 262 例、server 本地 29 项、visual 20/20（像素 0.00%）。
 
 ### 19.16 命令面板重构
 
@@ -547,6 +547,13 @@
 - 网格卡片与文件类型图标再收敛一轮（缩略图比例、角标位置）。
 - 设置页/平台表格的表头、行高、弹窗密度统一到 v7 节奏。
 - 接入 Playwright 三断点视觉回归，给 v7 建立截图基线。
+
+### 19.17 OpenDesign 校准（v8）
+
+- 调研 OpenDesign 的 9 段 DESIGN.md schema 与 150+ 品牌设计系统，重点分析 Stripe（克制编辑感）、Linear（工程极简）、Vercel（高对比排版）的 prose 约束与 anti-patterns。
+- 新增根目录 DESIGN.md，把 MStor 的颜色角色、字体、间距、布局、组件、动效、语气、品牌与反模式写成可维护的设计意图。
+- v8 落地：导航改为中性底 + 2px accent rail；内容卡片取消投影；card 圆角 8；删除 hover 位移/缩放与按钮 active 缩放；浮层去掉 backdrop blur；启用 Inter optical sizing 与标题 balance；移除 spring 令牌。
+- 视觉基线 20/20，像素差异 0.00%。
 
 ## 20. 后续建议（本次未实施）
 

@@ -7,9 +7,7 @@ export function IconButton({
   active = false,
   ...rest
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { label: string; active?: boolean }) {
-  const state = active
-    ? "bg-primary-soft text-primary-text shadow-soft"
-    : "state-layer text-ink-2 hover:text-ink hover:shadow-soft";
+  const state = active ? "bg-primary-soft text-primary-text" : "state-layer text-ink-2 hover:text-ink";
   return (
     <button
       aria-label={label}

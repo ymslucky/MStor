@@ -29,7 +29,7 @@ export default function PreviewModal({ node, onClose }: Props) {
   const kind = previewKind(node.mime);
   const [text, setText] = useState<string | null>(null);
   const [error, setError] = useState("");
-  // 弹性进场：挂载后经两帧 rAF 切类，单次 transition 完成 modal-in（300ms ease-spring）
+  // 轻量进场：挂载后经两帧 rAF 切类，单次 transition 完成 modal-in（不再使用 spring）
   const [entered, setEntered] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -82,7 +82,7 @@ export default function PreviewModal({ node, onClose }: Props) {
         role="dialog"
         aria-modal="true"
         aria-label={`预览 ${node.name}`}
-        className={`glass-strong flex min-h-0 flex-1 flex-col overflow-hidden rounded-panel transition-[opacity,transform] duration-300 ease-spring ${
+        className={`glass-strong flex min-h-0 flex-1 flex-col overflow-hidden rounded-panel transition-[opacity,transform] duration-300 ease-(--ease-out-soft) ${
           entered ? "scale-100 opacity-100" : "scale-[0.94] opacity-0"
         }`}
         onClick={onClose}

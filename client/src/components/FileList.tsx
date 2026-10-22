@@ -220,7 +220,7 @@ export default function FileList({
   // 因此网格改用「描边 + ring」表达选中，与底色解耦
   const gridCellClass = (i: number, n: Node) =>
     [
-      "group relative overflow-hidden rounded-card border border-line bg-surface-1 shadow-soft transition-[box-shadow,transform] select-none [-webkit-touch-callout:none] hover:-translate-y-0.5 hover:shadow-card",
+      "group relative overflow-hidden rounded-card border border-line bg-surface-1 transition-colors select-none [-webkit-touch-callout:none] hover:border-line-strong",
       focusIndex === i ? "ring-2 ring-primary" : "",
       dragOverId === n.id ? "ring-2 ring-primary" : "",
       selected.has(n.id) && selectable ? "border-primary ring-2 ring-primary/45" : "",

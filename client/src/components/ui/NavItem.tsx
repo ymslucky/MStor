@@ -26,8 +26,8 @@ export function NavItem({
         cn(
           "flex items-center gap-3 rounded-md px-3 text-sm transition-colors",
           isActive
-            ? "bg-primary-soft font-medium text-primary-text"
-            : "state-layer text-ink-2 hover:text-primary-text",
+            ? "bg-bg-sub font-medium text-ink shadow-[inset_2px_0_0_var(--color-primary)]"
+            : "state-layer text-ink-2 hover:text-ink",
         )
       }
     >

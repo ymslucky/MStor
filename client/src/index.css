@@ -99,7 +99,7 @@
   --radius-chip: 6px;
   --radius-btn: 8px;
   --radius-input: 8px;
-  --radius-card: 10px;
+  --radius-card: 8px;
   --radius-panel: 12px;
 
   /* 阴影：两级柔和，弹窗才抬升 */
@@ -124,7 +124,6 @@
   --text-2xl--line-height: 2rem;
 
   /* 动效：短促、可预期 */
-  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
   --duration-fast: 120ms;
   --duration-slow: 180ms;
@@ -187,6 +186,7 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  font-optical-sizing: auto;
   min-height: 100dvh;
 }
 
@@ -233,7 +233,6 @@ body {
 .glass-light {
   background: var(--color-surface-1);
   border: 1px solid var(--color-line);
-  box-shadow: var(--shadow-card);
   border-radius: var(--radius-card);
 }
 
@@ -278,8 +277,9 @@ body {
   transition: transform var(--duration-fast) var(--ease-out-soft), box-shadow var(--duration-fast) var(--ease-out-soft);
 }
 .hover-lift:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-lift);
+  /* v8：内容表面只用边框/背景表达层级，不做位移或投影变化 */
+  transform: none;
+  box-shadow: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

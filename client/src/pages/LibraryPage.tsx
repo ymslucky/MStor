@@ -27,7 +27,7 @@ function NodeRow({ node }: { node: Node }) {
   return (
     <Link
       to={href}
-      className="flex items-center gap-3 rounded-card px-3 py-2 transition-colors hover:bg-primary-soft/50"
+      className="flex items-center gap-3 rounded-card px-3 py-2 transition-colors hover:bg-bg-sub"
     >
       <NodeIcon node={node} size={18} className="shrink-0" />
       <span className="min-w-0 flex-1 truncate text-sm text-ink">{node.name}</span>

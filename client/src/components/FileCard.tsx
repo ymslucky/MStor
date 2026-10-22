@@ -36,10 +36,10 @@ export function FileCard({ node, thumbSrc, badge, actions }: Props) {
               loading="lazy"
               decoding="async"
               onError={() => setThumbFailed(true)}
-              className="h-full w-full object-cover transition-transform duration-(--duration-320) ease-(--ease-out-soft) group-hover:scale-[1.03]"
+              className="h-full w-full object-cover"
             />
           ) : (
-            <span className="flex h-16 w-16 items-center justify-center rounded-2xl border border-line bg-surface-1 shadow-soft transition-transform duration-(--duration-320) ease-(--ease-out-soft) group-hover:scale-[1.03]">
+            <span className="flex h-16 w-16 items-center justify-center rounded-xl border border-line bg-surface-1">
               <NodeIcon node={node} size={34} />
             </span>
           )}

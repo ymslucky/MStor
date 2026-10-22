@@ -35,7 +35,7 @@ export function CommandPalette({ onOpen }: { onOpen?: () => void } = {}) {
         type="button"
         aria-label="搜索（⌘K）"
         onClick={openPalette}
-        className="glass state-layer flex h-10 items-center gap-2 px-3 text-sm text-ink-2 shadow-lift"
+        className="glass state-layer flex h-10 items-center gap-2 px-3 text-sm text-ink-2"
       >
         <Search size={16} aria-hidden />
         <span className="hidden lg:inline">搜索</span>
@@ -46,7 +46,7 @@ export function CommandPalette({ onOpen }: { onOpen?: () => void } = {}) {
         <RadixDialog.Portal>
           <RadixDialog.Overlay
             data-testid="dialog-mask"
-            className="anim-fade fixed inset-0 z-overlay bg-ink/40 backdrop-blur-[2px]"
+            className="anim-fade fixed inset-0 z-overlay bg-ink/40"
           />
           <RadixDialog.Content
             data-testid="dialog-panel"

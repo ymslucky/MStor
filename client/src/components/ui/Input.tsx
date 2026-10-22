@@ -7,7 +7,7 @@ export function Input({ className, ...rest }: React.ComponentPropsWithRef<"input
   return (
     <input
       className={cn(
-        "w-full rounded-input border border-line bg-surface-1/70 px-3 py-2 text-sm text-ink shadow-soft backdrop-blur-sm transition-[border-color,box-shadow] duration-(--duration-fast) placeholder:text-ink-3 hover:border-line-strong focus:border-primary focus:outline-none",
+        "w-full rounded-input border border-line bg-surface-1 px-3 py-2 text-sm text-ink transition-colors duration-(--duration-fast) placeholder:text-ink-3 hover:border-line-strong focus:border-primary focus:outline-none",
         className,
       )}
       {...rest}

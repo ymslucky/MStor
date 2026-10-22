@@ -12,7 +12,7 @@ export function Button({
   ...rest
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "ghost" | "danger"; size?: "md" | "sm" }) {
   const base =
-    "state-layer inline-flex items-center justify-center gap-1.5 rounded-btn border font-medium transition-[box-shadow,transform] duration-(--duration-fast) ease-[var(--ease-standard)] disabled:opacity-45 disabled:pointer-events-none tap active:scale-[0.985]";
+    "state-layer inline-flex items-center justify-center gap-1.5 rounded-btn border font-medium transition-colors duration-(--duration-fast) ease-[var(--ease-standard)] disabled:opacity-45 disabled:pointer-events-none tap";
   const sizes = { md: "px-3.5 py-2 text-sm", sm: "px-2.5 py-1 text-xs" };
   const variants = {
     primary: "border-transparent bg-primary text-white hover:bg-primary/90",

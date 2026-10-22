@@ -3,7 +3,7 @@ import { cn } from "../../lib/cn";
 
 /**
  * 内容表面（卡片/面板）：唯一的「描边 + 圆角 + 投影」出处。
- * 不要再手写 `rounded-card border border-line bg-surface-1 shadow-card` 这类组合。
+ * 不要再手写 `rounded-card border border-line bg-surface-1` 这类组合。
  * tone: card=最轻（列表/表单），raised=浮层（弹窗内分组、下拉）
  */
 export function Surface({
@@ -16,7 +16,7 @@ export function Surface({
     <div
       className={cn(
         "rounded-card border border-line bg-surface-1",
-        tone === "card" ? "shadow-card" : "shadow-lift",
+        tone === "raised" ? "shadow-lift" : "",
         className,
       )}
       {...rest}

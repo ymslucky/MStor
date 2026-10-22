@@ -17,7 +17,7 @@ export function WorkspaceSwitcher({
       <select
         value={currentId ?? ""}
         onChange={(e) => onSwitch(e.target.value)}
-        className="w-full rounded-lg border border-line bg-surface-1/70 px-2 py-1.5 text-xs text-ink shadow-soft backdrop-blur-sm"
+        className="w-full rounded-lg border border-line bg-surface-1 px-2 py-1.5 text-xs text-ink"
       >
         {workspaces.map((w) => (
           <option key={w.id} value={w.id}>

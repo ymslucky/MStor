@@ -12,7 +12,7 @@ export function Panel({
   ...rest
 }: React.ComponentPropsWithRef<"div"> & { level?: "e2" | "e3" }) {
   return (
-    <div className={cn(level === "e3" ? "glass-strong" : "glass", "p-2", className)} {...rest}>
+    <div className={cn(level === "e3" ? "glass-strong" : "glass shadow-card", "p-2", className)} {...rest}>
       {children}
     </div>
   );
