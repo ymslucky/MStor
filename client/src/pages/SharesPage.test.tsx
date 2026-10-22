@@ -50,6 +50,22 @@ test("过期分享显示「已过期」灰标，未过期不显示", async () =>
   expect(within(activeRow).queryByText("已过期")).toBeNull();
 });
 
+test("按「过期」筛选只显示已过期分享，切换筛选清空选择", async () => {
+  vi.mocked(listShares).mockResolvedValue({
+    shares: [
+      share({ id: "expired", token: "tok-old", node_name: "旧文件.txt", expires_at: Date.now() - 1000 }),
+      share({ id: "active", token: "tok-new", node_name: "新文件.txt", expires_at: Date.now() + 86400000 }),
+    ],
+  });
+  const { user } = renderWith(<SharesPage />);
+  await screen.findByText(/tok-old/);
+  await user.click(screen.getByRole("checkbox", { name: "选择 旧文件.txt" }));
+  await user.click(screen.getByRole("button", { name: /过期/ }));
+  expect(screen.queryByText(/tok-new/)).toBeNull();
+  expect(screen.getByText(/tok-old/)).toBeInTheDocument();
+  expect(screen.queryByRole("checkbox", { name: "选择 旧文件.txt" })).not.toBeChecked();
+});
+
 test("revoke asks confirm then calls revokeShare and refreshes", async () => {
   // 首次返回一条，失效重拉后返回空，才能断言「暂无分享」
   vi.mocked(listShares).mockResolvedValueOnce({ shares: [share()] }).mockResolvedValue({ shares: [] });

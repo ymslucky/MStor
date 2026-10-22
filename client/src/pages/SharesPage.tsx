@@ -22,9 +22,21 @@ export default function SharesPage() {
   // 批量撤销状态
   const [batchRevoking, setBatchRevoking] = useState(false);
   const [busy, setBusy] = useState(false);
+  type ShareFilter = "all" | "active" | "expired" | "exhausted";
+  const [filter, setFilter] = useState<ShareFilter>("all");
   const shares = query.data?.shares ?? [];
-  const ids = shares.map((s) => s.id);
-  const selection = useFileSelection(ids, "shares");
+  const now = Date.now();
+  const isExpired = (s: Share) => s.expires_at != null && s.expires_at < now;
+  const isExhausted = (s: Share) => s.max_downloads != null && s.downloads >= s.max_downloads;
+  const visible = shares.filter((s) => {
+    if (filter === "expired") return isExpired(s);
+    if (filter === "exhausted") return isExhausted(s);
+    if (filter === "active") return !isExpired(s) && !isExhausted(s);
+    return true;
+  });
+  const ids = visible.map((s) => s.id);
+  // 切换筛选时清空选择，避免批量操作误伤被隐藏的分享
+  const selection = useFileSelection(ids, `shares:${filter}`);
 
   const runBatchRevoke = async () => {
     setBusy(true);
@@ -42,7 +54,13 @@ export default function SharesPage() {
     invalidate();
   };
 
-  const allSelected = shares.length > 0 && selection.count === shares.length;
+  const allSelected = visible.length > 0 && selection.count === visible.length;
+  const FILTERS: { key: ShareFilter; label: string; count: number }[] = [
+    { key: "all", label: "全部", count: shares.length },
+    { key: "active", label: "有效", count: shares.filter((s) => !isExpired(s) && !isExhausted(s)).length },
+    { key: "expired", label: "过期", count: shares.filter(isExpired).length },
+    { key: "exhausted", label: "用尽", count: shares.filter(isExhausted).length },
+  ];
 
   return (
     <div className="md:pb-4">
@@ -50,7 +68,7 @@ export default function SharesPage() {
         title="我的分享"
         description="管理你创建的公开分享链接"
         actions={
-          shares.length > 0 ? (
+          visible.length > 0 ? (
             <label className="flex cursor-pointer items-center gap-1.5 text-sm text-ink-2">
               <input
                 type="checkbox"
@@ -64,10 +82,39 @@ export default function SharesPage() {
           ) : undefined
         }
       />
+      {shares.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-1.5" role="group" aria-label="分享筛选">
+          {FILTERS.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              aria-pressed={filter === f.key}
+              onClick={() => setFilter(f.key)}
+              className={`rounded-md border px-2 py-1 text-xs transition-colors ${
+                filter === f.key
+                  ? "border-primary/35 bg-primary-soft font-medium text-primary-text"
+                  : "border-line bg-surface-1 text-ink-2 hover:border-line-strong hover:text-ink"
+              }`}
+            >
+              {f.label}
+              <span className="num ml-1 text-ink-3">{f.count}</span>
+            </button>
+          ))}
+        </div>
+      )}
       <AsyncState query={query} skeletonRows={4}>
         {shares.length === 0 ? (
           <GlassCard className="p-2">
             <EmptyState icon={Link2} title="暂无分享" description="在文件详情点「分享」即可生成公开链接" />
+          </GlassCard>
+        ) : visible.length === 0 ? (
+          <GlassCard className="p-2">
+            <EmptyState
+              icon={Link2}
+              title="没有符合条件的分享"
+              description="换一个筛选条件，或回到「全部」"
+              action={<Button variant="ghost" onClick={() => setFilter("all")}>清除筛选</Button>}
+            />
           </GlassCard>
         ) : (
         <GlassCard className="p-3 sm:p-4">
@@ -81,7 +128,7 @@ export default function SharesPage() {
               </tr>
             </thead>
             <tbody>
-              {shares.map((s) => (
+              {visible.map((s) => (
                 <tr key={s.id} className="border-b border-line transition-colors last:border-b-0 hover:bg-bg-sub/70">
                   <td className="w-8 py-2.5">
                     <input

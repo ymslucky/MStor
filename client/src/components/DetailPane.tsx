@@ -1,4 +1,5 @@
 import { Download, FolderInput, Link2, Pencil, Tag, Trash2, X } from "lucide-react";
+import { contentUrl } from "../api/nodes";
 import type { Node } from "../api/types";
 import { formatBytes, formatDate } from "../lib/format";
 import { NodeIcon } from "./NodeIcon";
@@ -44,6 +45,15 @@ export function DetailPane({ node, onClose, onDownload, onShare, onRename, onMov
           <X size={16} aria-hidden />
         </IconButton>
       </div>
+
+      {node.mime?.startsWith("image/") && (
+        <img
+          src={contentUrl(node.id, true)}
+          alt={`${node.name} 预览`}
+          loading="lazy"
+          className="mt-3 aspect-[4/3] w-full rounded-md border border-line bg-bg-sub object-cover"
+        />
+      )}
 
       <div className="mt-3 border-t border-line pt-2">
         {!node.is_dir && <Row label="大小" value={formatBytes(node.size)} />}

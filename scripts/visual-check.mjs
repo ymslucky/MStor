@@ -61,7 +61,20 @@ const apiResponse = (url) => {
   if (p === "/api/me") return ME;
   if (p === "/api/files") return { nodes: FILES, breadcrumb: [], rootId: "root" };
   if (p === "/api/dirs/tree") return { dirs: [], truncated: false };
-  if (p === "/api/shares") return { shares: [] };
+  if (p === "/api/shares") {
+    const share = (id, name, token, expires, downloads, max) => ({
+      id, node_id: "f" + id, token, expires_at: expires, downloads,
+      created_at: NOW - 86400000, node_name: name, node_is_dir: 0, node_size: 482112,
+      max_downloads: max, last_download_at: downloads > 0 ? NOW - 3600000 : null,
+    });
+    return {
+      shares: [
+        share("s1", "年度预算 2027.xlsx", "tok-active", NOW + 86400000, 3, null),
+        share("s2", "旧版发布说明.md", "tok-old", NOW - 3600000, 1, null),
+        share("s3", "设计交付物.zip", "tok-used", null, 5, 5),
+      ],
+    };
+  }
   if (p === "/api/trash") return { nodes: [] };
   if (p === "/api/library/favorites") return { nodes: [] };
   if (p === "/api/library/recent") return { nodes: FILES.slice(2, 5) };
@@ -236,7 +249,10 @@ const CASES = [
   { name: "platform-users", path: "/platform/users", width: 1440, height: 900, marker: "用户管理" },
   { name: "platform-audit", path: "/platform/audit", width: 1440, height: 900, marker: "日志审计" },
   { name: "trash-desktop", path: "/trash", width: 1440, height: 900, marker: "回收站" },
-  { name: "shares-desktop", path: "/shares", width: 1440, height: 900, marker: "我的分享" },
+  {
+    name: "shares-desktop", path: "/shares", width: 1440, height: 900, marker: "我的分享",
+    check: "!!document.querySelector('[aria-label=\"分享筛选\"]')",
+  },
   { name: "dark-desktop", path: "/", width: 1440, height: 900, marker: "全部文件", dark: true },
   {
     name: "grid-desktop", path: "/", width: 1440, height: 900, marker: "项目资料",
