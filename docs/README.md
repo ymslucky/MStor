@@ -11,6 +11,7 @@
 | [../README.md](../README.md) | 项目现状说明：技术栈、认证、数据库、部署与回滚 | 权威（现状） |
 | [reports/2026-09-28-feature-upgrade-report.md](./reports/2026-09-28-feature-upgrade-report.md) | 功能地图（历史梳理，功能归属仍可参考） | 参考 |
 | [reports/2026-09-28-ux-optimization-report.md](./reports/2026-09-28-ux-optimization-report.md) | 上一轮 UX 优化记录 | 参考 |
+| [functional-audit.md](./functional-audit.md) | 2026-10-22 功能与操作体验验证：逐功能矩阵、已修缺陷、真机回归清单 | 记录 |
 
 ## 阅读顺序（新人/接手）
 

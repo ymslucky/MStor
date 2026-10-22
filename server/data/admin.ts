@@ -6,7 +6,14 @@ export interface AdminOverview {
   users: { total: number; disabled: number; unbound: number };
   workspaces: { total: number; usedBytes: number };
   topWorkspaces: { id: string; name: string; usedBytes: number; quotaBytes: number; members: number; nodes: number }[];
-  recentAudit: { action: string; actorId: string | null; targetId: string | null; workspaceId: string | null; createdAt: number }[];
+  recentAudit: {
+    action: string;
+    actorId: string | null;
+    actorName: string | null;
+    targetId: string | null;
+    workspaceId: string | null;
+    createdAt: number;
+  }[];
 }
 
 export async function adminOverview(db: D1Database): Promise<AdminOverview> {
@@ -23,7 +30,10 @@ export async function adminOverview(db: D1Database): Promise<AdminOverview> {
        FROM workspaces w ORDER BY w.used_bytes DESC LIMIT 20`,
     ),
     db.prepare(
-      "SELECT action, actor_id AS actorId, target_id AS targetId, workspace_id AS workspaceId, created_at AS createdAt FROM audit_events ORDER BY created_at DESC LIMIT 20",
+      `SELECT a.action, a.actor_id AS actorId, u.name AS actorName, a.target_id AS targetId,
+         a.workspace_id AS workspaceId, a.created_at AS createdAt
+       FROM audit_events a LEFT JOIN users u ON u.id = a.actor_id
+       ORDER BY a.created_at DESC LIMIT 20`,
     ),
   ]);
 

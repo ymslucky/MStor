@@ -21,6 +21,6 @@ export const queryKeys = {
   adminOverview: ["admin-overview"] as const,
   adminSettings: ["admin-settings"] as const,
   search: (q: string, sort: string, kind: string) => ["search", q, sort, kind] as const,
-  share: (token: string, password: string) => ["share", token, password] as const,
+  share: (token: string, password: string, attempt = 0) => ["share", token, password, attempt] as const,
   shareChildren: (token: string, dirId: string, password: string) => ["share-children", token, dirId, password] as const,
 };

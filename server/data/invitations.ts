@@ -75,6 +75,19 @@ export async function listInvitations(db: D1Database, workspaceId: string): Prom
   return results;
 }
 
+/** 撤销邀请：按邮箱定位（列表接口不回传凭据，管理台只能按邮箱撤销） */
+export async function revokeInvitationByEmail(db: D1Database, workspaceId: string, rawEmail: string, actorId: string): Promise<void> {
+  const email = normalizeEmail(rawEmail);
+  const res = await db
+    .prepare("DELETE FROM invitations WHERE workspace_id = ?1 AND email = ?2 AND accepted_at IS NULL")
+    .bind(workspaceId, email)
+    .run();
+  if (!res.meta.changes) throw errors.notFound();
+  await db.prepare(
+    "INSERT INTO audit_events (id, workspace_id, actor_id, action, target_id, created_at) VALUES (?1,?2,?3,'invitation.revoke',?4,?5)",
+  ).bind(crypto.randomUUID(), workspaceId, actorId, email, Date.now()).run();
+}
+
 /** 撤销邀请：按明文 token 定位（只有拿到链接的人知道） */
 export async function revokeInvitation(db: D1Database, workspaceId: string, token: string, actorId: string): Promise<void> {
   const tokenHash = await hashInviteToken(token);
@@ -114,7 +127,7 @@ export async function acceptPendingInvitations(db: D1Database, userId: string, r
       kind: "member.joined",
       title: `${email} 加入了空间`,
       body: "通过邀请链接加入（Access 身份认领）",
-      link: "/settings?tab=members",
+      link: "/settings/members",
     });
   }
   return results.map((r) => r.workspace_id);

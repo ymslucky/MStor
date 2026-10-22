@@ -477,6 +477,26 @@ async function main() {
     assertEqual(asMember.status, 403, "member 发邀请应 403，实际 " + asMember.status);
     const members = await call(env, "/api/workspaces/members", { headers: alice });
     assertEqual(members.json.members.length, 2, "空间应有 2 名成员");
+    const carolInvite = await call(env, "/api/workspaces/invitations", {
+      method: "POST",
+      headers: { ...alice, "content-type": "application/json" },
+      body: JSON.stringify({ email: "c@example.com", role: "member" }),
+    });
+    assertEqual(carolInvite.status, 201, "给 Carol 发邀请应 201");
+    const invList = await call(env, "/api/workspaces/invitations", { headers: alice });
+    assert(invList.json.invitations.some((i) => i.email === "c@example.com"), "邀请列表应包含 Carol");
+    const bobRevoke = await call(env, "/api/workspaces/invitations/by-email/c%40example.com", {
+      method: "DELETE",
+      headers: bob,
+    });
+    assertEqual(bobRevoke.status, 403, "member 撤销邀请应 403，实际 " + bobRevoke.status);
+    const revokeByEmail = await call(env, "/api/workspaces/invitations/by-email/c%40example.com", {
+      method: "DELETE",
+      headers: alice,
+    });
+    assertEqual(revokeByEmail.status, 200, "按邮箱撤销邀请应 200，实际 " + revokeByEmail.status);
+    const invAfter = await call(env, "/api/workspaces/invitations", { headers: alice });
+    assert(!invAfter.json.invitations.some((i) => i.email === "c@example.com"), "撤销后邀请应消失");
   });
 
   // —— 存储治理（P2 B1）：四分项 + 全局预算 + 507 ——
@@ -672,6 +692,8 @@ async function main() {
     assertEqual(ov.json.workspaces.total, 1, "应只有 1 个空间（Bob 加入 Alice 的空间）");
     assertEqual(ov.json.topWorkspaces[0].members, 2, "空间成员应为 2");
     assert(ov.json.recentAudit.length >= 2, "审计应至少含邀请创建/接受两条，实际 " + ov.json.recentAudit.length);
+    const inviteEvent = ov.json.recentAudit.find((e) => e.action === "invitation.create");
+    assert(inviteEvent?.actorName, "审计动作应回传操作者姓名，而不是只有 actorId");
     const forbidden = await call(env, "/api/me/admin/overview", { headers: bob });
     assertEqual(forbidden.status, 403, "普通成员访问应 403，实际 " + forbidden.status);
   });

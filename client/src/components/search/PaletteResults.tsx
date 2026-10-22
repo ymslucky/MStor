@@ -78,7 +78,7 @@ export function PaletteResults({
             </Button>
             <Button size="sm" variant="ghost" onClick={onGoRoot}>
               <FolderOpen size={12} aria-hidden />
-              新建文件夹
+              回到根目录
             </Button>
           </div>
         </div>

@@ -36,8 +36,7 @@ export default function PlatformPage({ kind, me: injected }: { kind: Kind; me?: 
   if (account.role !== "admin") {
     return (
       <div className="md:pb-4">
-        <h1 className="mb-3 text-lg font-semibold text-ink">{meta.title}</h1>
-        <p className="text-sm text-ink-2">仅平台管理员可访问该页面。</p>
+        <PageHeader title={meta.title} description="仅平台管理员可访问该页面。" />
       </div>
     );
   }

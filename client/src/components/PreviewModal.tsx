@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Download, X } from "lucide-react";
 import { recordView } from "../api/library";
 import { contentUrl } from "../api/nodes";
@@ -31,6 +31,7 @@ export default function PreviewModal({ node, onClose }: Props) {
   const [error, setError] = useState("");
   // 弹性进场：挂载后经两帧 rAF 切类，单次 transition 完成 modal-in（300ms ease-spring）
   const [entered, setEntered] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   // 打开预览 = 一次访问，供「最近」列表使用（失败不打扰）
   useEffect(() => {
@@ -61,10 +62,26 @@ export default function PreviewModal({ node, onClose }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  // 语义与焦点：预览是模态层，打开时焦点进入面板（关闭按钮），并锁定背景滚动
+  useEffect(() => {
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    panelRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+      previousFocus?.focus();
+    };
+  }, []);
+
   return (
     <div className="fixed inset-0 z-overlay flex flex-col bg-black/70 p-2 sm:p-4" onClick={onClose}>
       {/* 预览面板：glass-strong 层（当前打开的弹层，占用一个模糊预算） */}
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`预览 ${node.name}`}
         className={`glass-strong flex min-h-0 flex-1 flex-col overflow-hidden rounded-panel transition-[opacity,transform] duration-300 ease-spring ${
           entered ? "scale-100 opacity-100" : "scale-[0.94] opacity-0"
         }`}

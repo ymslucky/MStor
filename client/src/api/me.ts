@@ -16,7 +16,14 @@ export interface AdminOverview {
   users: { total: number; disabled: number; unbound: number };
   workspaces: { total: number; usedBytes: number };
   topWorkspaces: { id: string; name: string; usedBytes: number; quotaBytes: number; members: number; nodes: number }[];
-  recentAudit: { action: string; actorId: string | null; targetId: string | null; workspaceId: string | null; createdAt: number }[];
+  recentAudit: {
+    action: string;
+    actorId: string | null;
+    actorName: string | null;
+    targetId: string | null;
+    workspaceId: string | null;
+    createdAt: number;
+  }[];
 }
 
 export const getAdminOverview = () => api<AdminOverview>("/api/me/admin/overview", { skipActAs: true });

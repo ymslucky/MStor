@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { UserPlus } from "lucide-react";
-import { createInvitation, listInvitations, listMembers, removeMember, revokeInvitation, updateMemberRole } from "../api/workspaces";
+import { createInvitation, listInvitations, listMembers, removeMember, revokeInvitationByEmail, updateMemberRole } from "../api/workspaces";
 import { formatDate } from "../lib/format";
 import { queryKeys } from "../lib/queryKeys";
 import { Button, ConfirmDialog, Field, Input, ListRow, Pill, SettingRow, Surface } from "./ui";
@@ -59,7 +59,7 @@ export function MemberPanel() {
   });
 
   const revoke = useMutation({
-    mutationFn: (tokenOrEmail: string) => revokeInvitation(tokenOrEmail),
+    mutationFn: (email: string) => revokeInvitationByEmail(email),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.invitations });
       toast("邀请已撤销", "info");
@@ -102,7 +102,11 @@ export function MemberPanel() {
       </SettingRow>
 
       <SettingRow title={`成员（${members.data?.members.length ?? 0}）`} hint="角色变更与移除仅空间所有者 / 管理员可用">
-        {members.isLoading ? (
+        {members.isError ? (
+          <p className="text-sm text-danger-text">
+            成员加载失败：{members.error instanceof Error ? members.error.message : "请稍后重试"}
+          </p>
+        ) : members.isLoading ? (
           <p className="text-sm text-ink-3">加载中…</p>
         ) : (
           <ul className="divide-y divide-line">
@@ -141,7 +145,11 @@ export function MemberPanel() {
       </SettingRow>
 
       <SettingRow title="待接受的邀请" hint="邀请链接由服务端签发，需人工转达">
-        {invites.isLoading ? (
+        {invites.isError ? (
+          <p className="text-sm text-danger-text">
+            邀请加载失败：{invites.error instanceof Error ? invites.error.message : "请稍后重试"}
+          </p>
+        ) : invites.isLoading ? (
           <p className="text-sm text-ink-3">加载中…</p>
         ) : (invites.data?.invitations.length ?? 0) === 0 ? (
           <p className="text-sm text-ink-3">暂无待接受邀请</p>

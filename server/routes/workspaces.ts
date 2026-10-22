@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../env";
-import { createInvitation, listInvitations, listMembers, revokeInvitation } from "../data/invitations";
+import { createInvitation, listInvitations, listMembers, revokeInvitation, revokeInvitationByEmail } from "../data/invitations";
 import { listMemberships, removeMember, updateMemberRole } from "../data/workspaces";
 import { errors } from "../lib/errors";
 
@@ -37,6 +37,12 @@ workspaces.post("/invitations", async (c) => {
   const created = await createInvitation(c.env.DB, c.get("workspace").id, email, role, c.get("user").id);
   // 邀请链接：Access 落地页，登录后由中间件按 email 认领
   return c.json({ token: created.token, expiresAt: created.expiresAt, url: c.env.PUBLIC_URL + "/?invite=" + created.token }, 201);
+});
+
+workspaces.delete("/invitations/by-email/:email", async (c) => {
+  requireManager(c.get("role"));
+  await revokeInvitationByEmail(c.env.DB, c.get("workspace").id, decodeURIComponent(c.req.param("email")), c.get("user").id);
+  return c.json({ ok: true });
 });
 
 workspaces.delete("/invitations/:token", async (c) => {

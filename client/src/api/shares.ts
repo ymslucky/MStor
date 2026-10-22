@@ -30,6 +30,9 @@ export async function downloadShared(token: string, fileId: string, name: string
   const a = document.createElement("a");
   a.href = url;
   a.download = name;
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(url);
+  a.remove();
+  // 立即 revoke 在部分浏览器会取消下载；延迟回收对象 URL
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

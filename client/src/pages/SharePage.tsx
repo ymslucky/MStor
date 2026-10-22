@@ -19,6 +19,8 @@ export default function SharePage() {
   const { token = "" } = useParams();
   const [password, setPassword] = useState("");
   const [entered, setEntered] = useState(false);
+  // 空密码点「解锁」时 query key 不能保持不变，否则不会重新请求；用非零 attempt 强制刷新
+  const [attempt, setAttempt] = useState(0);
   // 已提交查询用的提取码：仅点「解锁」时更新，输入过程不触发请求
   const [usedPassword, setUsedPassword] = useState("");
   const [crumbs, setCrumbs] = useState<Crumb[]>([]);
@@ -26,7 +28,7 @@ export default function SharePage() {
 
   const info = useQuery({
     meta: { silent: true },
-    queryKey: queryKeys.share(token, entered ? usedPassword : ""),
+    queryKey: queryKeys.share(token, entered ? usedPassword : "", attempt),
     queryFn: () => fetchShare(token, entered ? usedPassword : undefined),
     retry: false,
   });
@@ -61,6 +63,7 @@ export default function SharePage() {
             onClick={() => {
               setUsedPassword(password);
               setEntered(true);
+              setAttempt((n) => n + 1);
             }}
           >
             解锁
@@ -151,8 +154,10 @@ export default function SharePage() {
                 </td>
               </tr>
             ))}
-            {/* 加载失败与空目录区分：失败时给出可感知的报错而非空态 */}
-            {current && children.isError ? (
+            {/* 加载中/失败/空目录必须区分：切目录时不能先闪一下「空文件夹」 */}
+            {current && children.isPending ? (
+              <tr><td colSpan={3} className="py-10 text-center text-sm text-ink-3">加载中…</td></tr>
+            ) : current && children.isError ? (
               <tr><td colSpan={3} className="py-10 text-center text-sm text-danger-text">子目录加载失败：{children.error.message}</td></tr>
             ) : !files.length ? (
               <tr><td colSpan={3} className="py-10 text-center text-sm text-ink-faint">空文件夹</td></tr>

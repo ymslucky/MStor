@@ -29,6 +29,9 @@ export const createInvitation = (email: string, role: "member" | "admin" = "memb
     json: { email, role },
   });
 
+export const revokeInvitationByEmail = (email: string) =>
+  api<{ ok: true }>(`/api/workspaces/invitations/by-email/${encodeURIComponent(email)}`, { method: "DELETE" });
+
 export const revokeInvitation = (token: string) =>
   api<{ ok: true }>(`/api/workspaces/invitations/${encodeURIComponent(token)}`, { method: "DELETE" });
 
