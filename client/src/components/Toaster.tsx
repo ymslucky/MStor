@@ -3,10 +3,17 @@ import * as Toast from "@radix-ui/react-toast";
 import { Info, TriangleAlert, X } from "lucide-react";
 import { cn } from "../lib/cn";
 
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 export interface ToastItem {
   id: number;
   message: string;
   kind: "error" | "info";
+  /** 可选动作按钮（如 PWA「发现新版本」的刷新） */
+  action?: ToastAction;
 }
 
 const DURATION = 4000;
@@ -23,9 +30,12 @@ function dismiss(id: number) {
   emit();
 }
 
-/** 命令式 toast：签名不变（其余 35 处调用点零改动），队列与自动关闭由 Radix Toast 负责 */
-export function toast(message: string, kind: "error" | "info" = "error") {
-  toasts = [...toasts, { id: ++seq, message, kind }];
+/**
+ * 命令式 toast：前两个参数签名不变（既有 35+ 处调用点零改动），第三参可选动作按钮。
+ * 队列与自动关闭由 Radix Toast 负责。
+ */
+export function toast(message: string, kind: "error" | "info" = "error", action?: ToastAction) {
+  toasts = [...toasts, { id: ++seq, message, kind, action }];
   emit();
 }
 
@@ -63,6 +73,20 @@ export function Toaster() {
             <Info size={16} aria-hidden className="shrink-0 text-primary-text" />
           )}
           <Toast.Description className="min-w-0 flex-1">{t.message}</Toast.Description>
+          {t.action && (
+            <Toast.Action altText={t.action.label} asChild>
+              <button
+                type="button"
+                className="shrink-0 rounded-btn px-2 py-1 text-xs font-medium text-primary-text transition-colors hover:bg-primary-soft"
+                onClick={() => {
+                  t.action?.onClick();
+                  dismiss(t.id);
+                }}
+              >
+                {t.action.label}
+              </button>
+            </Toast.Action>
+          )}
           <Toast.Close
             aria-label="关闭提示"
             className="rounded-full p-0.5 text-ink-3 transition-colors hover:bg-bg-sub hover:text-ink"

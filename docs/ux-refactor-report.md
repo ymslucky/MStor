@@ -351,7 +351,29 @@
 
 验证：客户端 **38 文件 / 236 例**；双 `tsc`、`eslint`、`vite build` 全绿。
 
-## 13. 后续建议（本次未实施）
+## 13. 第七轮：组件拆分、错误去重、PWA 更新提示（按列表顺序）
+
+### 13.1 AdminUsersSection / SearchBox 拆分
+
+- `AdminUsersSection` 282 → 约 150 行：`components/admin/{QuotaDialog,EmailDialog,UserRow,shared}`；本文件只保留查询、筛选、编排。
+- `SearchBox` 261 → 约 45 行：`hooks/usePaletteSearch` 承载查询/分组/键盘/点外关闭/跳转，`components/search/PaletteResults` 渲染下拉，`Highlight` 与 Palette 类型/静态操作拆到 `components/search/Highlight.tsx` / `lib/palette.ts`（hook 不反向依赖组件）。
+- 行为/DOM/aria 保持不变，SearchBox/CommandPalette/a11y 用例全过。
+
+### 13.2 查询错误内联化去重 + enabled:false 防御
+
+- `AsyncState`：`isPending && fetchStatus === "idle"`（查询被 enabled:false 禁用）直接渲染 children，不再永久骨架。
+- `queryClient`：查询 `meta.silent = true` 时跳过全局错误 toast；Browser files / Library / Trash / Shares / Platform overview / AdminUsers / Share 详情与子目录等自带错误 UI 的查询已标记，避免「页面错误态 + 全局 toast」重复提示。
+- 新增 `shell/queryClient.test`（silent 不弹 / 普通仍弹）与 AsyncState 禁用查询用例。
+
+### 13.3 PWA 更新提示与 Toast 动作
+
+- `vite-plugin-pwa` `registerType: "autoUpdate" → "prompt"`：新 SW 等待用户确认。
+- `main.tsx`：`onNeedRefresh` 弹出「发现新版本，刷新即可更新」并带「刷新」动作（`updateSW(true)`）；`onOfflineReady` 提示可离线使用。
+- `Toaster` 增加可选 `action`（`Toast.Action`），前两参签名不变，35+ 既有调用点零改动。
+- `index.html` theme-color 与 manifest 对齐 `#f4f6f4`。
+- 新增 Toaster 动作按钮用例；客户端 **40 文件 / 240 例**、tsc/eslint/build 全绿（构建产物 PWA precache 11 项）。
+
+## 14. 后续建议（本次未实施）
 
 1. `<AsyncState>`/`<PageState>` 统一加载/失败/空三态，修复收藏/最近/标签/回收站/分享/审计页「失败伪装成空」。
 2. `<SelectionBar>` 统一 BatchBar / TrashPage / SharesPage 的批量条；`<SearchInput>`、`<ListSkeleton>`、`<PageShell>` 抽公共件。

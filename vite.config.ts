@@ -10,7 +10,8 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: "autoUpdate",
+      // prompt：新版本就绪时由页面提示用户刷新（配合 main.tsx 的 onNeedRefresh）
+      registerType: "prompt",
       manifest: {
         name: "MStor 家庭云盘",
         short_name: "MStor",
