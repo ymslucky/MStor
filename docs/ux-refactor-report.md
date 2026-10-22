@@ -272,7 +272,46 @@
 4. `Input` 改用 `cn()` 合并类名（搜索框背景覆盖不再依赖 CSS 生成顺序）。
 5. 通知面板 Esc 改为 `document` 监听（Tab 走出面板后仍可关闭），并新增批量/取消/排序 3 条 MoveDialog 用例。
 
-## 10. 后续建议（本次未实施）
+## 10. 第四轮：上传队列订阅拆分与体验优化
+
+### 10.1 上传队列 Context 拆分（消除上传时整页重渲染 + 重复队列）
+
+问题：
+- `UploadQueueProvider` 把整个队列 API 作为单一 context value，进度每 100ms 变一次 → Browser 整页子树重渲染；
+- `useUploadQueueContext` 为了「页面测试没有 Provider」的兼容，每次消费都额外调用 `useUploadQueue()` 兜底 → 同一页面可能创建第二份队列（状态分叉）；
+- 上传完成后逐文件失效 `["files"]`（已在第二轮改 400ms 合并）。
+
+修复：
+- 拆成 **StateContext（items）** 与 **ActionsContext（add/retry/cancel/purge/clearFinished）**。Actions 是 hook 内的 `useCallback`，Provider 用 `useMemo` 固定引用；进度变化只让 Dock/StatusBar 重渲染，Browser 只订阅 actions。
+- Provider 改为必需：缺失时抛 `useUploadQueueState/Actions 必须在 <UploadQueueProvider> 内使用`，删除隐藏的第二份队列。
+- 测试：Provider 稳定性用例（items 变化时 actions 引用不变）、Provider 外使用抛错；Browser 测试补 Provider 包装。
+
+### 10.2 通知角标初始值
+
+铃铛此前只在打开面板后拉 `/api/notifications`，未读角标初始恒为 0（即使 `/api/me.unreadNotifications > 0`）。`NotificationBell` 增加 `initialUnread`，AppShell 用 `me.unreadNotifications` 传给桌面浮动簇与移动 TopBar。
+
+### 10.3 收藏乐观更新
+
+收藏/取消收藏此前「请求成功后才 refetch」，星标反馈有延迟且失败无回滚。`useBrowserQuery.toggleFavorite` 现在先写 `["favorites"]` 缓存（立即反映星标），成功后再 refetch 对齐服务端顺序，失败回滚到请求前快照并 toast。
+
+### 10.4 上传分片并发封顶
+
+队列并发 N 文件 × 每文件 N 分片 = N² 个在途 XHR（设置 16 时峰值 256）。新增 `MAX_PART_CONCURRENCY = 4`：`concurrency = min(队列并发, 4)`，设置页文案同步为「同时上传的文件数；每个大文件最多 4 个分片并发」。
+
+### 10.5 验证
+
+| 闸门 | 结果 |
+| --- | --- |
+| `tsc -p client --noEmit` | 通过 |
+| `eslint .` | 通过（0 warning） |
+| `vitest --config vitest.client.config.ts` | **38 文件 / 233 例通过**（新增 Provider 2、通知初始角标 1、分片并发 1） |
+| `npm run build` | 通过 |
+
+### 10.6 提交与推送
+
+第一至三轮改动已提交并推送：`6e48cde refactor(client): 系统性重构组件/状态/布局与无障碍…` → `origin/master`；本轮改动在同一条质量闸门通过后单独提交推送。
+
+## 11. 后续建议（本次未实施）
 
 1. `<AsyncState>`/`<PageState>` 统一加载/失败/空三态，修复收藏/最近/标签/回收站/分享/审计页「失败伪装成空」。
 2. `<SelectionBar>` 统一 BatchBar / TrashPage / SharesPage 的批量条；`<SearchInput>`、`<ListSkeleton>`、`<PageShell>` 抽公共件。

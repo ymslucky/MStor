@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { addFavorite, listFavorites, removeFavorite } from "../api/library";
 import { listShares } from "../api/shares";
 import type { Node } from "../api/types";
@@ -14,6 +14,7 @@ type FilesQuery = { refetch: () => Promise<unknown>; data?: { nodes?: Node[] } }
  * 与交互（选择/批量/上传）无关，因此可以独立测试与复用。
  */
 export function useBrowserQuery(query: FilesQuery) {
+  const queryClient = useQueryClient();
   const sharesQuery = useQuery({ queryKey: queryKeys.shares, queryFn: listShares });
   const favorites = useQuery({ queryKey: queryKeys.favorites, queryFn: listFavorites });
 
@@ -31,12 +32,21 @@ export function useBrowserQuery(query: FilesQuery) {
 
   const toggleFavorite = (n: Node) => {
     const on = favIds.has(n.id);
+    // 乐观更新：星标立即响应；失败回滚到请求前快照
+    const previous = queryClient.getQueryData<{ nodes: Node[] }>(queryKeys.favorites);
+    queryClient.setQueryData<{ nodes: Node[] }>(queryKeys.favorites, (old) => {
+      const nodes = old?.nodes ?? [];
+      return { nodes: on ? nodes.filter((x) => x.id !== n.id) : [...nodes, n] };
+    });
     void (on ? removeFavorite(n.id) : addFavorite(n.id))
       .then(() => {
         toast(on ? "已取消收藏" : "已收藏", "info");
         return favorites.refetch();
       })
-      .catch((e) => toast(e instanceof Error ? e.message : "操作失败"));
+      .catch((e) => {
+        if (previous) queryClient.setQueryData(queryKeys.favorites, previous);
+        toast(e instanceof Error ? e.message : "操作失败");
+      });
   };
 
   const pull = usePullToRefresh(() => query.refetch());

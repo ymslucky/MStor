@@ -129,7 +129,7 @@ function UploadSection({ isPlatformAdmin }: { isPlatformAdmin: boolean }) {
       </h2>
       <SettingRow
         title="上传并发"
-        hint={`同时上传的分片 / 文件数（${MIN_UPLOAD_CONCURRENCY}-${MAX_UPLOAD_CONCURRENCY}）。调大可提升吞吐，但占用更多带宽；保存后对新的上传任务生效。`}
+        hint={`同时上传的文件数（${MIN_UPLOAD_CONCURRENCY}-${MAX_UPLOAD_CONCURRENCY}）；每个大文件最多 4 个分片并发。调大可提升吞吐，但占用更多带宽；保存后对新的上传任务生效。`}
       >
         <Field
           label="并发数"

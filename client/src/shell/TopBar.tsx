@@ -5,7 +5,17 @@ import { IconButton } from "../components/ui";
 /**
  * 仅移动端使用的极薄工具条（桌面端无顶栏：搜索走 ⌘K，通知走浮动气泡，导航在侧栏）。
  */
-export function TopBar({ title, onLogout, onOpenMenu }: { title: string; onLogout: () => void; onOpenMenu: () => void }) {
+export function TopBar({
+  title,
+  unreadCount = 0,
+  onLogout,
+  onOpenMenu,
+}: {
+  title: string;
+  unreadCount?: number;
+  onLogout: () => void;
+  onOpenMenu: () => void;
+}) {
   return (
     <header className="glass-light sticky top-0 z-sticky md:hidden">
       <div className="flex h-12 items-center justify-between gap-2 px-3">
@@ -19,7 +29,7 @@ export function TopBar({ title, onLogout, onOpenMenu }: { title: string; onLogou
           <p className="truncate text-sm font-semibold text-ink">{title}</p>
         </div>
         <div className="flex items-center gap-1">
-          <NotificationBell />
+          <NotificationBell initialUnread={unreadCount} />
           <IconButton label="退出" onClick={onLogout}>
             <LogOut size={18} aria-hidden />
           </IconButton>

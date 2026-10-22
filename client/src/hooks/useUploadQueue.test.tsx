@@ -150,6 +150,25 @@ test("routes large files to uploadLarge and reports progress", async () => {
   expect(result.current.items[0].progress).toBe(1);
 });
 
+test("大文件分片并发封顶 4（即使队列并发设为 16）", async () => {
+  localStorage.setItem("mstor_upload_concurrency", "16");
+  try {
+    vi.mocked(uploadLarge).mockResolvedValue({ nodeId: "n9", name: "big.bin" });
+    const { result } = renderHook(() => useUploadQueue(), { wrapper });
+    act(() => result.current.add([makeFile("big.bin", 4096)], "d1"));
+    await waitFor(() => expect(result.current.items[0].status).toBe("done"));
+    expect(uploadLarge).toHaveBeenCalledWith(
+      expect.any(File),
+      "d1",
+      expect.anything(),
+      1000,
+      expect.objectContaining({ concurrency: 4 }),
+    );
+  } finally {
+    localStorage.removeItem("mstor_upload_concurrency");
+  }
+});
+
 test("failed upload is marked error and retry re-runs", async () => {
   vi.mocked(uploadSmall).mockRejectedValueOnce(new Error("配额不足")).mockResolvedValueOnce({ id: "n3", name: "a.txt", size: 5 });
   const { result } = renderHook(() => useUploadQueue(), { wrapper });

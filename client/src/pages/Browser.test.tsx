@@ -5,6 +5,7 @@ import { expect, test, vi } from "vitest";
 import type { ListFilesResult, Node } from "../api/types";
 import { renderWithProviders } from "../test/utils";
 import { Toaster } from "../components/Toaster";
+import { UploadQueueProvider } from "../hooks/UploadQueueProvider";
 import Browser from "./Browser";
 
 // FileList 引用真实的 contentUrl 生成下载链接，mock 时保留其余导出
@@ -52,7 +53,8 @@ const SUB_DIR_LIST: ListFilesResult = {
 };
 
 function renderWith(ui: JSX.Element, opts?: { route?: string }) {
-  const utils = renderWithProviders(ui, opts);
+  // Browser 只通过 context 取上传队列 actions（AppShell 在真实运行时提供）
+  const utils = renderWithProviders(<UploadQueueProvider>{ui}</UploadQueueProvider>, opts);
   return { ...utils, user: userEvent.setup() };
 }
 
@@ -195,7 +197,7 @@ test("batch delete shows progress (处理中 i/n) while running", async () => {
 
 test("selection hook: ctrl-click toggles and shift-click selects range", async () => {
   vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
-  renderWithProviders(<Browser />);
+  renderWithProviders(<UploadQueueProvider><Browser /></UploadQueueProvider>);
   await screen.findByText("hello.txt");
   // Ctrl 点选第一行（锚点）
   fireEvent.click(screen.getByText("hello.txt"), { ctrlKey: true });
@@ -207,7 +209,7 @@ test("selection hook: ctrl-click toggles and shift-click selects range", async (
 
 test("keyboard: Ctrl+A selects all rows", async () => {
   vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
-  renderWithProviders(<Browser />);
+  renderWithProviders(<UploadQueueProvider><Browser /></UploadQueueProvider>);
   await screen.findByText("hello.txt");
   fireEvent.keyDown(screen.getByTestId("file-list-container"), { key: "a", ctrlKey: true });
   expect(screen.getByText("已选 2 项")).toBeInTheDocument();
@@ -254,7 +256,7 @@ test("keyboard: F2 renames and Delete asks confirm on focused row", async () => 
 
 test("keyboard: Space previews focused file", async () => {
   vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
-  renderWithProviders(<Browser />);
+  renderWithProviders(<UploadQueueProvider><Browser /></UploadQueueProvider>);
   await screen.findByText("hello.txt");
   const container = screen.getByTestId("file-list-container");
   fireEvent.keyDown(container, { key: "ArrowDown" });
@@ -296,7 +298,7 @@ test("move via dialog calls moveNode with target dir", async () => {
 test("drag-drop onto drop zone shows overlay and queues files into current dir", async () => {
   queueAdd.mockClear();
   vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
-  renderWithProviders(<Browser />);
+  renderWithProviders(<UploadQueueProvider><Browser /></UploadQueueProvider>);
   await screen.findByText("hello.txt");
   const zone = screen.getByTestId("drop-zone");
   // dragenter 显示全屏覆盖层
@@ -319,7 +321,7 @@ test("drag-drop onto drop zone shows overlay and queues files into current dir",
 test("drag overlay survives partial dragleave (counter) until leaving window", async () => {
   queueAdd.mockClear();
   vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
-  renderWithProviders(<Browser />);
+  renderWithProviders(<UploadQueueProvider><Browser /></UploadQueueProvider>);
   await screen.findByText("hello.txt");
   const zone = screen.getByTestId("drop-zone");
   fireEvent.dragEnter(zone);
@@ -334,7 +336,7 @@ test("drag overlay survives partial dragleave (counter) until leaving window", a
 test("dropping a directory entry collects its files recursively into the queue", async () => {
   queueAdd.mockClear();
   vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
-  renderWithProviders(<Browser />);
+  renderWithProviders(<UploadQueueProvider><Browser /></UploadQueueProvider>);
   await screen.findByText("hello.txt");
   // 假目录 entry：内含一个文件（同步回调需先自增再触发，见 dirscan.test.ts 说明）
   let called = false;
@@ -363,10 +365,10 @@ test("dropping an empty folder toasts no uploadable files", async () => {
   queueAdd.mockClear();
   vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
   renderWithProviders(
-    <>
+    <UploadQueueProvider>
       <Browser />
       <Toaster />
-    </>,
+    </UploadQueueProvider>,
   );
   await screen.findByText("hello.txt");
   let called = false;
@@ -392,7 +394,7 @@ test("dropping an empty folder toasts no uploadable files", async () => {
 test("drag file row onto folder row highlights it and calls moveNode", async () => {
   vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
   vi.mocked(moveNode).mockResolvedValue({ ok: true });
-  renderWithProviders(<Browser />);
+  renderWithProviders(<UploadQueueProvider><Browser /></UploadQueueProvider>);
   await screen.findByText("hello.txt");
   const dt = makeNodeDT();
   fireEvent.dragStart(screen.getByText("hello.txt").closest('[role="row"]')!, { dataTransfer: dt });
@@ -406,7 +408,7 @@ test("drag file row onto folder row highlights it and calls moveNode", async () 
 test("dragging a folder onto the root breadcrumb moves it to root", async () => {
   vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
   vi.mocked(moveNode).mockResolvedValue({ ok: true });
-  renderWithProviders(<Browser />);
+  renderWithProviders(<UploadQueueProvider><Browser /></UploadQueueProvider>);
   await screen.findByText("hello.txt");
   const dt = makeNodeDT();
   fireEvent.dragStart(screen.getByText("相册").closest('[role="row"]')!, { dataTransfer: dt });
@@ -416,7 +418,7 @@ test("dragging a folder onto the root breadcrumb moves it to root", async () => 
 
 test("drag disables selection until dragend", async () => {
   vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
-  renderWithProviders(<Browser />);
+  renderWithProviders(<UploadQueueProvider><Browser /></UploadQueueProvider>);
   await screen.findByText("hello.txt");
   const dt = makeNodeDT();
   const row = screen.getByText("hello.txt").closest('[role="row"]')!;
@@ -432,7 +434,7 @@ test("list view virtualizes when rows >= 50", async () => {
     breadcrumb: [],
     rootId: "root-1",
   });
-  const { container } = renderWithProviders(<Browser />);
+  const { container } = renderWithProviders(<UploadQueueProvider><Browser /></UploadQueueProvider>);
   await screen.findByText("file-0.txt");
   expect(screen.getByTestId("file-virtual")).toBeInTheDocument();
   expect(screen.queryByRole("table")).not.toBeInTheDocument();
@@ -478,7 +480,7 @@ test("shared nodes show a shared badge", async () => {
     ],
   });
   vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
-  renderWithProviders(<Browser />);
+  renderWithProviders(<UploadQueueProvider><Browser /></UploadQueueProvider>);
   await screen.findByText("hello.txt");
   expect(screen.getByText("已分享")).toBeInTheDocument();
 });

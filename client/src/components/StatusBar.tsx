@@ -1,10 +1,10 @@
-import { useUploadQueueContext } from "../hooks/UploadQueueProvider";
+import { useUploadQueueState } from "../hooks/UploadQueueProvider";
 import type { Me } from "../api/types";
 import { formatBytes } from "../lib/format";
 
 /** 状态栏（三栏骨架）：当前空间 · 用量 · 上传队列 · 未读通知（明亮玻璃细条） */
 export function StatusBar({ me }: { me: Me }) {
-  const { items } = useUploadQueueContext();
+  const { items } = useUploadQueueState();
   const active = items.filter((i) => i.status === "pending" || i.status === "uploading" || i.status === "paused").length;
   const used = me.storage?.usedBytes ?? me.usedBytes;
   const quota = me.storage?.quotaBytes ?? me.quotaBytes;

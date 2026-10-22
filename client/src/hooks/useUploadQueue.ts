@@ -6,7 +6,7 @@ import type { Part } from "../api/uploads";
 import type { PendingUpload } from "../lib/dirscan";
 import { clearResume, fingerprint, loadResume, saveResume } from "../lib/resume";
 import { queryKeys } from "../lib/queryKeys";
-import { getUploadConcurrency } from "../lib/settings";
+import { MAX_PART_CONCURRENCY, getUploadConcurrency } from "../lib/settings";
 import { SpeedTracker } from "../lib/speed";
 
 export type QueueStatus = "pending" | "uploading" | "paused" | "done" | "error";
@@ -169,7 +169,8 @@ export function useUploadQueue() {
                 acc.parts.push(part);
                 acc.done += Math.min(part.partNumber * partSize, next.size) - (part.partNumber - 1) * partSize;
               },
-              concurrency: getUploadConcurrency(),
+              // 分片并发独立封顶：队列并发 16 时不再产生 16×16 个在途 XHR
+              concurrency: Math.min(getUploadConcurrency(), MAX_PART_CONCURRENCY),
               resume: resume ? { uploadId: resume.uploadId, partSize: resume.partSize, parts: resume.parts } : undefined,
               sha256: sha ?? undefined, // complete 时写入 nodes.sha256，后续同文件可秒传
             });

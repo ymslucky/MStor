@@ -138,3 +138,10 @@
 - `/design` 与 `/platform/*` 改为 `React.lazy` + `Suspense`：首屏主包 664→651.6 kB（gzip 211→208.3 kB），管理页独立 chunk。
   Suspense 位于 AppShell 的 `main` 内（包 `Outlet`，且在页面级 ErrorBoundary 之下）：懒加载不卸载外壳/上传队列，chunk 失败由页面级兜底接住。
 - 闸门：`tsc` / `eslint` / **37 文件 229 例** / `vite build` 全绿。
+
+### v6.4 第四轮：上传队列订阅与体验
+
+- `UploadQueueProvider` 拆 State（items）/ Actions 两个 context：页面只订阅稳定的 actions，上传进度不再整页重渲染；Provider 必需（缺失抛错），删除隐藏的兜底第二队列。
+- 通知角标初始值取 `/api/me.unreadNotifications`（`NotificationBell.initialUnread`）；收藏/取消收藏改乐观更新（失败回滚）。
+- 上传分片并发封顶 `MAX_PART_CONCURRENCY = 4`（队列并发 N 时峰值 N×4 而非 N²）。
+- 闸门：`tsc` / `eslint` / **38 文件 233 例** / `vite build` 全绿。

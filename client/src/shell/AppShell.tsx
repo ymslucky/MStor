@@ -98,7 +98,12 @@ function AppShellLayout() {
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <TopBar title={title} onLogout={() => setLogoutOpen(true)} onOpenMenu={() => setMenuOpen(true)} />
+          <TopBar
+            title={title}
+            unreadCount={me.unreadNotifications ?? 0}
+            onLogout={() => setLogoutOpen(true)}
+            onOpenMenu={() => setMenuOpen(true)}
+          />
           <main
             id="main-content"
             className="min-w-0 flex-1 px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6 sm:py-6 md:flex md:min-h-0 md:flex-col md:py-4 md:pb-4"
@@ -130,7 +135,7 @@ function AppShellLayout() {
           {isDesktop && (
             <div className="pointer-events-none fixed right-5 bottom-14 z-overlay flex flex-col items-end gap-2">
               <div className="pointer-events-auto">
-                <NotificationBell />
+                <NotificationBell initialUnread={me.unreadNotifications ?? 0} />
               </div>
               <div className="pointer-events-auto">
                 <CommandPalette />

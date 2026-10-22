@@ -27,7 +27,7 @@ import { useNodeActions } from "../hooks/useNodeActions";
 import { useFiles } from "../hooks/useFiles";
 import { useFileSelection } from "../hooks/useFileSelection";
 import { useKeyboardNav } from "../hooks/useKeyboardNav";
-import { useUploadQueueContext } from "../hooks/UploadQueueProvider";
+import { useUploadQueueActions } from "../hooks/UploadQueueProvider";
 import { collectDirectory, supportsDirectoryPicker } from "../lib/dirscan";
 import { downloadMany, triggerDownload } from "../lib/download";
 import { DETAIL_PANE_MEDIA_QUERY } from "../lib/constants";
@@ -46,7 +46,8 @@ export default function Browser() {
   const fileInput = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  const queue = useUploadQueueContext();
+  // 只订阅稳定的 actions：上传进度不再触发 Browser 整页重渲染
+  const { add } = useUploadQueueActions();
   const dialogs = useBrowserDialogs();
   const { preview, setPreview, detail, setDetail, setCreating, setRenaming, setMoving, setCopying, setSharing, setDeleting } = dialogs;
   // 视图偏好持久化，缺省 list
@@ -125,11 +126,11 @@ export default function Browser() {
   const isDesktop = useMediaQuery(DETAIL_PANE_MEDIA_QUERY);
 
 
-  const drop = useDropUpload({ enqueue: (items) => queue.add(items, dir) });
+  const drop = useDropUpload({ enqueue: (items) => add(items, dir) });
   const upload = useBrowserUpload({
     dir,
     nodes: allNodes,
-    add: (items, parentId) => queue.add(items, parentId),
+    add,
     purge: purgeNow,
   });
   const { enqueue } = upload;
@@ -177,7 +178,7 @@ export default function Browser() {
       // （与 webkitdirectory 的 webkitRelativePath 语义一致；不带前缀会导致内容平铺、文件夹不创建）
       .then((handle) => collectDirectory(handle, `${handle.name}/`))
       .then((items) => {
-        if (items.length) queue.add(items, dir);
+        if (items.length) add(items, dir);
       })
       .catch(() => {});
   };
@@ -249,7 +250,7 @@ export default function Browser() {
         onChange={(e) => {
           const files = Array.from(e.target.files ?? []);
           if (files.length) {
-            queue.add(files.map((file) => ({ file, path: file.webkitRelativePath || file.name })), dir);
+            add(files.map((file) => ({ file, path: file.webkitRelativePath || file.name })), dir);
           }
           e.target.value = "";
         }}

@@ -20,7 +20,7 @@ function startOfToday() {
  * 明确不做邮件投递——方案 §0.1 假设 A2。
  * 列表按「未读优先 + 时间倒序」排序，再按「今天 / 更早」分组；未读数用 Pill（上限 99+）。
  */
-export function NotificationBell() {
+export function NotificationBell({ initialUnread = 0 }: { initialUnread?: number }) {
   const [open, setOpen] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -33,7 +33,8 @@ export function NotificationBell() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { data, isPending } = useQuery({ queryKey: queryKeys.notifications, queryFn: listNotifications, enabled: open });
-  const unread = data?.unread ?? 0;
+  // 列表未拉取前用 /api/me.unreadNotifications 兜底，铃铛角标不再初始恒为 0
+  const unread = data?.unread ?? initialUnread;
   const items = useMemo(() => data?.items ?? [], [data]);
 
   // 未读优先（read_at 为 null 排在前面），同组内按时间倒序

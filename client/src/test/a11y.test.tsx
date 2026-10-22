@@ -9,6 +9,7 @@ import { BatchBar } from "../components/BatchBar";
 import { UndoSnackbar } from "../components/UndoSnackbar";
 import { StatusBar } from "../components/StatusBar";
 import { MobileNavDrawer } from "../shell/MobileNavDrawer";
+import { UploadQueueProvider } from "../hooks/UploadQueueProvider";
 import { AdminUsersSection } from "../components/AdminUsersSection";
 import { CommandPalette } from "../components/CommandPalette";
 import { NotificationBell } from "../components/NotificationBell";
@@ -147,7 +148,11 @@ describe("无障碍闸门", () => {
   });
 
   test("StatusBar", async () => {
-    const { container } = wrap(<StatusBar me={ME} />);
+    const { container } = wrap(
+      <UploadQueueProvider>
+        <StatusBar me={ME} />
+      </UploadQueueProvider>,
+    );
     expect(await axe(container)).toHaveNoViolations();
   });
 

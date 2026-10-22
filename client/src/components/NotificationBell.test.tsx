@@ -70,6 +70,11 @@ test("未读优先 + 今天/更早分组 + 未读 Pill，全部已读调用接�
   await waitFor(() => expect(markAllNotificationsRead).toHaveBeenCalled());
 });
 
+test("列表未拉取时用 initialUnread 显示角标", () => {
+  renderWithProviders(<NotificationBell initialUnread={3} />);
+  expect(screen.getByRole("button", { name: "通知（3 条未读）" })).toBeInTheDocument();
+});
+
 test("Escape 关闭面板并把焦点还给铃铛", async () => {
   const { user } = renderWith();
   const bell = screen.getByRole("button", { name: /通知/ });

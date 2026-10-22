@@ -1,5 +1,5 @@
 import { CircleAlert, CircleCheck, CloudUpload, Pause, Play, RotateCcw, Trash2, X } from "lucide-react";
-import { useUploadQueueContext } from "../hooks/UploadQueueProvider";
+import { useUploadQueueActions, useUploadQueueState } from "../hooks/UploadQueueProvider";
 import { formatBytes } from "../lib/format";
 import { Surface } from "./ui";
 
@@ -11,7 +11,8 @@ const itemPercent = (progress: number) => Math.max(0, Math.min(100, Math.round(p
  * 本组件是唯一的上传 UI（原 Browser 内的 UploadPanel 已合并到此），避免两个浮层同位置互相遮挡。
  */
 export function GlobalUploadDock() {
-  const { items, retry, cancel, purge } = useUploadQueueContext();
+  const { items } = useUploadQueueState();
+  const { retry, cancel, purge } = useUploadQueueActions();
   // 已完成项不再占用浮层（否则「上传（空闲）」常驻角落）；失败/暂停项保留，便于重试或彻底取消
   const visible = items.filter((i) => i.status !== "done");
   if (visible.length === 0) return null;
