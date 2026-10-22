@@ -208,7 +208,7 @@ export default function FileList({
     [
       focusIndex === i ? "ring-2 ring-primary" : "",
       dragOverId === n.id ? "ring-2 ring-primary" : "",
-      selected.has(n.id) && selectable ? "bg-primary-soft/60" : "",
+      selected.has(n.id) && selectable ? "bg-primary-soft/70 shadow-[inset_2px_0_0_var(--color-primary)]" : "",
     ]
       .filter(Boolean)
       .join(" ");
@@ -217,7 +217,7 @@ export default function FileList({
   // 因此网格改用「描边 + ring」表达选中，与底色解耦
   const gridCellClass = (i: number, n: Node) =>
     [
-      "group relative overflow-hidden rounded-card border border-line bg-surface-1 shadow-card select-none [-webkit-touch-callout:none]",
+      "group relative overflow-hidden rounded-card border border-line bg-surface-1 shadow-soft transition-[box-shadow,transform] select-none [-webkit-touch-callout:none] hover:-translate-y-0.5 hover:shadow-card",
       focusIndex === i ? "ring-2 ring-primary" : "",
       dragOverId === n.id ? "ring-2 ring-primary" : "",
       selected.has(n.id) && selectable ? "border-primary ring-2 ring-primary/45" : "",
@@ -278,7 +278,7 @@ export default function FileList({
   // 始终显示（不随 hover 隐藏），按钮组并列居中；点击/双击阻断冒泡：不触发行选择或行打开
   const actionCell = (n: Node) => (
     <span
-      className="flex shrink-0 items-center justify-center gap-0.5 px-1"
+      className="row-actions flex shrink-0 items-center justify-center gap-0.5 px-1"
       onClick={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
     >
@@ -380,7 +380,7 @@ export default function FileList({
         data-file-row={i}
         tabIndex={-1}
         role="row"
-        className={`group absolute inset-x-0 top-0 rounded-lg px-2 text-sm select-none [-webkit-touch-callout:none] hover:bg-bg-sub ${rowCls(i, n)}`}
+        className={`group absolute inset-x-0 top-0 rounded-md px-2 text-sm select-none [-webkit-touch-callout:none] hover:bg-bg-sub/70 ${rowCls(i, n)}`}
         style={{ height: getRowHeight(), transform: `translateY(${top}px)`, ...gridStyle, ...dropHoverStyle(n) }}
         onClick={rowClick(n, i)}
         onDoubleClick={rowDoubleClick(n, i)}
@@ -427,7 +427,7 @@ export default function FileList({
             data-file-row={i}
             tabIndex={-1}
             role="row"
-            className={`group border-b border-line/70 text-sm select-none [-webkit-touch-callout:none] hover:bg-bg-sub ${i % 2 === 1 ? "bg-bg-sub/40" : ""} ${rowCls(i, n)} ${animate ? "anim-item-in" : ""}`}
+            className={`group border-b border-line/60 text-sm select-none [-webkit-touch-callout:none] transition-colors hover:bg-bg-sub/70 ${rowCls(i, n)} ${animate ? "anim-item-in" : ""}`}
             style={{ ...gridStyle, height: getRowHeight(), padding: "0 8px", ...dropHoverStyle(n) }}
             onClick={rowClick(n, i)}
             onDoubleClick={rowDoubleClick(n, i)}

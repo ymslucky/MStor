@@ -13,7 +13,8 @@ test("renders app title", async () => {
       <App />
     </MemoryRouter>,
   );
-  expect(await screen.findByText("MStor")).toBeInTheDocument();
+  // 侧栏品牌与移动端顶栏品牌都在 DOM 中（桌面用 CSS 隐藏移动端品牌）
+  expect((await screen.findAllByText("MStor")).length).toBeGreaterThan(0);
 });
 
 test("未知路径回首页兜底（陈旧 SW 缓存的 /cdn-cgi/* 回调不再白屏）", async () => {
@@ -22,7 +23,7 @@ test("未知路径回首页兜底（陈旧 SW 缓存的 /cdn-cgi/* 回调不再�
       <App />
     </MemoryRouter>,
   );
-  expect(await screen.findByText("MStor")).toBeInTheDocument();
+  expect((await screen.findAllByText("MStor")).length).toBeGreaterThan(0);
 });
 
 test("懒加载的 /design 页经 Suspense 正常渲染", async () => {
@@ -31,7 +32,7 @@ test("懒加载的 /design 页经 Suspense 正常渲染", async () => {
       <App />
     </MemoryRouter>,
   );
-  expect(await screen.findByText("设计系统 v6")).toBeInTheDocument();
+  expect(await screen.findByText("设计系统 v7")).toBeInTheDocument();
 });
 
 test("/auth/renew 落地后按 next 回跳应用内路径", async () => {

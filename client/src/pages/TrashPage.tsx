@@ -5,6 +5,7 @@ import { batchPurge, batchRestore, listTrash, purgeNode, restoreNode } from "../
 import { getMe } from "../api/me";
 import type { Node } from "../api/types";
 import { AsyncState } from "../components/AsyncState";
+import { PageHeader } from "../components/layout/PageHeader";
 import FileList from "../components/FileList";
 import { RowAction } from "../components/RowAction";
 import { SelectionBar } from "../components/SelectionBar";
@@ -86,15 +87,17 @@ export default function TrashPage() {
 
   return (
     <div className="md:pb-4">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h1 className="text-lg font-semibold text-ink">回收站</h1>
-        {nodes.length > 0 && (
-          <Button size="sm" variant="ghost" disabled={busy} onClick={() => setPurgingAll(true)}>
-            清空回收站
-          </Button>
-        )}
-      </div>
-      <p className="mb-3 text-xs text-ink-faint">回收站内容保留 {retentionDays} 天后自动清理；彻底删除不可恢复。</p>
+      <PageHeader
+        title="回收站"
+        description={`内容保留 ${retentionDays} 天后自动清理；彻底删除不可恢复。`}
+        actions={
+          nodes.length > 0 ? (
+            <Button size="sm" variant="ghost" disabled={busy} onClick={() => setPurgingAll(true)}>
+              清空回收站
+            </Button>
+          ) : undefined
+        }
+      />
       <GlassCard className="p-3 sm:p-4">
         <AsyncState query={query} skeletonRows={4}>
           <FileList

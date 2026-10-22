@@ -15,9 +15,9 @@ export function Button({
     "state-layer inline-flex items-center justify-center gap-1.5 rounded-btn border font-medium transition-[box-shadow,transform] duration-(--duration-fast) ease-[var(--ease-standard)] disabled:opacity-45 disabled:pointer-events-none tap active:scale-[0.985]";
   const sizes = { md: "px-3.5 py-2 text-sm", sm: "px-2.5 py-1 text-xs" };
   const variants = {
-    primary: "border-transparent bg-primary text-white shadow-card hover:shadow-lift",
-    ghost: "border-line-strong bg-surface-1 text-ink shadow-soft hover:shadow-card",
-    danger: "border-transparent bg-danger-soft text-danger-text shadow-soft hover:shadow-card",
+    primary: "border-transparent bg-primary text-white hover:bg-primary/90",
+    ghost: "border-line-strong bg-surface-1 text-ink hover:bg-bg-sub",
+    danger: "border-transparent bg-danger-soft text-danger-text hover:bg-danger/15",
   };
   return <button className={cn(base, sizes[size], variants[variant], className)} {...rest} />;
 }

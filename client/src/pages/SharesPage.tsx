@@ -4,6 +4,7 @@ import { Ban, Link2 } from "lucide-react";
 import { batchRevokeShares, listShares, revokeShare } from "../api/shares";
 import type { Share } from "../api/types";
 import { AsyncState } from "../components/AsyncState";
+import { PageHeader } from "../components/layout/PageHeader";
 import { NodeIcon } from "../components/NodeIcon";
 import { SelectionBar } from "../components/SelectionBar";
 import { toast } from "../components/Toaster";
@@ -45,21 +46,24 @@ export default function SharesPage() {
 
   return (
     <div className="md:pb-4">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h1 className="text-lg font-semibold text-ink">我的分享</h1>
-        {shares.length > 0 && (
-          <label className="flex cursor-pointer items-center gap-1.5 text-sm text-ink-2">
-            <input
-              type="checkbox"
-              aria-label="全选分享"
-              className="h-4 w-4 accent-primary"
-              checked={allSelected}
-              onChange={() => (allSelected ? selection.clear() : selection.selectAll())}
-            />
-            全选
-          </label>
-        )}
-      </div>
+      <PageHeader
+        title="我的分享"
+        description="管理你创建的公开分享链接"
+        actions={
+          shares.length > 0 ? (
+            <label className="flex cursor-pointer items-center gap-1.5 text-sm text-ink-2">
+              <input
+                type="checkbox"
+                aria-label="全选分享"
+                className="h-4 w-4 accent-primary"
+                checked={allSelected}
+                onChange={() => (allSelected ? selection.clear() : selection.selectAll())}
+              />
+              全选
+            </label>
+          ) : undefined
+        }
+      />
       <AsyncState query={query} skeletonRows={4}>
         {shares.length === 0 ? (
           <EmptyState icon={Link2} title="暂无分享" />

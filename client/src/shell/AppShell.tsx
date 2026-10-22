@@ -12,13 +12,9 @@ import { StatusBar } from "../components/StatusBar";
 import { SidebarNav } from "./SidebarNav";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { AccountMenu } from "./AccountMenu";
-import { TopBar } from "./TopBar";
-import { CommandPalette } from "../components/CommandPalette";
-import { NotificationBell } from "../components/NotificationBell";
+import { AppHeader } from "./AppHeader";
 import { PAGE_TITLES } from "./nav";
 import { useMe, useSidebarCollapsed } from "./hooks";
-import { useMediaQuery } from "../hooks/useMediaQuery";
-import { DESKTOP_MEDIA_QUERY } from "../lib/constants";
 import StorageMeter from "../components/StorageMeter";
 import OfflineBar from "../components/OfflineBar";
 import { MobileNavDrawer } from "./MobileNavDrawer";
@@ -26,7 +22,7 @@ import { MobileNavDrawer } from "./MobileNavDrawer";
 /**
  * 外壳只负责「布局 + 会话级动作」：
  * 侧栏 = SidebarNav + WorkspaceSwitcher + StorageMeter + AccountMenu；
- * 顶栏 = TopBar；内容 = Outlet；底部 = StatusBar（桌面）。
+ * 顶栏 = AppHeader（桌面/移动共用）；内容 = Outlet；底部 = StatusBar（桌面）。
  * 队列与浮层在导出层包住，切换路由不丢队列。
  */
 function AppShellLayout() {
@@ -35,8 +31,6 @@ function AppShellLayout() {
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [exitActOpen, setExitActOpen] = useState(false);
   const { collapsed, toggle } = useSidebarCollapsed();
-  // 桌面浮动簇（搜索/通知）只在桌面挂载：移动端搜索在抽屉里，避免同一页两个 CommandPalette 实例
-  const isDesktop = useMediaQuery(DESKTOP_MEDIA_QUERY);
   // 移动端导航抽屉（替代底部 Tab，避免与批量条/浮层抢底部空间）
   const [menuOpen, setMenuOpen] = useState(false);
   const { pathname } = useLocation();
@@ -76,10 +70,9 @@ function AppShellLayout() {
       >
         跳到主要内容
       </a>
-      <div className="glow-radial" aria-hidden />
       <div className="relative z-content md:flex md:h-dvh">
         <aside
-          className={`glass sticky top-0 z-nav hidden h-dvh shrink-0 flex-col transition-[width] duration-200 ease-(--ease-spring) md:flex ${
+          className={`hidden h-dvh shrink-0 flex-col border-r border-line bg-surface-1 transition-[width] duration-200 ease-(--ease-spring) md:flex ${
             collapsed ? "md:w-16" : "md:w-60"
           }`}
         >
@@ -98,15 +91,15 @@ function AppShellLayout() {
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <TopBar
-            title={title}
+          <AppHeader
+            workspaceName={me.workspace?.name}
             unreadCount={me.unreadNotifications ?? 0}
             onLogout={() => setLogoutOpen(true)}
             onOpenMenu={() => setMenuOpen(true)}
           />
           <main
             id="main-content"
-            className="min-w-0 flex-1 px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6 sm:py-6 md:flex md:min-h-0 md:flex-col md:py-4 md:pb-4"
+            className="min-w-0 flex-1 px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6 sm:py-6 md:flex md:min-h-0 md:flex-col md:px-8 md:py-6"
           >
             {actAs && (
               <div className="mb-4 flex flex-wrap items-center gap-x-2 rounded-xl bg-warn-soft px-4 py-2 text-xs text-warn-text">
@@ -131,17 +124,6 @@ function AppShellLayout() {
               </Suspense>
             </ErrorBoundary>
           </main>
-          {/* 桌面端浮动簇：搜索（⌘K）与通知气泡；移动端这些在抽屉里（按断点条件挂载，避免重复实例） */}
-          {isDesktop && (
-            <div className="pointer-events-none fixed right-5 bottom-14 z-overlay flex flex-col items-end gap-2">
-              <div className="pointer-events-auto">
-                <NotificationBell initialUnread={me.unreadNotifications ?? 0} />
-              </div>
-              <div className="pointer-events-auto">
-                <CommandPalette />
-              </div>
-            </div>
-          )}
           <StatusBar me={me} />
         </div>
       </div>

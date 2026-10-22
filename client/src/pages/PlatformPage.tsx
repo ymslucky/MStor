@@ -5,6 +5,7 @@ import type { Me } from "../api/types";
 import { getAdminOverview } from "../api/me";
 import { AuditTable } from "../components/AuditTable";
 import { AsyncState } from "../components/AsyncState";
+import { PageHeader } from "../components/layout/PageHeader";
 import { AdminUsersSection } from "../components/AdminUsersSection";
 import { queryKeys } from "../lib/queryKeys";
 
@@ -43,13 +44,15 @@ export default function PlatformPage({ kind, me: injected }: { kind: Kind; me?: 
 
   return (
     <div className="md:pb-4">
-      <header className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-        <h1 className="flex items-center gap-2 text-lg font-semibold text-ink">
-          <Icon size={18} aria-hidden className="text-primary-text" />
-          {meta.title}
-        </h1>
-        <p className="text-2xs text-ink-3">{meta.desc}</p>
-      </header>
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
+            <Icon size={18} aria-hidden className="text-primary-text" />
+            {meta.title}
+          </span>
+        }
+        description={meta.desc}
+      />
       {kind === "users" ? (
         <AdminUsersSection selfId={account.id} />
       ) : (

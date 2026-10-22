@@ -1,6 +1,8 @@
 import * as RadixDialog from "@radix-ui/react-dialog";
+import { X } from "lucide-react";
 import type * as React from "react";
 import { cn } from "../../lib/cn";
+import { IconButton } from "./IconButton";
 
 interface DialogProps {
   open: boolean;
@@ -35,7 +37,14 @@ export function Dialog({ open, onClose, title, children, footer, skin = "white" 
             skin === "glass" ? "glass-strong" : "glass",
           )}
         >
-          <RadixDialog.Title className="text-lg font-semibold text-ink">{title}</RadixDialog.Title>
+          <div className="flex items-start justify-between gap-3">
+            <RadixDialog.Title className="min-w-0 text-lg font-semibold tracking-tight text-ink">{title}</RadixDialog.Title>
+            <RadixDialog.Close asChild>
+              <IconButton label="关闭">
+                <X size={16} aria-hidden />
+              </IconButton>
+            </RadixDialog.Close>
+          </div>
           <div className="mt-3">{children}</div>
           {footer && <div className="mt-4 flex justify-end gap-2">{footer}</div>}
         </RadixDialog.Content>

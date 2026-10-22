@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button, Dialog, Field, GlassCard, IconButton, Input, ListRow, ListSkeleton, NavItem, Panel, Pill, Skeleton, Surface } from "../components/ui";
 import { AsyncState } from "../components/AsyncState";
+import { PageHeader } from "../components/layout/PageHeader";
 import { SearchInput } from "../components/SearchInput";
 import { cn } from "../lib/cn";
 import { readDensity, readSkin, setDensity, setSkin } from "../lib/appearance";
@@ -57,14 +58,16 @@ export default function DesignPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <header>
-        <h1 className="font-display text-xl font-bold text-ink">设计系统 v6</h1>
-        <p className="mt-1 text-sm text-ink-2">
-          明亮清新 · 真毛玻璃 · 活泼动效。令牌唯一来源 <code className="rounded bg-bg-sub px-1">client/src/index.css</code> 的
-          <code className="ml-1 rounded bg-bg-sub px-1">@theme</code>；原语位于
-          <code className="ml-1 rounded bg-bg-sub px-1">components/ui</code>。
-        </p>
-      </header>
+      <PageHeader
+        title="设计系统 v7"
+        description={
+          <>
+            安静工作台 · 实色表面 · 单一强调色。令牌唯一来源 <code className="rounded bg-bg-sub px-1">client/src/index.css</code> 的
+            <code className="ml-1 rounded bg-bg-sub px-1">@theme</code>；原语位于
+            <code className="ml-1 rounded bg-bg-sub px-1">components/ui</code>。
+          </>
+        }
+      />
 
       <GlassCard className="p-4">
         <h2 className="mb-3 text-sm font-semibold text-ink">皮肤与密度</h2>

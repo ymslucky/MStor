@@ -9,6 +9,7 @@ import { MAX_UPLOAD_CONCURRENCY, MIN_UPLOAD_CONCURRENCY, getUploadConcurrency, s
 import { formatBytes } from "../lib/format";
 import { queryKeys } from "../lib/queryKeys";
 import { toast } from "../components/Toaster";
+import { PageHeader } from "../components/layout/PageHeader";
 import { MemberPanel } from "../components/MemberPanel";
 import { Button, Field, Input, Pill, SettingRow, Surface } from "../components/ui";
 
@@ -163,7 +164,7 @@ export default function SettingsPage({ me }: { me: Me }) {
     : "account";
   return (
     <div className="md:pb-4">
-      <h1 className="mb-3 text-lg font-semibold text-ink">设置</h1>
+      <PageHeader title="设置" description="账户、上传与空间成员管理" />
       <TabBar tabs={tabs} active={tab} />
       <div className="space-y-4">
         {tab === "account" && <AccountSection me={me} />}

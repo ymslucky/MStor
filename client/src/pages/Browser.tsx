@@ -262,7 +262,7 @@ export default function Browser() {
         }}
       />
       {query.data && (
-        <div className="mb-3">
+        <div className="mb-3 flex min-w-0 items-center gap-3">
           <Breadcrumb crumbs={query.data.breadcrumb} onDropNode={dropMove} />
         </div>
       )}
@@ -295,18 +295,20 @@ export default function Browser() {
         </GlassCard>
       )}
       {query.data && (
+        <BrowserToolbar
+          typeFilter={typeFilter}
+          timeFilter={timeFilter}
+          onTypeFilter={setTypeFilter}
+          onTimeFilter={setTimeFilter}
+          view={view}
+          onView={switchView}
+          onCreateDir={() => setCreating(true)}
+          onUploadFiles={() => fileInput.current?.click()}
+          onUploadFolder={pickFolder}
+        />
+      )}
+      {query.data && (
         <GlassCard className="px-3 pt-3 pb-0 sm:px-4 sm:pt-4 md:flex md:min-h-0 md:flex-1 md:flex-col">
-          <BrowserToolbar
-            typeFilter={typeFilter}
-            timeFilter={timeFilter}
-            onTypeFilter={setTypeFilter}
-            onTimeFilter={setTimeFilter}
-            view={view}
-            onView={switchView}
-            onCreateDir={() => setCreating(true)}
-            onUploadFiles={() => fileInput.current?.click()}
-            onUploadFolder={pickFolder}
-          />
           <div className="md:flex md:min-h-0 md:flex-1 md:gap-4">
             <div className="md:flex md:min-h-0 md:min-w-0 md:flex-1 md:flex-col md:overflow-hidden">
           <FileList

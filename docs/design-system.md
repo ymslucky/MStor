@@ -1,34 +1,40 @@
-# MStor 设计系统 v6（权威版）
+# MStor 设计系统 v7（权威版）· Calm Workspace
 
 > **令牌唯一来源**：`client/src/index.css` 的 `@theme`（含暗色覆盖）。
-> **原语唯一来源**：`client/src/components/ui/*`（7 个）。
+> **原语唯一来源**：`client/src/components/ui/*`；页面骨架 `components/layout/PageHeader` + `shell/AppHeader`。
 > **可视化验收**：应用内 `/design` 页（`pages/DesignPage.tsx`）——新增令牌/原语**必须先在此登记**。
 > 类名合并统一走 `client/src/lib/cn.ts`（clsx + tailwind-merge）。
 
-## 1. 方向：明亮清新 + 真毛玻璃 + 活泼动效
+## 1. 方向：从「演示型玻璃拟态」到「安静、内容优先的工作台」
+
+v6 的问题：彩色光晕 + 多层玻璃 + 高光让界面偏演示稿；亮色靛蓝 / 暗色薄荷青两套强调色；桌面无顶栏、搜索与通知漂在右下角；页面标题有的有、有的没有；列表常驻 6 个行内图标、斑马纹与悬浮卡片叠加，噪声高于信息。
+
+v7 的取舍：
 
 | 原则 | 落地 |
 |---|---|
-| 通透 | 近白微冷底 + 三处极淡色彩光晕（薄荷/天蓝/淡紫）；常规面板 `.glass` = 实色 + 发丝边（滚动稳定），浮层/弹窗 `.glass-strong` 才是真毛玻璃（`backdrop-filter: blur(28px) saturate(190%)` + 顶部高光） |
-| 清新 | 唯一强调色靛蓝 `#4c5bd4`（slate 皮肤青 `#0f766e` / ink 琥珀 `#e8a33d` / brutal 蓝 `#2563eb`）；功能色明亮但不刺眼（绿 `#10b981` / 琥珀 `#f59e0b` / 玫红 `#f43f5e`），只用于状态 |
-| 有生气 | spring 曲线 `cubic-bezier(0.34,1.4,0.64,1)`，160/240/320ms；按钮 hover 抬升 2px、按下缩放 0.98；卡片 `.hover-lift`；进场 `.anim-item-in`；弹窗 `.anim-pop`；骨架流光 |
-| 无障碍 | `prefers-reduced-motion` 动效归零；`prefers-reduced-transparency` 玻璃退化实色；焦点环统一 2px 主色 + 2px 偏移 |
+| 安静 | 单一中性冷灰底（`#f5f6f8`），**取消彩色光晕/渐变/高光**；表面为实色 + 1px 发丝边；只有弹窗/菜单用第二级阴影 |
+| 一致 | 全站唯一靛蓝强调色（亮 `#4f46e5` / 暗 `#818cf8`）；状态色只表达状态；文件类型 chip 低饱和 |
+| 内容优先 | 全局 `AppHeader`（桌面=当前空间，移动=品牌+菜单，搜索/通知统一在顶栏）+ 每页 `PageHeader`（20px 标题 + 说明 + 动作槽）；取消右下角浮动簇 |
+| 克制层级 | 行高 44（紧凑 38）、字号基准 14、圆角 6/8/10/12、阴影两级；列表去斑马纹，选中用 accent tint + 左侧 2px 指示线 |
+| 渐进呈现 | 桌面行内操作 hover/focus 淡入（`.row-actions`），触屏常显；工具栏把「上传」设为唯一主按钮，新建/文件夹上传降级 |
+| 可验证 | 令牌对比度由 `test/contrast.test.ts` 对 5 变体 × 18 组强制 ≥4.5:1；reduced-motion 全局降级 |
 
 ## 2. 令牌
 
 | 类别 | 值 |
 |---|---|
-| 表面 | `bg #fbfbfa` → `surface-1 #ffffff` → `surface-2 #ffffff`；`bg-sub #f4f4f2`（暗色由 media query 覆盖） |
-| 文字 | `ink #1c1b19` / `ink-2 #57534e` / `ink-3 #6b665f`（canvas 5.5:1；slate `#5f6c78`、暗色 `#8b9cae`、ink 皮肤 `#87919b` 均 ≥4.5:1） |
-| 描边 | `line #e2e9f0` / `line-strong #cdd8e3` |
-| 强调 | `primary #4c5bd4` / `primary-text #3a47ae` / `primary-soft #eef0fb`（暗色 `#2dd4bf` 系为高对比变体） |
-| 状态 | `success` / `warn` / `danger` 各带 `-text`、`-soft` |
-| 圆角 | `chip 8` / `btn,input 8` / `card 12` / `panel 16` |
-| 阴影 | `soft` / `card` / `lift` / `glass`（四级柔和扩散，禁用硬投影） |
-| 字号 | 2xs 11 / xs 12 / sm 13 / base 15 / lg 18 / xl 22 / 2xl 30 |
-| 动效 | `--ease-spring` + `duration-fast 160` / `slow 240` / `320` |
+| 表面 | `bg #f5f6f8` → `surface-1 #ffffff` → `surface-2 #ffffff`；`bg-sub #eef0f3`（暗色 `#0b0f16 / #11161f / #171e29 / #141a23`） |
+| 文字 | `ink #101828` / `ink-2 #475467` / `ink-3 #5b6577`（暗色 `#f2f4f7 / #b6c0cc / #8b97a6`；全部 ≥4.5:1） |
+| 描边 | `line #e4e7ec` / `line-strong #cfd4dc` |
+| 强调 | `primary #4f46e5` / `primary-text #4338ca` / `primary-soft #eef2ff`（暗色 `#818cf8 / #a5b4fc / 16% tint`） |
+| 状态 | 成功 `#067647/#05603a/#ecfdf3`、警告 `#b54708/#93370d/#fffaeb`、危险 `#b42318/#912018/#fef3f2` |
+| 圆角 | `chip 6` / `btn,input 8` / `card 10` / `panel 12` |
+| 阴影 | `soft`（1px）/ `card`（轻浮起）/ `lift`（弹窗）；禁用大范围彩色投影 |
+| 字号 | 2xs 11 / xs 12 / sm 13 / base 14 / lg 16 / xl 20 / 2xl 24 |
+| 动效 | `--ease-out-soft` + `duration-fast 120` / `slow 180` / `320→240`；`prefers-reduced-motion` 全归零 |
 
-暗色：`#0e1620` 深蓝灰 + 同款光晕，玻璃转 `rgb(255 255 255 / 0.07–0.1)`。
+暗色：中性深灰（非蓝黑），强调色与亮色同色相（靛蓝），不使用玻璃模糊。
 
 ## 3. 原语与迁移状态
 
@@ -65,25 +71,25 @@
 ## 4. 布局与导航
 
 ```
-顶栏（glass-light，仅移动端）：汉堡 · 页名 · 通知 · 退出
-侧栏（glass，可折叠，分区；md+）：
-  浏览 → 文件 / 收藏 / 最近 / 标签
-  共享 → 分享 / 回收站
-  平台 → 用户管理 / 日志审计（仅管理员）
-中部：路径栏 · 工具条 · 文件列表（玻璃卡片；表头固定 + 内部单一滚动容器）
-右详情栏（glass，xl+ 内联）：详情 / 预览 / 动作；更窄回落 NodeDetailDialog
-底部状态栏（glass-subtle，md+）：空间 · 用量 · 队列 · 未读
-移动抽屉（Radix Dialog）：导航分区 + 搜索 + 空间切换 + 存储用量 + 账户行
+AppHeader（全端，h-14）：移动=菜单 + 品牌；桌面=当前空间 · MStor；右侧搜索(⌘K) · 通知 · 移动端退出
+侧栏（md+，border-r，可折叠）：
+  品牌 / 浏览（文件 收藏 最近 标签）/ 共享（分享 回收站）/ 平台（用户 审计）
+  底部：空间切换 · 存储用量 · 账户行（设置/退出）
+中部：PageHeader（标题 20px + 说明 + 动作槽）→ 页面内容
+文件页：面包屑 → 工具条（筛选 chips 左 / 新建·上传·视图右）→ 列表卡片 → 右详情栏（xl+）
+底部状态栏（md+，h-8）：空间 · 用量 · 队列 · 未读
+移动抽屉（Radix Dialog）：导航分区 + 空间切换 + 存储用量 + 账户行
 ```
 
-- **导航单一来源**：`shell/nav.ts` 的 `SECTIONS` 同时供桌面侧栏与移动抽屉（`shell/MobileNavDrawer.tsx`）使用；`NAV` 扁平导出已删除。
-- **移动端搜索入口**：抽屉底部复用 `CommandPalette`；桌面仍是右下浮动簇。
-- **文件页标题**：视觉标题由移动端 TopBar 承担，DOM 中保留 `sr-only h1`；路由切换同步 `document.title`。
+- **导航单一来源**：`shell/nav.ts` 的 `SECTIONS` 同时供桌面侧栏与移动抽屉（`shell/MobileNavDrawer.tsx`）使用。
+- **搜索入口唯一**：`CommandPalette` 放在 `AppHeader`，移动端不再在抽屉里重复一个实例；⌘K 全局可用。
+- **标题层级**：每个一级页面必须用 `PageHeader` 提供唯一 h1；AppHeader 不再重复页面标题（桌面显示空间名，移动显示品牌）。
+- **文件页**：无 PageHeader，面包屑承担位置语义，DOM 保留 `sr-only h1`；路由切换同步 `document.title`。
 - **顶部跳转**：`main#main-content` + 「跳到主要内容」skip link。
 
 设置走子路由（`/settings/{account,upload,members}`），可深链、可后退；设置入口在侧栏底部头像行（齿轮），移动端抽屉底部也有一处。
 
-**文件列表**：列定义/排序/列显隐/列宽收敛到 TanStack Table 列模型（`hooks/useFileTable.ts`），表头与行共用同一份 grid 模板；虚拟化仍是 `@tanstack/react-virtual`（固定行高 48，动态测量未做）。
+**文件列表**：列定义/排序/列显隐/列宽收敛到 TanStack Table 列模型（`hooks/useFileTable.ts`），表头与行共用同一份 grid 模板；虚拟化仍是 `@tanstack/react-virtual`（行高由 `--density-row-h` 驱动，默认 44 / 紧凑 38）。行无斑马纹，选中 = accent tint + 左侧 2px 指示线；桌面行内操作 hover/focus 淡入（`.row-actions`），触屏常显。
 
 **网格视图**：与列表共用同一份行契约（`data-file-row`、右键、长按多选、拖拽移动）；额外差异——名称过滤条固定在卡片区上方、选中态用 `border-primary + ring`（卡片自带 `bg-surface-1`，背景 tint 会被 CSS 顺序覆盖）、操作组浮在卡片右上（桌面 hover/focus 出现、触屏常显）、键盘 ↑↓ 按实际列数跨行移动（`useKeyboardNav` 读取容器的 `grid-template-columns`）。
 
@@ -105,6 +111,7 @@
 6. **禁止 `bg-white` 与调色板直写**（`bg-blue-50` / `accent-emerald-600`…）：用 `bg-surface-1/2`、`accent-primary` 等语义令牌，否则暗色与 `data-skin` 皮肤会失效。
 7. 交互阈值/断点集中在 `client/src/lib/constants.ts`（虚拟阈值、长按、下载间隔、撤销时长、断点），不要在组件里写裸数字。
 8. 新增原语先在 `/design` 登记用例，再接入业务组件。
+9. 一级页面必须使用 `PageHeader`（唯一 h1 + 选项说明 + 动作槽）；全局 chrome 只允许来自 `AppHeader` / 侧栏 / 状态栏，页面内不再自建顶栏或浮动搜索/通知。
 
 ## 6. 历史（避免重走弯路）
 
@@ -166,3 +173,10 @@
 
 - 移动/复制目标选择改 `GET /api/dirs/tree` 一次性建树（5000 上限 + truncated 提示），移除逐层 N+1。
 - 闸门：**43 文件 249 例**；server 本地 29 项；双 `tsc` / `eslint` / `vite build` 全绿。
+
+### v7.0 Calm Workspace（本轮）
+
+- 从玻璃拟态转向安静工作台：中性画布、实色表面、单一靛蓝强调色、两级阴影、14px 基准、44px 行高。
+- 新增 `AppHeader`（统一搜索/通知/空间上下文）与 `PageHeader`（统一页面标题与动作）；删除桌面右下浮动簇与抽屉重复搜索。
+- 文件页工具条上移并建立主操作（上传）；列表去斑马纹、行操作渐进呈现；详情栏 EmptyState Dialog 等原语同步收紧。
+- 闸门：对比度 5 变体通过；**43 文件 249 例**；双 `tsc` / `eslint` / `vite build` 全绿。

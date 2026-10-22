@@ -16,12 +16,12 @@ export function SidebarNav({
   const sections = sectionsFor(isPlatformAdmin);
   return (
     <>
-      <div className={cn("flex items-center border-b border-line py-3.5", collapsed ? "flex-col gap-2 px-2" : "gap-2 px-3")}>
+      <div className={cn("flex items-center border-b border-line py-3", collapsed ? "flex-col gap-2 px-2" : "gap-2 px-3")}>
         <div className={cn("flex min-w-0 items-center", collapsed ? "justify-center" : "flex-1 gap-2.5")}>
-          <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-white">
-            <Cloud size={20} />
+          <span aria-hidden className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-white">
+            <Cloud size={18} />
           </span>
-          {!collapsed && <span className="truncate font-display text-lg font-bold text-ink">MStor</span>}
+          {!collapsed && <span className="truncate font-display text-base font-bold text-ink">MStor</span>}
         </div>
         <IconButton label={collapsed ? "展开侧栏" : "折叠侧栏"} onClick={onToggle} className="shrink-0">
           {collapsed ? <PanelLeftOpen size={18} aria-hidden /> : <PanelLeftClose size={18} aria-hidden />}

@@ -16,7 +16,7 @@ export function StatusBar({ me }: { me: Me }) {
   return (
     <div
       data-testid="status-bar"
-      className="glass-subtle hidden shrink-0 items-center gap-3 border-t border-line px-4 py-1.5 md:flex"
+      className="hidden h-8 shrink-0 items-center gap-3 border-t border-line bg-surface-1 px-4 md:flex"
     >
       <span className="truncate text-2xs font-medium text-ink-2">{me.workspace?.name ?? "我的空间"}</span>
       <span aria-hidden className="text-2xs text-ink-3">·</span>

@@ -1,7 +1,7 @@
 import { FolderPlus, FolderUp, LayoutGrid, List, Upload } from "lucide-react";
 import type { TimeFilter, TypeFilter } from "../lib/fileFilters";
 import { TimeFilterChips, TypeFilterChips } from "./FileFilters";
-import { IconButton } from "./ui";
+import { Button, IconButton } from "./ui";
 
 interface Props {
   typeFilter: TypeFilter;
@@ -15,7 +15,10 @@ interface Props {
   onUploadFolder: () => void;
 }
 
-/** 文件页工具条：左侧前端过滤 chips，右侧新建/上传/视图切换；下方可挂批量操作条 */
+/**
+ * 文件页工具条（v7）：左侧筛选 chips，右侧按「次要 → 主要」排布
+ * （上传文件夹 / 新建文件夹 → 上传主按钮 → 视图切换），让上传成为唯一主操作。
+ */
 export function BrowserToolbar({
   typeFilter,
   timeFilter,
@@ -28,32 +31,34 @@ export function BrowserToolbar({
   onUploadFolder,
 }: Props) {
   return (
-    <>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <TypeFilterChips value={typeFilter} onChange={onTypeFilter} />
-          <TimeFilterChips value={timeFilter} onChange={onTimeFilter} />
-        </div>
-        <div className="flex items-center gap-2">
-          <IconButton label="新建文件夹" onClick={onCreateDir}>
-            <FolderPlus size={18} aria-hidden />
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <TypeFilterChips value={typeFilter} onChange={onTypeFilter} />
+        <span aria-hidden className="mx-0.5 h-4 w-px bg-line" />
+        <TimeFilterChips value={timeFilter} onChange={onTimeFilter} />
+      </div>
+
+      <div className="flex items-center gap-1.5">
+        <IconButton label="上传文件夹" onClick={onUploadFolder}>
+          <FolderUp size={17} aria-hidden />
+        </IconButton>
+        <Button size="sm" variant="ghost" onClick={onCreateDir}>
+          <FolderPlus size={15} aria-hidden />
+          新建文件夹
+        </Button>
+        <Button size="sm" aria-label="上传文件" onClick={onUploadFiles}>
+          <Upload size={15} aria-hidden />
+          上传
+        </Button>
+        <div role="group" aria-label="视图切换" className="ml-1 inline-flex items-center gap-0.5 rounded-btn border border-line bg-bg-sub p-0.5">
+          <IconButton label="列表视图" active={view === "list"} aria-pressed={view === "list"} onClick={() => onView("list")}>
+            <List size={17} aria-hidden />
           </IconButton>
-          <IconButton label="上传文件" onClick={onUploadFiles}>
-            <Upload size={18} aria-hidden />
+          <IconButton label="网格视图" active={view === "grid"} aria-pressed={view === "grid"} onClick={() => onView("grid")}>
+            <LayoutGrid size={17} aria-hidden />
           </IconButton>
-          <IconButton label="上传文件夹" onClick={onUploadFolder}>
-            <FolderUp size={18} aria-hidden />
-          </IconButton>
-          <div role="group" aria-label="视图切换" className="inline-flex items-center gap-1 rounded-xl border border-line bg-bg-sub p-1">
-            <IconButton label="列表视图" active={view === "list"} aria-pressed={view === "list"} onClick={() => onView("list")}>
-              <List size={18} aria-hidden />
-            </IconButton>
-            <IconButton label="网格视图" active={view === "grid"} aria-pressed={view === "grid"} onClick={() => onView("grid")}>
-              <LayoutGrid size={18} aria-hidden />
-            </IconButton>
-          </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }

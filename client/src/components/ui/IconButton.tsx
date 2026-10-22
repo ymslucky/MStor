@@ -14,7 +14,7 @@ export function IconButton({
     <button
       aria-label={label}
       title={label}
-      className={`inline-flex h-9 w-9 items-center justify-center rounded-full transition-[background-color,color,box-shadow,transform] duration-(--duration-fast) ease-[var(--ease-spring)] hover:-translate-y-0.5 tap ${state} ${className}`}
+      className={`inline-flex h-8 w-8 items-center justify-center rounded-btn transition-[background-color,color,box-shadow] duration-(--duration-fast) ease-(--ease-out-soft) tap ${state} ${className}`}
       {...rest}
     />
   );

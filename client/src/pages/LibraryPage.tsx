@@ -7,6 +7,7 @@ import type { TagRow } from "../api/library";
 import { contentUrl } from "../api/nodes";
 import type { Node } from "../api/types";
 import { AsyncState } from "../components/AsyncState";
+import { PageHeader } from "../components/layout/PageHeader";
 import { toast } from "../components/Toaster";
 import { Button, ConfirmDialog, EmptyState, GlassCard, Input, Pill } from "../components/ui";
 import { NodeIcon } from "../components/NodeIcon";
@@ -89,10 +90,7 @@ export default function LibraryPage({ kind }: { kind: Kind }) {
 
   return (
     <div className="md:pb-4">
-      <header className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-        <h1 className="text-lg font-semibold text-ink">{meta.title}</h1>
-        <p className="text-2xs text-ink-3">{meta.desc}</p>
-      </header>
+      <PageHeader title={meta.title} description={meta.desc} />
 
       {kind === "tags" && (
         <div className="mb-3 flex flex-wrap items-center gap-2">

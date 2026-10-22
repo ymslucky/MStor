@@ -2,7 +2,7 @@ import { Download, FolderInput, Link2, Pencil, Tag, Trash2, X } from "lucide-rea
 import type { Node } from "../api/types";
 import { formatBytes, formatDate } from "../lib/format";
 import { NodeIcon } from "./NodeIcon";
-import { Button, IconButton } from "./ui";
+import { Button, IconButton, Surface } from "./ui";
 
 interface Props {
   node: Node;
@@ -30,11 +30,8 @@ const Row = ({ label, value }: { label: string; value: string }) => (
  */
 export function DetailPane({ node, onClose, onDownload, onShare, onRename, onMove, onDelete, onTag }: Props) {
   return (
-    <aside
-      data-testid="detail-pane"
-      aria-label="详情"
-      className="glass flex w-72 shrink-0 flex-col self-stretch p-4 xl:w-80"
-    >
+    <aside data-testid="detail-pane" aria-label="详情" className="w-72 shrink-0 self-stretch xl:w-80">
+      <Surface className="flex h-full flex-col p-4">
       <div className="flex items-start gap-2">
         <NodeIcon node={node} size={28} className="shrink-0" />
         <div className="min-w-0 flex-1">
@@ -84,6 +81,7 @@ export function DetailPane({ node, onClose, onDownload, onShare, onRename, onMov
           删除
         </Button>
       </div>
+      </Surface>
     </aside>
   );
 }

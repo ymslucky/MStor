@@ -3,7 +3,6 @@ import * as RadixDialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import type { Me } from "../api/types";
 import { IconButton, NavItem } from "../components/ui";
-import { CommandPalette } from "../components/CommandPalette";
 import StorageMeter from "../components/StorageMeter";
 import { AccountMenu } from "./AccountMenu";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
@@ -73,7 +72,6 @@ export function MobileNavDrawer({
           </nav>
 
           <div className="space-y-3 border-t border-line px-3 py-3">
-            <CommandPalette onOpen={onClose} />
             <WorkspaceSwitcher workspaces={me.workspaces ?? []} currentId={me.workspace?.id} onSwitch={onSwitchWorkspace} />
             <StorageMeter usedBytes={me.storage?.usedBytes ?? me.usedBytes} quotaBytes={me.storage?.quotaBytes ?? me.quotaBytes} />
             <AccountMenu account={account} collapsed={false} onLogout={onLogout} />

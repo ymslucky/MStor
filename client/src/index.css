@@ -309,6 +309,13 @@ body {
 /* 无 hover 能力（触屏/iPad）：网格卡片操作组常显 */
 @media (hover: none) {
   .grid-card-actions { opacity: 1; }
+  .row-actions { opacity: 1 !important; }
+}
+/* 桌面/鼠标设备：行内操作默认淡出，hover/focus 再出现，降低列表噪声 */
+@media (hover: hover) {
+  .row-actions { opacity: 0; transition: opacity var(--duration-fast) var(--ease-out-soft); }
+  .group:hover .row-actions,
+  .group:focus-within .row-actions { opacity: 1; }
 }
 
 /* ============================================================
