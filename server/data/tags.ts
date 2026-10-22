@@ -77,6 +77,18 @@ export async function detachTag(db: D1Database, workspaceId: string, tagId: stri
     .run();
 }
 
+/** 某节点已打的标签（用于标签弹窗回显；节点须属于当前空间） */
+export async function listNodeTags(db: D1Database, workspaceId: string, nodeId: string): Promise<TagRow[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT t.* FROM node_tags nt JOIN tags t ON t.id = nt.tag_id
+       WHERE nt.workspace_id = ?1 AND nt.node_id = ?2 AND t.workspace_id = ?1 ORDER BY t.name`,
+    )
+    .bind(workspaceId, nodeId)
+    .all<TagRow>();
+  return results;
+}
+
 export async function listTagNodes(db: D1Database, workspaceId: string, tagId: string): Promise<NodeRow[]> {
   const { results } = await db
     .prepare(

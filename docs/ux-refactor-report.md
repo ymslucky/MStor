@@ -373,7 +373,19 @@
 - `index.html` theme-color 与 manifest 对齐 `#f4f6f4`。
 - 新增 Toaster 动作按钮用例；客户端 **40 文件 / 240 例**、tsc/eslint/build 全绿（构建产物 PWA precache 11 项）。
 
-## 14. 后续建议（本次未实施）
+## 14. 第八轮：标签写接口 UI
+
+此前标签只能「看」：服务端已有创建/删除/打标/解绑接口，前端没有入口。本轮补齐：
+
+- **服务端**：新增 `GET /api/library/node-tags/:nodeId`（`listNodeTags`）回显某节点已打标签；节点不属于当前空间返回 404。独立路径避免与 `/tags/:tagId/nodes` 路由歧义。本地 node:sqlite 垫片补「回显 1 个标签」「解绑后为空」「跨租户读 404」断言。
+- **客户端 API**：`createTag/deleteTag/attachTag/detachTag/listNodeTags`；`queryKeys.nodeTags(nodeId)`。
+- **TagDialog**（新）：勾选即时打/解标签（乐观更新，失败回滚）、显示每个标签节点数、输入新标签名「创建并添加」（创建后自动打在当前节点）。
+- **入口**：Browser 右键菜单新增「标签…」；DetailPane 新增「标签」按钮。
+- **LibraryPage 标签页**：新建标签表单；选中标签后可「删除该标签」（ConfirmDialog 二次确认，删除后回列表并失效 `["library","tags"]` 刷新计数/列表）。
+- 测试：TagDialog 2 例（回显/勾选、创建并添加）、LibraryPage 2 例（新建、删除确认）、a11y 标签弹窗；本地 server 29 项。
+- 验证：客户端 **42 文件 / 245 例**；双 `tsc`、`eslint`、`vite build` 全绿。
+
+## 15. 后续建议（本次未实施）
 
 1. `<AsyncState>`/`<PageState>` 统一加载/失败/空三态，修复收藏/最近/标签/回收站/分享/审计页「失败伪装成空」。
 2. `<SelectionBar>` 统一 BatchBar / TrashPage / SharesPage 的批量条；`<SearchInput>`、`<ListSkeleton>`、`<PageShell>` 抽公共件。

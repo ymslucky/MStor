@@ -1,4 +1,4 @@
-import { Download, FolderInput, Link2, Pencil, Trash2, X } from "lucide-react";
+import { Download, FolderInput, Link2, Pencil, Tag, Trash2, X } from "lucide-react";
 import type { Node } from "../api/types";
 import { formatBytes, formatDate } from "../lib/format";
 import { NodeIcon } from "./NodeIcon";
@@ -12,6 +12,7 @@ interface Props {
   onRename: (n: Node) => void;
   onMove: (n: Node) => void;
   onDelete: (n: Node) => void;
+  onTag?: (n: Node) => void;
 }
 
 const Row = ({ label, value }: { label: string; value: string }) => (
@@ -27,7 +28,7 @@ const Row = ({ label, value }: { label: string; value: string }) => (
  * 右详情栏（三栏骨架的第三栏）：作为布局中的一列参与排版（不再 fixed 浮层）。
  * 是否渲染由页面用 useMediaQuery 决定——一个 detail 状态只对应一个界面，不用 CSS 隐藏兜底。
  */
-export function DetailPane({ node, onClose, onDownload, onShare, onRename, onMove, onDelete }: Props) {
+export function DetailPane({ node, onClose, onDownload, onShare, onRename, onMove, onDelete, onTag }: Props) {
   return (
     <aside
       data-testid="detail-pane"
@@ -72,6 +73,12 @@ export function DetailPane({ node, onClose, onDownload, onShare, onRename, onMov
           <FolderInput size={14} aria-hidden />
           移动
         </Button>
+        {onTag && (
+          <Button size="sm" variant="ghost" onClick={() => onTag(node)}>
+            <Tag size={14} aria-hidden />
+            标签
+          </Button>
+        )}
         <Button size="sm" variant="danger" onClick={() => onDelete(node)}>
           <Trash2 size={14} aria-hidden />
           删除

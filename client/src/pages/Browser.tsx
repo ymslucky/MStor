@@ -50,7 +50,7 @@ export default function Browser() {
   // 只订阅稳定的 actions：上传进度不再触发 Browser 整页重渲染
   const { add } = useUploadQueueActions();
   const dialogs = useBrowserDialogs();
-  const { preview, setPreview, detail, setDetail, setCreating, setRenaming, setMoving, setCopying, setSharing, setDeleting } = dialogs;
+  const { preview, setPreview, detail, setDetail, setCreating, setRenaming, setMoving, setCopying, setSharing, setDeleting, setTagging } = dialogs;
   // 视图偏好持久化，缺省 list
   const [view, setView] = useState<"list" | "grid">(() => (getString(STORAGE_KEYS.view) === "grid" ? "grid" : "list"));
   // 右键菜单：当前节点 + 指针位置
@@ -164,6 +164,7 @@ export default function Browser() {
     onCopy: setCopying,
     onDelete: setDeleting,
     onDetail: setDetail,
+    onTag: setTagging,
   });
   // 行/卡片右键：打开于指针处（组件内越界翻转）
   const onNodeContextMenu = (e: ReactMouseEvent<HTMLElement>, node: Node) => {
@@ -349,6 +350,7 @@ export default function Browser() {
                 onRename={setRenaming}
                 onMove={setMoving}
                 onDelete={setDeleting}
+                onTag={setTagging}
               />
             )}
           </div>

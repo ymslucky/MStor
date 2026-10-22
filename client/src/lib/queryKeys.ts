@@ -11,6 +11,8 @@ export const queryKeys = {
   recent: ["library-recent"] as const,
   /** 标签库（tagId=null 表示标签列表本身） */
   library: (kind: "tags", tagId: string | null) => ["library", kind, tagId] as const,
+  /** 某节点已打的标签 */
+  nodeTags: (nodeId: string) => ["node-tags", nodeId] as const,
   members: ["members"] as const,
   invitations: ["invitations"] as const,
   trash: ["trash"] as const,

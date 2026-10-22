@@ -3,6 +3,7 @@ import { ConfirmDialog } from "./ui/ConfirmDialog";
 import MoveDialog from "./MoveDialog";
 import NameDialog from "./NameDialog";
 import ShareDialog from "./ShareDialog";
+import { TagDialog } from "./TagDialog";
 
 type Dialogs = ReturnType<typeof useBrowserDialogs>;
 
@@ -29,12 +30,13 @@ interface Ops {
  * 状态由 useBrowserDialogs 提供，动作与 mutation 由页面注入（保持数据层归属清晰）。
  */
 export function BrowserDialogs({ dialogs, ops }: { dialogs: Dialogs; ops: Ops }) {
-  const { sharing, setSharing, creating, setCreating, renaming, setRenaming, deleting, setDeleting, moving, setMoving, copying, setCopying } = dialogs;
+  const { sharing, setSharing, creating, setCreating, renaming, setRenaming, deleting, setDeleting, moving, setMoving, copying, setCopying, tagging, setTagging } = dialogs;
   const { mkDir, rename, remove, move, copy, purgeNow, deleteBusy } = ops;
 
   return (
     <>
       {sharing && <ShareDialog node={sharing} onClose={() => setSharing(null)} />}
+      {tagging && <TagDialog node={tagging} onClose={() => setTagging(null)} />}
       {creating && (
         <NameDialog
           title="新建文件夹"

@@ -9,6 +9,7 @@ import { BatchBar } from "../components/BatchBar";
 import { UndoSnackbar } from "../components/UndoSnackbar";
 import { StatusBar } from "../components/StatusBar";
 import { MobileNavDrawer } from "../shell/MobileNavDrawer";
+import { TagDialog } from "../components/TagDialog";
 import { UploadQueueProvider } from "../hooks/UploadQueueProvider";
 import { AdminUsersSection } from "../components/AdminUsersSection";
 import { CommandPalette } from "../components/CommandPalette";
@@ -49,7 +50,14 @@ vi.mock("../api/me", () => ({
   patchAdminUser: vi.fn(),
 }));
 vi.mock("../api/search", () => ({ searchNodes: vi.fn(async () => ({ nodes: [], paths: {} })) }));
-vi.mock("../api/library", () => ({ listRecent: vi.fn(async () => ({ nodes: [] })) }));
+vi.mock("../api/library", () => ({
+  listRecent: vi.fn(async () => ({ nodes: [] })),
+  listTags: vi.fn(async () => ({ tags: [] })),
+  listNodeTags: vi.fn(async () => ({ tags: [] })),
+  createTag: vi.fn(),
+  attachTag: vi.fn(),
+  detachTag: vi.fn(),
+}));
 vi.mock("../api/notifications", () => ({
   listNotifications: vi.fn(async () => ({
     unread: 1,
@@ -154,6 +162,15 @@ describe("无障碍闸门", () => {
       </UploadQueueProvider>,
     );
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  test("标签弹窗", async () => {
+    const node = {
+      id: "n1", parent_id: "", name: "a.txt", is_dir: 0 as const, size: 1, mime: "text/plain", created_at: 1, updated_at: 2,
+    };
+    const { baseElement } = wrap(<TagDialog node={node} onClose={() => {}} />);
+    expect(await screen.findByText("标签 · a.txt")).toBeInTheDocument();
+    expect(await axe(baseElement)).toHaveNoViolations();
   });
 
   test("移动端导航抽屉（Radix Dialog 承载焦点与 Esc）", async () => {

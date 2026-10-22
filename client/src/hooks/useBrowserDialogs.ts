@@ -18,6 +18,7 @@ export function useBrowserDialogs() {
   const [deleting, setDeleting] = useState<Node | null>(null);
   const [detail, setDetail] = useState<Node | null>(null);
   const [copying, setCopying] = useState<Node | null>(null);
+  const [tagging, setTagging] = useState<Node | null>(null);
 
   return {
     creating,
@@ -36,5 +37,7 @@ export function useBrowserDialogs() {
     setDetail,
     copying,
     setCopying,
+    tagging,
+    setTagging,
   };
 }

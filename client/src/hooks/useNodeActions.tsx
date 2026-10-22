@@ -1,4 +1,4 @@
-import { Copy, Download, ExternalLink, FolderInput, Info, Pencil, Share2, Trash2 } from "lucide-react";
+import { Copy, Download, ExternalLink, FolderInput, Info, Pencil, Share2, Tag, Trash2 } from "lucide-react";
 import type { Node } from "../api/types";
 import { contentUrl } from "../api/nodes";
 import type { ContextMenuItem } from "../components/ContextMenu";
@@ -16,6 +16,7 @@ interface Handlers {
   onCopy: (node: Node) => void;
   onDelete: (node: Node) => void;
   onDetail: (node: Node) => void;
+  onTag: (node: Node) => void;
 }
 
 /**
@@ -92,6 +93,14 @@ export function useNodeActions(h: Handlers) {
             },
           },
         ]),
+    {
+      label: "标签…",
+      icon: <Tag size={14} aria-hidden />,
+      onClick: () => {
+        h.closeMenu();
+        h.onTag(n);
+      },
+    },
     {
       label: "删除",
       icon: <Trash2 size={14} aria-hidden />,

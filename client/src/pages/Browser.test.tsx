@@ -34,6 +34,11 @@ vi.mock("../api/library", () => ({
   addFavorite: vi.fn(),
   removeFavorite: vi.fn(),
   recordView: vi.fn(async () => ({ ok: true })),
+  listTags: vi.fn(async () => ({ tags: [] })),
+  listNodeTags: vi.fn(async () => ({ tags: [] })),
+  createTag: vi.fn(),
+  attachTag: vi.fn(),
+  detachTag: vi.fn(),
 }));
 
 import { createDir, batchDeleteNodes, deleteNode, listFiles, moveNode, renameNode } from "../api/nodes";
