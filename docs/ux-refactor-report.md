@@ -311,7 +311,35 @@
 
 第一至三轮改动已提交并推送：`6e48cde refactor(client): 系统性重构组件/状态/布局与无障碍…` → `origin/master`；本轮改动在同一条质量闸门通过后单独提交推送。
 
-## 11. 后续建议（本次未实施）
+## 11. 第五轮：前后端契约对齐与安全/缺陷修正
+
+### 11.1 AdminUser 契约
+
+服务端 `/api/me/admin/users` 实际返回 `platform_admin: 0|1`（不返回 `role` 别名），且无个人空间的用户 `quota_bytes` 为 `null`；客户端类型却声明 `role: "admin"|"member"`、`quota_bytes: number` → 角色列永远显示「成员」，配额弹窗对 null 得到 0/NaN。
+
+修复：
+- `api/types.ts`：`platform_admin: 0 | 1`、`quota_bytes: number | null`，并注释服务端列名与 null 语义。
+- 用户管理：角色 Pill 按 `platform_admin === 1`；无个人空间显示「未绑定空间」并禁用「编辑配额」（服务端会 400，前端提前阻断），title 说明原因；配额弹窗初始值对 null 显示空。
+- 测试：a11y/PlatformPage 的 mock 改用 `platform_admin`；新增「管理员映射 + 未绑定空间 + 按钮禁用」用例。
+
+### 11.2 分享列表脱敏
+
+`GET /api/shares` 原用 `SELECT s.*`，把 `password_hash`（以及 `workspace_id` 等内部列）透传到前端。改为显式列（id/node_id/token/expires_at/downloads/max_downloads/last_download_at/created_at + node 三列）。本地 server 断言补充「列表不得包含 password_hash/workspace_id」。
+
+### 11.3 分享页下载提取码
+
+下载原使用实时输入框的 `password`，而真正解锁用的是已提交的 `usedPassword`；两者在「解锁后又改输入框」时会不一致。改为 `usedPassword || undefined`，与分享详情/子目录请求同源。
+
+### 11.4 验证
+
+| 闸门 | 结果 |
+| --- | --- |
+| 客户端 `vitest` | **38 文件 / 234 例通过** |
+| 服务端 `tsc --noEmit` | 通过 |
+| 服务端本地用例 `npm run test:server:local` | **29 项通过**（workerd 版 `npm run test:server` 在本机仍因 `ERR_RUNTIME_FAILURE` 起不来，按 README 走 node:sqlite 垫片） |
+| 客户端 `tsc` / `eslint` / `vite build` | 通过 |
+
+## 12. 后续建议（本次未实施）
 
 1. `<AsyncState>`/`<PageState>` 统一加载/失败/空三态，修复收藏/最近/标签/回收站/分享/审计页「失败伪装成空」。
 2. `<SelectionBar>` 统一 BatchBar / TrashPage / SharesPage 的批量条；`<SearchInput>`、`<ListSkeleton>`、`<PageShell>` 抽公共件。

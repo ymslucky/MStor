@@ -18,10 +18,10 @@ import { listAdminUsers, patchAdminUser } from "../api/me";
 const ME: Me = { id: "u-admin", name: "Alice", role: "admin", quotaBytes: 100, usedBytes: 10, trashRetentionDays: 30, self: { id: "u-admin", name: "Alice", role: "admin" } };
 
 function mkUser(over: Partial<AdminUser> = {}): AdminUser {
-  return { id: "u1", name: "Bob", role: "member", quota_bytes: 10737418240, created_at: 1, disabled_at: null, email: null, ...over };
+  return { id: "u1", name: "Bob", platform_admin: 0, quota_bytes: 10737418240, created_at: 1, disabled_at: null, email: null, ...over };
 }
 
-const TWO_USERS = { users: [mkUser(), mkUser({ id: "u2", name: "Carol", email: "carol@example.com", role: "admin", disabled_at: 5 })] };
+const TWO_USERS = { users: [mkUser(), mkUser({ id: "u2", name: "Carol", email: "carol@example.com", platform_admin: 1, disabled_at: 5 })] };
 
 function renderWith(ui: JSX.Element) {
   return { ...renderWithProviders(ui), user: userEvent.setup() };
@@ -79,6 +79,17 @@ test("admin binds an email through the dialog with validation", async () => {
   await user.type(input, "bob@example.com");
   await user.click(screen.getByRole("button", { name: "保存" }));
   await waitFor(() => expect(patchAdminUser).toHaveBeenCalledWith("u1", { email: "bob@example.com" }));
+});
+
+test("platform_admin 映射为管理员；无个人空间显示未绑定且禁用配额编辑", async () => {
+  vi.mocked(listAdminUsers).mockResolvedValue({
+    users: [mkUser({ platform_admin: 1 }), mkUser({ id: "u3", name: "NoSpace", quota_bytes: null })],
+  });
+  renderWith(<PlatformPage me={ME} kind="users" />);
+  await screen.findByText("Bob");
+  expect(screen.getByText("Bob").closest("tr")).toHaveTextContent("管理员");
+  expect(screen.getByText("NoSpace").closest("tr")).toHaveTextContent("未绑定空间");
+  expect(screen.getByRole("button", { name: "编辑配额（NoSpace）" })).toBeDisabled();
 });
 
 test("admin filters users by keyword and status", async () => {

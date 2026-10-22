@@ -42,8 +42,8 @@ const wrap = (ui: React.ReactElement) => renderWithProviders(ui);
 vi.mock("../api/me", () => ({
   listAdminUsers: vi.fn(async () => ({
     users: [
-      { id: "u1", name: "张三", role: "admin", quota_bytes: 10737418240, created_at: 1, disabled_at: null, email: "a@b.c" },
-      { id: "u2", name: "李四", role: "member", quota_bytes: 5368709120, created_at: 1, disabled_at: 2, email: null },
+      { id: "u1", name: "张三", platform_admin: 1, quota_bytes: 10737418240, created_at: 1, disabled_at: null, email: "a@b.c" },
+      { id: "u2", name: "李四", platform_admin: 0, quota_bytes: 5368709120, created_at: 1, disabled_at: 2, email: null },
     ],
   })),
   patchAdminUser: vi.fn(),

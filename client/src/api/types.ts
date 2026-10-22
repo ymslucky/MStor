@@ -57,8 +57,10 @@ export interface WorkspaceSummary {
 export interface AdminUser {
   id: string;
   name: string;
-  role: "admin" | "member";
-  quota_bytes: number;
+  /** 平台管理员标记（服务端列名 platform_admin；1=平台管理员）。服务端不返回 role 别名 */
+  platform_admin: 0 | 1;
+  /** 个人空间配额；用户尚未首登/无个人空间时为 null */
+  quota_bytes: number | null;
   created_at: number;
   disabled_at: number | null;
   /** Access 身份绑定锚点：首登按 email 锚定存量账号 */

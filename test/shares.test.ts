@@ -47,6 +47,24 @@ test("password-protected share requires x-share-password", async () => {
   expect(ok.status).toBe(200);
 });
 
+test("share list does not leak password_hash or internal columns", async () => {
+  const u = await seedUser();
+  const fid = await upload(u, "p2.txt", "x");
+  await SELF.fetch("https://example.com/api/shares", {
+    method: "POST",
+    headers: { ...(await sessionHeaders(u)), ...json },
+    body: JSON.stringify({ nodeId: fid, password: "1234" }),
+  });
+  const list = (await (
+    await SELF.fetch("https://example.com/api/shares", { headers: await sessionHeaders(u) })
+  ).json()) as { shares: Record<string, unknown>[] };
+  expect(list.shares).toHaveLength(1);
+  expect(list.shares[0]).not.toHaveProperty("password_hash");
+  expect(list.shares[0]).not.toHaveProperty("workspace_id");
+  expect(list.shares[0]).toMatchObject({ node_name: "p2.txt", node_is_dir: 0, node_size: 1 });
+  expect(typeof list.shares[0].token).toBe("string");
+});
+
 test("expired share returns 410; revoked returns 404", async () => {
   const u = await seedUser();
   const fid = await upload(u, "e.txt", "x");

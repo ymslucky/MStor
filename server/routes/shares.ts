@@ -39,7 +39,9 @@ shares.get("/", async (c) => {
   // CROSS JOIN 锁定 shares 驱动：idx_shares_active 有序扫描 + 每行 PK 回表，
   // 读行数 = 分享数（普通 JOIN 会被 planner 改成 nodes 侧 owner 索引全扫）且免 TEMP B-TREE 排序
   const { results } = await c.env.DB.prepare(
-    `SELECT s.*, n.name AS node_name, n.is_dir AS node_is_dir, n.size AS node_size
+    // 显式列：不要把 password_hash（或 workspace_id 等内部列）透传给前端
+    `SELECT s.id, s.node_id, s.token, s.expires_at, s.downloads, s.max_downloads, s.last_download_at, s.created_at,
+            n.name AS node_name, n.is_dir AS node_is_dir, n.size AS node_size
      FROM shares s CROSS JOIN nodes n ON n.id = s.node_id
      WHERE n.workspace_id = ?1 AND s.revoked_at IS NULL ORDER BY s.created_at DESC`
   ).bind(c.get("workspace").id).all();

@@ -583,6 +583,10 @@ async function main() {
     await call(env, url, { headers });
     assertEqual(db.prepare("SELECT downloads d FROM shares WHERE token = ?").first(token).d, 1, "同来源重复下载只计一次");
     const list = await call(env, "/api/shares", { headers: auth });
+    // 分享列表显式列：password_hash / workspace_id 等内部字段不得透传前端
+    assert(!("password_hash" in list.json.shares[0]), "分享列表不得返回 password_hash");
+    assert(!("workspace_id" in list.json.shares[0]), "分享列表不得返回内部 workspace_id");
+    assertEqual(list.json.shares[0].node_name, "dedupe.bin", "列表应带 node_name");
     const shareId = list.json.shares[0].id;
     await call(env, "/api/shares/" + shareId, { method: "DELETE", headers: auth });
     const afterRevoke = await call(env, url, { headers });

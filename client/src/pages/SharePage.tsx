@@ -79,7 +79,8 @@ export default function SharePage() {
       : [{ id: info.data.id, name: info.data.name, isDir: false, size: info.data.size, mime: info.data.mime }];
 
   const download = (f: PublicNode) => {
-    downloadShared(token, f.id, f.name, password || undefined).catch((e: unknown) => {
+    // 用「已提交」的提取码：用户解锁后又在输入框里改了值但未再次提交时，下载不能拿实时输入
+    downloadShared(token, f.id, f.name, usedPassword || undefined).catch((e: unknown) => {
       toast(e instanceof Error ? e.message : "下载失败");
     });
   };

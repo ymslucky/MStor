@@ -19,7 +19,7 @@ type PatchBody = Parameters<typeof patchAdminUser>[1];
 
 /** 配额弹窗：校验「大于 0 的整数 GB」，提交后由上层 invalidate ["admin-users"] */
 function QuotaDialog({ user, busy, onClose, onSubmit }: { user: AdminUser; busy: boolean; onClose: () => void; onSubmit: (body: PatchBody) => void }) {
-  const [val, setVal] = useState(String(quotaGb(user.quota_bytes)));
+  const [val, setVal] = useState(user.quota_bytes == null ? "" : String(quotaGb(user.quota_bytes)));
   const gb = Number(val);
   const valid = Number.isInteger(gb) && gb > 0;
   return (
@@ -94,15 +94,22 @@ function UserRow({ u, selfId, onQuota, onEmail, onDisable }: { u: AdminUser; sel
         <p className="truncate text-2xs text-ink-3">{u.email ?? "未绑定邮箱"}</p>
       </td>
       <td className="px-3 py-2">
-        <Pill tone={u.role === "admin" ? "accent" : "neutral"}>{u.role === "admin" ? "管理员" : "成员"}</Pill>
+        <Pill tone={u.platform_admin === 1 ? "accent" : "neutral"}>{u.platform_admin === 1 ? "管理员" : "成员"}</Pill>
       </td>
-      <td className="num px-3 py-2 text-sm whitespace-nowrap text-ink-2">{formatBytes(u.quota_bytes)}</td>
+      <td className="num px-3 py-2 text-sm whitespace-nowrap text-ink-2">
+        {u.quota_bytes == null ? "未绑定空间" : formatBytes(u.quota_bytes)}
+      </td>
       <td className="px-3 py-2">
         <Pill tone={disabled ? "danger" : "success"}>{disabled ? "已停用" : "正常"}</Pill>
       </td>
       <td className="px-3 py-2">
         <div className="flex items-center justify-end gap-1">
-          <IconButton label={`编辑配额（${u.name}）`} onClick={onQuota}>
+          <IconButton
+            label={`编辑配额（${u.name}）`}
+            disabled={u.quota_bytes == null}
+            title={u.quota_bytes == null ? "该用户尚未首次登录，暂无个人空间可配置" : undefined}
+            onClick={onQuota}
+          >
             <Pencil size={15} aria-hidden />
           </IconButton>
           <IconButton label={`绑定邮箱（${u.name}）`} onClick={onEmail}>
