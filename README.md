@@ -106,6 +106,8 @@ npm run check       # 双 tsc + ESLint
 npm run lint
 npm run format
 npm run build && npm run visual:check   # headless Chrome 关键页截图 + 横向溢出检查（需本机 Chrome/Edge）
+npm run visual:check -- --baseline     # 追加像素基线对比（默认差异阈值 1.5%，可用 VISUAL_DIFF_MAX 覆盖）
+npm run visual:check -- --update-baseline  # 有意改版后更新 docs/design/v7 基线
 ```
 
 ## 部署

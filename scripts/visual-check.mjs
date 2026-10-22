@@ -9,14 +9,19 @@
  */
 import http from "node:http";
 import { spawn } from "node:child_process";
-import { access, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { access, copyFile, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
 const ROOT = process.cwd();
 const DIST = path.join(ROOT, "client/dist");
 const OUT = path.join(ROOT, ".tmp-build/visual");
+const BASELINE_DIR = path.join(ROOT, "docs/design/v7");
 const PROFILE = path.join(OUT, "chrome-profile");
+const ARGS = new Set(process.argv.slice(2));
+const CHECK_BASELINE = ARGS.has("--baseline");
+const UPDATE_BASELINE = ARGS.has("--update-baseline");
+const DIFF_MAX = Number(process.env.VISUAL_DIFF_MAX ?? "1.5");
 
 const CHROME_CANDIDATES = [
   process.env.CHROME_BIN,
@@ -28,7 +33,8 @@ const CHROME_CANDIDATES = [
   "/usr/bin/chromium-browser",
 ].filter(Boolean);
 
-const NOW = Date.now();
+// 固定 mock 时间：截图基线必须可复现（否则列表时间/分享有效期每次都在变）
+const NOW = Date.UTC(2026, 9, 22, 10, 0, 0);
 const node = (id, name, is_dir, size, mime = null) => ({
   id, parent_id: "", name, is_dir, size, mime,
   created_at: NOW - 86400000, updated_at: NOW - 3600000, thumb_key: null, deleted_at: null,
@@ -225,6 +231,45 @@ async function launchChrome(exe) {
   return { chrome, ws, cmd, evaluate };
 }
 
+/** 在页面 canvas 里比较两张 PNG：返回尺寸不一致或差异像素占比 */
+async function comparePixels(evaluate, currentB64, baselineB64) {
+  const expression = `(async () => {
+    const load = (src) => new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("decode"));
+      img.src = src;
+    });
+    try {
+      const [a, b] = await Promise.all([
+        load(${JSON.stringify("data:image/png;base64," + currentB64)}),
+        load(${JSON.stringify("data:image/png;base64," + baselineB64)}),
+      ]);
+      if (a.width !== b.width || a.height !== b.height) {
+        return JSON.stringify({ error: "size", aw: a.width, ah: a.height, bw: b.width, bh: b.height });
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = a.width; canvas.height = a.height;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      ctx.drawImage(a, 0, 0);
+      const da = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(b, 0, 0);
+      const db = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      let diff = 0;
+      const total = da.length / 4;
+      for (let i = 0; i < da.length; i += 4) {
+        const d = Math.abs(da[i] - db[i]) + Math.abs(da[i + 1] - db[i + 1]) + Math.abs(da[i + 2] - db[i + 2]);
+        if (d > 32) diff++;
+      }
+      return JSON.stringify({ diff, total, pct: (diff / total) * 100 });
+    } catch (e) {
+      return JSON.stringify({ error: String(e) });
+    }
+  })()`;
+  return JSON.parse(await evaluate(expression));
+}
+
 async function waitFor(evaluate, expression, timeout = 8000) {
   const start = Date.now();
   while (Date.now() - start < timeout) {
@@ -296,12 +341,32 @@ async function main() {
       const checkOk = c.check ? Boolean(await evaluate(c.check)) : true;
       const shot = await cmd("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
       const file = path.join(OUT, `${c.name}.png`);
-      await writeFile(file, Buffer.from(shot.data, "base64"));
+      const current = Buffer.from(shot.data, "base64");
+      await writeFile(file, current);
       const problems = [];
       if (!markerOk) problems.push(`缺少标记「${c.marker}」`);
       if (!checkOk) problems.push("页面自检失败");
       if (metrics.sw > metrics.vw + 1) problems.push(`横向溢出 ${metrics.sw} > ${metrics.vw}`);
-      results.push({ name: c.name, size: `${c.width}×${c.height}`, problems });
+      let pct = null;
+      if (UPDATE_BASELINE) {
+        await copyFile(file, path.join(BASELINE_DIR, `${c.name}.png`));
+      } else if (CHECK_BASELINE) {
+        try {
+          const baseline = await readFile(path.join(BASELINE_DIR, `${c.name}.png`));
+          const pixels = await comparePixels(evaluate, current.toString("base64"), baseline.toString("base64"));
+          if (pixels.error === "size") {
+            problems.push(`基线尺寸不符 ${pixels.aw}×${pixels.ah} → ${pixels.bw}×${pixels.bh}`);
+          } else if (pixels.error) {
+            problems.push(`像素比较失败：${pixels.error}`);
+          } else {
+            pct = pixels.pct;
+            if (pct > DIFF_MAX) problems.push(`像素差异 ${pct.toFixed(2)}% > ${DIFF_MAX}%`);
+          }
+        } catch {
+          problems.push("缺少基线截图");
+        }
+      }
+      results.push({ name: c.name, size: `${c.width}×${c.height}`, problems, pct });
     }
   } finally {
     if (session) {
@@ -322,9 +387,11 @@ async function main() {
   const failed = results.filter((r) => r.problems.length > 0);
   for (const r of results) {
     const ok = r.problems.length === 0;
-    console.log(`${ok ? "PASS" : "FAIL"}  ${r.name.padEnd(18)} ${r.size}  ${r.problems.join("；") || "no overflow"}`);
+    const diff = r.pct == null ? "" : `  diff ${r.pct.toFixed(2)}%`;
+    console.log(`${ok ? "PASS" : "FAIL"}  ${r.name.padEnd(18)} ${r.size}${diff}  ${r.problems.join("；") || "no overflow"}`);
   }
-  console.log(`\n视觉检查：${results.length - failed.length}/${results.length} 通过；截图目录 .tmp-build/visual`);
+  if (UPDATE_BASELINE) console.log(`\n基线已更新：docs/design/v7（${results.length} 张）`);
+  console.log(`\n视觉检查：${results.length - failed.length}/${results.length} 通过；${CHECK_BASELINE ? "像素基线已对比；" : ""}截图目录 .tmp-build/visual`);
   if (failed.length > 0) process.exitCode = 1;
 }
 
