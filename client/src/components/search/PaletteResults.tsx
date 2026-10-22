@@ -22,6 +22,9 @@ export function PaletteResults({
   setKind,
   onResetFilters,
   onGoRoot,
+  hasNextPage = false,
+  isFetchingNextPage = false,
+  onLoadMore,
 }: {
   sections: PaletteSection[];
   flat: PaletteItem[];
@@ -35,6 +38,9 @@ export function PaletteResults({
   setKind: (v: SearchKind) => void;
   onResetFilters: () => void;
   onGoRoot: () => void;
+  hasNextPage?: boolean;
+  isFetchingNextPage?: boolean;
+  onLoadMore?: () => void;
 }) {
   return (
     <div className="glass anim-pop absolute inset-x-0 z-nav mt-1 max-h-80 overflow-auto">
@@ -111,6 +117,14 @@ export function PaletteResults({
             ))}
           </div>
         ))
+      )}
+
+      {flat.length > 0 && hasNextPage && (
+        <div className="border-t border-line px-2 py-1.5 text-center">
+          <Button size="sm" variant="ghost" disabled={isFetchingNextPage} onClick={onLoadMore}>
+            {isFetchingNextPage ? "加载中…" : "加载更多结果"}
+          </Button>
+        </div>
       )}
     </div>
   );

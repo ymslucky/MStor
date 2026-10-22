@@ -52,6 +52,25 @@ test("navigates to parent dir on file click", async () => {
   await waitFor(() => expect(screen.queryByText(contentEq("相册/2026/聚会.jpg"))).not.toBeInTheDocument());
 });
 
+test("分页：加载更多用 nextCursor 追加结果", async () => {
+  vi.mocked(searchNodes)
+    .mockResolvedValueOnce({ ...RESULT, nextCursor: "o:2" })
+    .mockResolvedValueOnce({
+      nodes: [{ id: "f2", parent_id: "d1", name: "第二页.jpg", is_dir: 0, size: 2, mime: "image/jpeg", created_at: 1, updated_at: 2 }],
+      paths: { f2: "相册/第二页.jpg" },
+      nextCursor: null,
+    });
+  const { user } = renderWith(<SearchBox />);
+  await user.type(screen.getByLabelText("搜索"), "聚会");
+  expect(await screen.findByText(contentEq("聚会.jpg"), { selector: "span" })).toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: "加载更多结果" }));
+  await waitFor(() =>
+    expect(searchNodes).toHaveBeenLastCalledWith({ q: "聚会", sort: "recent", type: "all", cursor: "o:2" }),
+  );
+  expect(await screen.findByText(contentEq("第二页.jpg"), { selector: "span" })).toBeInTheDocument();
+});
+
 test("does not search for empty/whitespace query", async () => {
   vi.clearAllMocks(); // 前两个用例的调用记录会残留，需先清空
   const { user } = renderWith(<SearchBox />);

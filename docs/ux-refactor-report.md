@@ -385,7 +385,18 @@
 - 测试：TagDialog 2 例（回显/勾选、创建并添加）、LibraryPage 2 例（新建、删除确认）、a11y 标签弹窗；本地 server 29 项。
 - 验证：客户端 **42 文件 / 245 例**；双 `tsc`、`eslint`、`vite build` 全绿。
 
-## 15. 后续建议（本次未实施）
+## 15. 第九轮：命令面板搜索游标分页
+
+服务端 `/api/search` 已返回 `nextCursor`（recent 用 keyset、name/size 用偏移），前端此前只展示首屏 50 条。
+
+- `SearchResult` 补 `nextCursor?: string | null` 类型；
+- `usePaletteSearch` 改 `useInfiniteQuery`：首屏请求保持既有 `{q,sort,type}` 签名，后续页才带 `cursor`；`getNextPageParam` 直接取服务端游标；
+- 多页合并 nodes/paths（`useMemo`），键盘导航/分组天然覆盖已加载结果；
+- `PaletteResults` 底部「加载更多结果」：无下一页隐藏、加载中禁用；
+- 新增 SearchBox 分页用例（首屏 nextCursor → 点击加载更多 → 断言 cursor 与追加结果）。
+- 验证：客户端 **42 文件 / 246 例**；双 `tsc`、`eslint`、`vite build` 全绿。
+
+## 16. 后续建议（本次未实施）
 
 1. `<AsyncState>`/`<PageState>` 统一加载/失败/空三态，修复收藏/最近/标签/回收站/分享/审计页「失败伪装成空」。
 2. `<SelectionBar>` 统一 BatchBar / TrashPage / SharesPage 的批量条；`<SearchInput>`、`<ListSkeleton>`、`<PageShell>` 抽公共件。

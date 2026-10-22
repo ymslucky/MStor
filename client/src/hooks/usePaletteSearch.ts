@@ -1,5 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { listRecent } from "../api/library";
@@ -26,12 +26,31 @@ export function usePaletteSearch({ onNavigate }: { onNavigate?: () => void } = {
   const boxRef = useRef<HTMLDivElement>(null);
   const kw = dq.trim();
 
-  const { data, isFetching } = useQuery({
+  const search = useInfiniteQuery({
     queryKey: queryKeys.search(dq, sort, kind),
-    queryFn: () => searchNodes({ q: dq, sort, type: kind }),
+    // 首屏不带 cursor（保持既有调用签名），后续页用服务端返回的 nextCursor
+    queryFn: ({ pageParam }) =>
+      searchNodes({ q: dq, sort, type: kind, ...(pageParam ? { cursor: pageParam } : {}) }),
+    initialPageParam: "",
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
     enabled: kw.length > 0,
   });
   const recent = useQuery({ queryKey: queryKeys.recent, queryFn: listRecent, enabled: open && kw.length === 0 });
+
+  // 多页合并：节点顺序按服务端分页顺序拼接，路径字典合并
+  const data = useMemo(() => {
+    const pages = search.data?.pages ?? [];
+    return pages.reduce<{ nodes: Node[]; paths: Record<string, string> }>(
+      (acc, page) => ({ nodes: [...acc.nodes, ...page.nodes], paths: { ...acc.paths, ...page.paths } }),
+      { nodes: [], paths: {} },
+    );
+  }, [search.data]);
+  const isFetching = search.isFetching;
+  const hasNextPage = Boolean(search.hasNextPage);
+  const isFetchingNextPage = search.isFetchingNextPage;
+  const loadMore = () => {
+    if (search.hasNextPage && !search.isFetchingNextPage) void search.fetchNextPage();
+  };
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
@@ -147,6 +166,9 @@ export function usePaletteSearch({ onNavigate }: { onNavigate?: () => void } = {
     sections,
     flat,
     isFetching,
+    hasNextPage,
+    isFetchingNextPage,
+    loadMore,
     kw,
     boxRef,
     onKeyDown,

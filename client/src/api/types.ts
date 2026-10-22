@@ -105,6 +105,8 @@ export interface ShareInfo {
 export interface SearchResult {
   nodes: Node[];
   paths: Record<string, string>;
+  /** 下一页游标（keyset/offset 由服务端决定；null/缺失表示没有更多） */
+  nextCursor?: string | null;
 }
 
 export interface TrashResult {

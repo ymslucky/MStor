@@ -35,6 +35,9 @@ export default function SearchBox({ autoFocus, onNavigate }: { autoFocus?: boole
           setKind={palette.setKind}
           onResetFilters={palette.resetFilters}
           onGoRoot={() => palette.go(null)}
+          hasNextPage={palette.hasNextPage}
+          isFetchingNextPage={palette.isFetchingNextPage}
+          onLoadMore={palette.loadMore}
         />
       )}
     </div>
