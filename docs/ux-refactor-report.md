@@ -403,7 +403,18 @@
 - **/design 登记**：补充 `SearchInput` 与 `AsyncState` 演示（后者用 `Surface` 包裹以满足「禁止手写卡片外观」的 lint 规则）。
 - 验证：客户端 **42 文件 / 245 例**（删除 1 例死 API 测试）；双 `tsc`、`eslint`、`vite build` 全绿。
 
-## 17. 后续建议（本次未实施）
+## 17. 第十一轮：设计令牌对比度闸门
+
+把 `docs/design-system.md` 的「≥4.5:1」从文档承诺变成 CI 断言：
+
+- 新增 `client/src/test/contrast.ts`（测试工具）：从 `client/src/index.css` 提取 `@theme`、暗色媒体块、slate/ink/brutal 皮肤块；递归解析 `var()` 令牌链，解析 hex/rgb(a) 与半透明色（半透明浅底先与其所在 `surface-1` 合成），按 WCAG 相对亮度计算对比度。
+- 新增 `client/src/test/contrast.test.ts`：5 个变体（默认亮色 / 暗色 / slate / ink / brutal）× 18 组前景-背景（ink/ink-2/ink-3 × 4 种表面、状态色 text/soft、chip fg/bg）全部断言 ≥4.5:1。
+- 闸门立即抓出并修复两处真实缺陷：
+  - 亮色 `chip-amber-fg` 在 `chip-amber-bg` 上仅 **4.45:1** → `#b45309 → #a64a06`（约 4.65:1）；
+  - brutal 皮肤 `ink-3` 在 `bg-sub` 上仅 **4.07:1** → `#6d6d6d → #626262`（约 4.6:1）。
+- 验证：客户端 **43 文件 / 250 例**；双 `tsc`、`eslint`、`vite build` 全绿。
+
+## 18. 后续建议（本次未实施）
 
 1. `<AsyncState>`/`<PageState>` 统一加载/失败/空三态，修复收藏/最近/标签/回收站/分享/审计页「失败伪装成空」。
 2. `<SelectionBar>` 统一 BatchBar / TrashPage / SharesPage 的批量条；`<SearchInput>`、`<ListSkeleton>`、`<PageShell>` 抽公共件。

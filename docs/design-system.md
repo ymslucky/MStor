@@ -155,3 +155,9 @@
 - 命令面板接入 `nextCursor` 游标分页（`useInfiniteQuery` + 「加载更多结果」）。
 - 删除 `clearFinished` 死代码；底部浮层统一 `.dock-bottom`；`/design` 登记 SearchInput/AsyncState/SelectionBar/TagDialog。
 - 闸门：**42 文件 245 例**；双 `tsc` / `eslint` / `vite build` 全绿。
+
+### v6.6 对比度闸门
+
+- 新增 `client/src/test/contrast.test.ts`：解析 `@theme`/暗色/skin 令牌（含 var 链与半透明合成），断言 5 个变体 × 18 组文字/背景 ≥4.5:1。
+- 修正：亮色 `chip-amber-fg #b45309→#a64a06`；brutal `ink-tertiary #6d6d6d→#626262`。
+- 闸门：**43 文件 250 例**；双 `tsc` / `eslint` / `vite build` 全绿。

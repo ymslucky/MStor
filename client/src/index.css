@@ -64,7 +64,7 @@
   --color-warning-text: var(--color-warn-text);
 
   --color-chip-amber-bg: #fdf0d5;
-  --color-chip-amber-fg: #b45309;
+  --color-chip-amber-fg: #a64a06;
   --color-chip-blue-bg: #e0f2fe;
   --color-chip-blue-fg: #0369a1;
   --color-chip-violet-bg: #ece9fe;
@@ -422,7 +422,7 @@ html[data-skin="brutal"] {
   --surface-overlay: #ffffff;
   --ink-primary: #0d0d0d;
   --ink-secondary: #3a3a3a;
-  --ink-tertiary: #6d6d6d;
+  --ink-tertiary: #626262;
   --ink-inverse: #f2f0e9;
   --line-subtle: #0d0d0d;
   --line-strong: #0d0d0d;
