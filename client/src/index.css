@@ -1,29 +1,51 @@
 @import "tailwindcss";
 
 /* ============================================================
-   MStor 设计系统 v6 · 明亮清新 + 玻璃质感 + 活泼动效
-   - 底色：近白微冷，叠三处极淡色彩光晕（薄荷/天蓝/淡紫）
-   - 表面：半透明白 + backdrop-blur（真正的毛玻璃），1px 高光描边
-   - 阴影：大范围低透明度柔和投影（不用硬投影）
-   - 圆角：10/12/16/20（玻璃需要足够圆润）
-   - 字体：全站无衬线；只有数值用 tabular-nums
-   - 动效：spring 曲线，160/240/320ms，进场位移 + 抬升 + 按压缩放
+   MStor 设计系统 v7 · Calm Workspace
+   目标：从「演示型玻璃拟态」转向「专业、安静、内容优先」的文件工作台
+   - 背景：单一中性冷灰，取消彩色光晕/固定渐变
+   - 表面：实色 + 1px 描边 + 克制阴影（弹窗才用更强一层）
+   - 强调：全站唯一靛蓝色（亮/暗同色相），状态色只表达状态
+   - 排版：14px 基准、清晰层级、数值等宽
+   - 动效：短促（120/180/240ms），尊重 reduced-motion
    ============================================================ */
 @theme {
+  /* L1 语义角色：组件只引用这一层 */
+  --surface-canvas: #f5f6f8;
+  --surface-raised: #ffffff;
+  --surface-sunken: #eef0f3;
+  --surface-overlay: #ffffff;
+  --ink-primary: #101828;
+  --ink-secondary: #475467;
+  --ink-tertiary: #5b6577;
+  --ink-inverse: #f8fafc;
+  --line-subtle: #e4e7ec;
+  --line-strong: #cfd4dc;
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-text: #4338ca;
+  --accent-tint: #eef2ff;
+  --state-positive: #067647;
+  --state-positive-tint: #ecfdf3;
+  --state-positive-text: #05603a;
+  --state-caution: #b54708;
+  --state-caution-tint: #fffaeb;
+  --state-caution-text: #93370d;
+  --state-critical: #b42318;
+  --state-critical-tint: #fef3f2;
+  --state-critical-text: #912018;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --density-row-h: 44px;
+  --density-pad: 16px;
 
-  /* L1 语义角色：组件只允许引用这一层 */
-  --surface-canvas: #fbfbfa; --surface-raised: #ffffff; --surface-sunken: #f4f4f2; --surface-overlay: #ffffff;
-  --ink-primary: #1c1b19; --ink-secondary: #57534e; --ink-tertiary: #6b665f; --ink-inverse: #fbfbfa;
-  --line-subtle: #e8e6e3; --line-strong: #d7d4cf;
-  --accent: #4c5bd4; --accent-hover: #3a47ae; --accent-text: #3a47ae; --accent-tint: #eef0fb;
-  --state-positive: #15803d; --state-positive-tint: #e7f5ec; --state-positive-text: #126532;
-  --state-caution: #b45309; --state-caution-tint: #fdf0dd; --state-caution-text: #92400e;
-  --state-critical: #b91c1c; --state-critical-tint: #fdeceb; --state-critical-text: #991b1b;
-  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px;
-  --density-row-h: 48px; --density-pad: 16px;
   --color-bg: var(--surface-canvas);
   --color-bg-sub: var(--surface-sunken);
-  --color-surface-0: #f6f8fb;
+  --color-surface-0: var(--surface-canvas);
   --color-surface-1: var(--surface-raised);
   --color-surface-2: var(--surface-overlay);
 
@@ -34,56 +56,57 @@
   --color-line: var(--line-subtle);
   --color-line-strong: var(--line-strong);
 
-  /* 强调色：清新薄荷青 */
+  /* 唯一强调色：靛蓝 */
   --color-primary: var(--accent);
   --color-primary-text: var(--accent-text);
   --color-primary-soft: var(--accent-tint);
-  --color-cta: #38bdf8;
+  --color-cta: #0ea5e9;
   --color-cta-text: #0369a1;
 
-  --color-success: #10b981;
+  --color-success: var(--state-positive);
   --color-success-text: var(--state-positive-text);
   --color-success-soft: var(--state-positive-tint);
-  --color-warn: #f59e0b;
+  --color-warn: var(--state-caution);
   --color-warn-text: var(--state-caution-text);
   --color-warn-soft: var(--state-caution-tint);
-  --color-danger: #f43f5e;
+  --color-danger: var(--state-critical);
   --color-danger-text: var(--state-critical-text);
   --color-danger-soft: var(--state-critical-tint);
 
-  /* 兼容层 */
+  /* 兼容层（旧类名保留，映射到新令牌） */
   --color-ink-dim: var(--color-ink-2);
   --color-ink-faint: var(--color-ink-3);
   --color-surface: var(--color-bg);
   --color-surface-raised: var(--color-surface-1);
   --color-accent: var(--color-primary);
   --color-accent-strong: var(--color-primary-text);
-  --color-accent-deep: #0b8583;
+  --color-accent-deep: var(--accent-hover);
   --color-accent-soft: var(--color-primary-soft);
   --color-warning: var(--color-warn);
   --color-warning-text: var(--color-warn-text);
 
-  --color-chip-amber-bg: #fdf0d5;
-  --color-chip-amber-fg: #a64a06;
-  --color-chip-blue-bg: #e0f2fe;
-  --color-chip-blue-fg: #0369a1;
-  --color-chip-violet-bg: #ece9fe;
-  --color-chip-violet-fg: #5b46c8;
-  --color-chip-rose-bg: #ffe4e9;
-  --color-chip-rose-fg: #be123c;
+  /* 文件类型标签：低饱和、可读优先 */
+  --color-chip-amber-bg: #fffaeb;
+  --color-chip-amber-fg: #93370d;
+  --color-chip-blue-bg: #eff8ff;
+  --color-chip-blue-fg: #175cd3;
+  --color-chip-violet-bg: #f4f3ff;
+  --color-chip-violet-fg: #5925dc;
+  --color-chip-rose-bg: #fff1f3;
+  --color-chip-rose-fg: #c01048;
 
-  /* 圆角：玻璃质感需要圆润 */
-  --radius-chip: 8px;
+  /* 圆角：克制的四档 */
+  --radius-chip: 6px;
   --radius-btn: 8px;
   --radius-input: 8px;
-  --radius-card: 12px;
-  --radius-panel: 16px;
+  --radius-card: 10px;
+  --radius-panel: 12px;
 
-  /* 阴影：大范围柔光，不用硬边 */
-  --shadow-soft: 0 1px 2px rgb(16 32 44 / 0.04), 0 2px 8px rgb(16 32 44 / 0.04);
-  --shadow-card: 0 1px 2px rgb(16 32 44 / 0.04), 0 8px 24px rgb(16 32 44 / 0.06);
-  --shadow-lift: 0 2px 6px rgb(16 32 44 / 0.06), 0 16px 40px rgb(16 32 44 / 0.10);
-  --shadow-glass: 0 8px 32px rgb(16 32 44 / 0.12), 0 2px 8px rgb(16 32 44 / 0.06);
+  /* 阴影：两级柔和，弹窗才抬升 */
+  --shadow-soft: 0 1px 2px rgb(16 24 40 / 0.05);
+  --shadow-card: 0 1px 3px rgb(16 24 40 / 0.08), 0 1px 2px rgb(16 24 40 / 0.04);
+  --shadow-lift: 0 8px 24px rgb(16 24 40 / 0.12), 0 2px 6px rgb(16 24 40 / 0.06);
+  --shadow-glass: var(--shadow-lift);
 
   --text-2xs: 0.6875rem;
   --text-2xs--line-height: 1rem;
@@ -91,26 +114,26 @@
   --text-xs--line-height: 1.1rem;
   --text-sm: 0.8125rem;
   --text-sm--line-height: 1.25rem;
-  --text-base: 0.9375rem;
-  --text-base--line-height: 1.5rem;
-  --text-lg: 1.125rem;
-  --text-lg--line-height: 1.6rem;
-  --text-xl: 1.375rem;
+  --text-base: 0.875rem;
+  --text-base--line-height: 1.375rem;
+  --text-lg: 1rem;
+  --text-lg--line-height: 1.5rem;
+  --text-xl: 1.25rem;
   --text-xl--line-height: 1.75rem;
-  --text-2xl: 1.875rem;
-  --text-2xl--line-height: 2.15rem;
+  --text-2xl: 1.5rem;
+  --text-2xl--line-height: 2rem;
 
-  /* 动效：活泼的 spring */
-  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  /* 动效：短促、可预期 */
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
-  --duration-fast: 160ms;
-  --duration-slow: 240ms;
-  --duration-320: 320ms;
+  --duration-fast: 120ms;
+  --duration-slow: 180ms;
+  --duration-320: 240ms;
 
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-display: "Plus Jakarta Sans Variable", "Inter Variable", sans-serif;
 
-  /* 层叠令牌：全站只允许这七层，禁止再写裸 z-[数字] */
+  /* 层叠令牌：全站只允许这七层，禁止裸 z-[数字] */
   --z-content: 10;
   --z-sticky: 20;
   --z-nav: 30;
@@ -120,48 +143,44 @@
   --z-toast: 70;
 }
 
-/* 深色：深蓝灰 + 玻璃，同样通透 */
+/* 深色：同色相的中性深灰，保持一致的强调色 */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg: #0e1620;
-    --color-bg-sub: #16202b;
-    --color-surface-0: #0e1620;
-    --color-surface-1: #16202b;
-    --color-surface-2: #1b2632;
-    --color-ink: #eaf2f8;
-    --color-ink-2: #a6b7c4;
-    --color-ink-3: #8b9cae;
-    --color-line: #24313d;
-    --color-line-strong: #334455;
-    --color-primary: #2dd4bf;
-    --color-primary-text: #5eead4;
-    --color-primary-soft: rgb(45 212 191 / 0.16);
+    --color-bg: #0b0f16;
+    --color-bg-sub: #141a23;
+    --color-surface-0: #0b0f16;
+    --color-surface-1: #11161f;
+    --color-surface-2: #171e29;
+    --color-ink: #f2f4f7;
+    --color-ink-2: #b6c0cc;
+    --color-ink-3: #8b97a6;
+    --color-line: #26303c;
+    --color-line-strong: #354252;
+    --color-primary: #818cf8;
+    --color-primary-text: #a5b4fc;
+    --color-primary-soft: rgb(129 140 248 / 0.16);
     --color-cta-text: #7dd3fc;
-    --color-success-text: #34d399;
-    --color-success-soft: rgb(52 211 153 / 0.14);
-    --color-warn-text: #fbbf24;
-    --color-warn-soft: rgb(251 191 36 / 0.14);
-    --color-danger-text: #fb7185;
-    --color-danger-soft: rgb(251 113 133 / 0.14);
-    --color-chip-blue-bg: rgb(56 189 248 / 0.16);
+    --color-success-text: #6ce9a6;
+    --color-success-soft: rgb(6 118 71 / 0.25);
+    --color-warn-text: #fec84b;
+    --color-warn-soft: rgb(181 71 8 / 0.25);
+    --color-danger-text: #fda29b;
+    --color-danger-soft: rgb(180 35 24 / 0.25);
+    --color-chip-blue-bg: rgb(56 189 248 / 0.14);
     --color-chip-blue-fg: #7dd3fc;
-    --color-chip-violet-bg: rgb(139 122 246 / 0.18);
+    --color-chip-violet-bg: rgb(139 92 246 / 0.18);
     --color-chip-violet-fg: #c4b5fd;
     --color-chip-amber-bg: rgb(251 191 36 / 0.14);
-    --color-chip-amber-fg: #fbbf24;
+    --color-chip-amber-fg: #fec84b;
     --color-chip-rose-bg: rgb(251 113 133 / 0.14);
-    --color-chip-rose-fg: #fb7185;
+    --color-chip-rose-fg: #fda4af;
+    --state-hover: rgb(255 255 255 / 0.06);
+    --state-press: rgb(255 255 255 / 0.1);
   }
 }
 
-/* —— 背景：近白 + 三处色彩光晕（清新、通透） —— */
 body {
   background-color: var(--color-bg);
-  background-image:
-    radial-gradient(900px 600px at 8% -10%, rgb(45 212 191 / 0.16), transparent 62%),
-    radial-gradient(800px 520px at 96% 4%, rgb(56 189 248 / 0.14), transparent 60%),
-    radial-gradient(700px 620px at 60% 108%, rgb(167 139 250 / 0.12), transparent 62%);
-  background-attachment: fixed;
   color: var(--color-ink);
   font-family: var(--font-sans);
   font-size: var(--text-base);
@@ -171,24 +190,7 @@ body {
   min-height: 100dvh;
 }
 
-@media (prefers-color-scheme: dark) {
-  body {
-    background-image:
-      radial-gradient(900px 600px at 8% -10%, rgb(45 212 191 / 0.12), transparent 62%),
-      radial-gradient(800px 520px at 96% 4%, rgb(56 189 248 / 0.10), transparent 60%),
-      radial-gradient(700px 620px at 60% 108%, rgb(139 122 246 / 0.10), transparent 62%);
-  }
-}
-
-/* 圆角统一：存量 rounded-lg/xl 归到 12/16 档，rounded-full 保留 */
-:where(.rounded-md, .rounded-lg) {
-  border-radius: 12px;
-}
-:where(.rounded-xl, .rounded-2xl, .rounded-3xl) {
-  border-radius: 16px;
-}
-
-/* 层叠层级（唯一出处）：overflow 容器内不要用它，否则会新建层叠上下文 */
+/* 层叠层级（唯一出处） */
 .z-content { z-index: var(--z-content); }
 .z-sticky { z-index: var(--z-sticky); }
 .z-nav { z-index: var(--z-nav); }
@@ -197,7 +199,7 @@ body {
 .z-menu { z-index: var(--z-menu); }
 .z-toast { z-index: var(--z-toast); }
 
-/* 状态层（Material 借鉴）：悬停 6% / 按下 12%，与底色无关，深色与粗野皮肤同样成立 */
+/* 状态层：hover 4% / press 8%，与底色无关 */
 .state-layer {
   position: relative;
   isolation: isolate;
@@ -225,9 +227,8 @@ body {
 }
 
 /* ============================================================
-   玻璃档位（真正做毛玻璃：半透明 + backdrop-blur + 顶部高光描边）
+   表面档位：实色 + 发丝边；只有浮层用更强阴影（不做模糊）
    ============================================================ */
-/* 常规面板：实色 + 发丝边（不做模糊，滚动更稳） */
 .glass,
 .glass-light {
   background: var(--color-surface-1);
@@ -238,17 +239,14 @@ body {
 
 .glass-strong,
 .glass-modal {
-  background: color-mix(in srgb, var(--color-surface-2) 82%, transparent);
-  backdrop-filter: blur(28px) saturate(190%);
-  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  background: var(--color-surface-2);
   border: 1px solid var(--color-line);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.85), var(--shadow-glass);
+  box-shadow: var(--shadow-lift);
   border-radius: var(--radius-panel);
-  will-change: backdrop-filter;
 }
 
 .glass-panel {
-  background: var(--color-surface-2);
+  background: var(--color-surface-1);
   border-bottom: 1px solid var(--color-line);
 }
 
@@ -256,106 +254,32 @@ body {
   background: var(--color-bg-sub);
 }
 
-@media (prefers-color-scheme: dark) {
-  .glass,
-  .glass-light {
-    background: rgb(255 255 255 / 0.07);
-    border-color: rgb(255 255 255 / 0.12);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08), var(--shadow-card);
-  }
-  .glass-strong,
-  .glass-modal {
-    background: rgb(255 255 255 / 0.1);
-    border-color: rgb(255 255 255 / 0.16);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.1), var(--shadow-glass);
-  }
-  .glass-panel {
-    background: rgb(18 26 34 / 0.72);
-    border-bottom-color: rgb(255 255 255 / 0.08);
-  }
-  .glass-subtle {
-    background: rgb(255 255 255 / 0.05);
-  }
-}
+/* 历史装饰类：v7 起不再使用彩色光晕/高光 */
+.glow-radial { display: none; }
+.sheen::before { content: none; }
 
-/* 无透明度偏好时退化为实色，保证可读 */
-@media (prefers-reduced-transparency: reduce) {
-  .glass,
-  .glass-light,
-  .glass-panel,
-  .glass-subtle {
-    background: var(--color-surface-1);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    border: 1px solid var(--color-line);
-  }
-  .glass-strong,
-  .glass-modal {
-    background: var(--color-surface-2);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    border: 1px solid var(--color-line);
-  }
-}
-
-/* —— 动效工具类 —— */
+/* —— 动效工具类（短促） —— */
 @keyframes rise-in {
-  from { opacity: 0; transform: translateY(10px) scale(0.99); }
+  from { opacity: 0; transform: translateY(4px); }
 }
 @keyframes pop-in {
-  from { opacity: 0; transform: scale(0.96) translateY(6px); }
+  from { opacity: 0; transform: scale(0.98) translateY(2px); }
 }
 @keyframes fade-in {
   from { opacity: 0; }
 }
-@keyframes shimmer {
-  from { background-position: 200% 0; }
-  to { background-position: -200% 0; }
-}
-@keyframes float-soft {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
-}
 
-.anim-item-in {
-  animation: rise-in var(--duration-slow) var(--ease-spring) both;
-}
-.anim-pop {
-  animation: pop-in var(--duration-slow) var(--ease-spring) both;
-}
-.anim-fade {
-  animation: fade-in var(--duration-slow) var(--ease-out-soft) both;
-}
+.anim-item-in { animation: rise-in var(--duration-slow) var(--ease-out-soft) both; }
+.anim-pop { animation: pop-in var(--duration-slow) var(--ease-out-soft) both; }
+.anim-fade { animation: fade-in var(--duration-fast) var(--ease-out-soft) both; }
 
-/* 悬浮抬升：卡片/按钮共用 */
+/* 悬浮抬升：按钮/卡片共用，幅度克制 */
 .hover-lift {
-  transition: transform var(--duration-fast) var(--ease-spring), box-shadow var(--duration-fast) var(--ease-out-soft);
+  transition: transform var(--duration-fast) var(--ease-out-soft), box-shadow var(--duration-fast) var(--ease-out-soft);
 }
 .hover-lift:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   box-shadow: var(--shadow-lift);
-}
-
-/* 玻璃上的单向高光（光泽感） */
-.sheen::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 50%;
-  border-radius: inherit;
-  background: linear-gradient(180deg, rgb(255 255 255 / 0.5), transparent);
-  pointer-events: none;
-}
-
-/* 柔光兜底（旧类名保留）：极淡的色彩晕染 */
-.glow-radial {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background:
-    radial-gradient(720px 440px at 12% -6%, rgb(45 212 191 / 0.14), transparent 62%),
-    radial-gradient(640px 400px at 100% 10%, rgb(56 189 248 / 0.12), transparent 60%);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -366,93 +290,75 @@ body {
   }
 }
 
-
-/* 底部浮层统一偏移：移动端避开安全区/批量条，sm+ 贴近底部（SelectionBar / BatchProgress / UploadDock 共用） */
+/* 底部浮层统一偏移：移动端避开安全区/批量条，sm+ 贴近底部 */
 .dock-bottom { bottom: calc(env(safe-area-inset-bottom) + 4.5rem); }
 @media (min-width: 640px) {
   .dock-bottom { bottom: 1.5rem; }
 }
 
-/* 焦点环：柔和双环 */
+/* 焦点环：2px 强调色 + 2px 表面隔离 */
 :where(button, a, input, select, textarea, [tabindex]):focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--color-surface-1), 0 0 0 4px color-mix(in srgb, var(--color-primary) 45%, transparent);
+  box-shadow: 0 0 0 2px var(--color-surface-1), 0 0 0 4px color-mix(in srgb, var(--color-primary) 40%, transparent);
 }
 
 @media (pointer: coarse) {
   .tap { min-height: 44px; min-width: 44px; }
 }
 
-/* 无 hover 能力（触屏/iPad）：网格卡片的操作组必须常显，否则「看不见但可点」 */
+/* 无 hover 能力（触屏/iPad）：网格卡片操作组常显 */
 @media (hover: none) {
   .grid-card-actions { opacity: 1; }
 }
 
 /* ============================================================
    皮肤：只覆盖 L1 颜色，不改结构（html[data-skin]）
-   paper=默认纸感 / slate=冷灰控制台 / ink=深色优先
+   slate=冷灰青，ink=深色琥珀，brutal=高对比粗描边
    ============================================================ */
 html[data-skin="slate"] {
-  --surface-canvas: #f4f6f8; --surface-raised: #ffffff; --surface-sunken: #eef2f5; --surface-overlay: #ffffff;
-  --ink-primary: #16202b; --ink-secondary: #4a5b68; --ink-tertiary: #5f6c78;
-  --line-subtle: #e0e6ec; --line-strong: #c9d3dc;
+  --surface-canvas: #eef1f5; --surface-raised: #ffffff; --surface-sunken: #e5e9ee; --surface-overlay: #ffffff;
+  --ink-primary: #0f172a; --ink-secondary: #475569; --ink-tertiary: #566474;
+  --line-subtle: #dbe2ea; --line-strong: #c3cedb;
   --accent: #0f766e; --accent-hover: #0b5d56; --accent-text: #0b5d56; --accent-tint: #d9f0ec;
 }
 html[data-skin="ink"] {
-  --surface-canvas: #111417; --surface-raised: #181c21; --surface-sunken: #1f242a; --surface-overlay: #1c2127;
-  --ink-primary: #e8eaed; --ink-secondary: #a8b0b8; --ink-tertiary: #87919b; --ink-inverse: #111417;
-  --line-subtle: #262c33; --line-strong: #39424c;
+  --surface-canvas: #0f1115; --surface-raised: #161a20; --surface-sunken: #1d232b; --surface-overlay: #1a1f27;
+  --ink-primary: #eceff3; --ink-secondary: #adb7c2; --ink-tertiary: #8b96a3; --ink-inverse: #0f1115;
+  --line-subtle: #262d36; --line-strong: #39424e;
   --accent: #e8a33d; --accent-hover: #c9862b; --accent-text: #f0b968; --accent-tint: rgb(232 163 61 / 0.16);
   --state-positive-text: #6ee7a0; --state-positive-tint: rgb(74 222 128 / 0.14);
   --state-caution-text: #fcd34d; --state-caution-tint: rgb(251 191 36 / 0.14);
   --state-critical-text: #fca5a5; --state-critical-tint: rgb(248 113 113 / 0.14);
 }
 
-/* 密度：只改行高与内边距（html[data-density]） */
-html[data-density="compact"] { --density-row-h: 40px; --density-pad: 12px; }
+/* 密度：只改行高与内边距 */
+html[data-density="compact"] { --density-row-h: 38px; --density-pad: 12px; }
 
-/* ============================================================
-   皮肤：brutal（新粗野主义）——材质取向，不改结构
-   粗描边 + 硬投影（无模糊）+ 近零圆角 + 高对比本色
-   ============================================================ */
 html[data-skin="brutal"] {
-  --surface-canvas: #f2f0e9;
+  --surface-canvas: #f3f1ea;
   --surface-raised: #ffffff;
-  --surface-sunken: #e7e4da;
+  --surface-sunken: #e7e3d8;
   --surface-overlay: #ffffff;
-  --ink-primary: #0d0d0d;
-  --ink-secondary: #3a3a3a;
-  --ink-tertiary: #626262;
-  --ink-inverse: #f2f0e9;
-  --line-subtle: #0d0d0d;
-  --line-strong: #0d0d0d;
-  --accent: #2563eb;
-  --accent-hover: #1d4ed8;
+  --ink-primary: #0b0b0b;
+  --ink-secondary: #333333;
+  --ink-tertiary: #5f5f5f;
+  --ink-inverse: #f3f1ea;
+  --line-subtle: #0b0b0b;
+  --line-strong: #0b0b0b;
+  --accent: #1d4ed8;
+  --accent-hover: #1e3a8a;
   --accent-text: #1e40af;
   --accent-tint: #dbe6ff;
-  --state-positive-text: #14532d;
-  --state-positive-tint: #d6f2df;
-  --state-caution-text: #78350f;
-  --state-caution-tint: #fbe8c8;
-  --state-critical-text: #7f1d1d;
-  --state-critical-tint: #fbdcdc;
-  /* 形态：粗描边 + 近零圆角 + 硬投影 */
+  --state-positive-text: #14532d; --state-positive-tint: #d6f2df;
+  --state-caution-text: #78350f; --state-caution-tint: #fbe8c8;
+  --state-critical-text: #7f1d1d; --state-critical-tint: #fbdcdc;
   --border-w: 2px;
   --radius-sm: 2px;
-  --radius-md: 3px;
-  --radius-lg: 5px;
-  --shadow-e0: none;
-  --shadow-e1: 2px 2px 0 var(--line-strong);
-  --shadow-e2: 3px 3px 0 var(--line-strong);
-  --shadow-e3: 4px 4px 0 var(--line-strong);
-  /* 覆盖历史阴影令牌：让既有组件（Button/Surface/GlassCard/Dialog）无需改代码即获得硬投影 */
   --shadow-soft: 1px 1px 0 var(--line-strong);
   --shadow-card: 2px 2px 0 var(--line-strong);
   --shadow-lift: 3px 3px 0 var(--line-strong);
   --shadow-glass: 4px 4px 0 var(--line-strong);
 }
-
-/* brutal：所有圆角压到 2px（头像/状态点保留圆形），描边加粗 */
 html[data-skin="brutal"] :where(.rounded-md, .rounded-lg, .rounded-xl, .rounded-2xl, .rounded-3xl) {
   border-radius: var(--radius-sm);
 }
@@ -460,26 +366,21 @@ html[data-skin="brutal"] :where(input, select, textarea) {
   border-width: var(--border-w);
   border-color: var(--line-strong);
 }
-
-/* brutal 下：面板描边加粗、玻璃退化为实色（新粗野主义不用模糊） */
 html[data-skin="brutal"] :where(.glass, .glass-light, .glass-strong, .glass-modal, .glass-subtle) {
   border-width: var(--border-w);
   border-style: solid;
   border-color: var(--line-strong);
   background: var(--surface-raised);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  box-shadow: var(--shadow-e2);
+  box-shadow: var(--shadow-card);
 }
 html[data-skin="brutal"] :where(.rounded-card, .rounded-panel) { border-width: var(--border-w); }
 
-/* Material 借鉴：状态层与动效曲线（供原语使用，改一处全站生效） */
+/* 状态层与曲线令牌 */
 :root {
-  --state-hover: rgb(13 13 13 / 0.06);
-  --state-press: rgb(13 13 13 / 0.12);
+  --state-hover: rgb(16 24 40 / 0.04);
+  --state-press: rgb(16 24 40 / 0.08);
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-decelerate: cubic-bezier(0, 0, 0, 1);
   --ease-accelerate: cubic-bezier(0.3, 0, 1, 1);
   --border-w: 1px;
 }
-
