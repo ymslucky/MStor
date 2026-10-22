@@ -7,7 +7,7 @@ import type { FileTable } from "../hooks/useFileTable";
 import { SearchInput } from "./SearchInput";
 import { Button } from "./ui";
 
-const TH = "select-none px-2 py-2 text-center text-xs font-medium text-ink-faint";
+const TH = "select-none px-2 py-2 text-xs font-medium text-ink-faint";
 
 /** 列显隐菜单条目：列 id → 文案（列本身由 table 的列模型提供） */
 const VISIBILITY_ITEMS = [
@@ -139,7 +139,9 @@ export function FileListHeader({
         </div>
       </div>
 
-      <div className="hidden border-b border-line sm:grid" style={gridStyle} data-testid="file-list-header">
+      {/* 内层保留 inline display:grid（gridStyle）；外层负责移动端隐藏，避免 inline style 覆盖 hidden */}
+      <div className="hidden border-b border-line sm:block">
+      <div className="grid" style={gridStyle} data-testid="file-list-header">
         {table.getHeaderGroups().map((group) => (
           <Fragment key={group.id}>
             {group.headers.map((header) => {
@@ -161,16 +163,17 @@ export function FileListHeader({
               if (id === FILE_COLUMNS.icon) return <div key={header.id} />;
               if (id === FILE_COLUMNS.actions) {
                 return (
-                  <div key={header.id} className={TH}>
+                  <div key={header.id} className={`${TH} text-right`}>
                     {flexRender(header.column.columnDef.header, header.getContext())}
                   </div>
                 );
               }
+              const align = id === FILE_COLUMNS.name ? "text-left" : "text-right";
               return (
-                <div key={header.id} className={`relative ${TH}`}>
+                <div key={header.id} className={`relative ${TH} ${align}`}>
                   <button
                     type="button"
-                    className="mx-auto inline-flex items-center gap-1 hover:text-ink"
+                    className={`inline-flex items-center gap-1 hover:text-ink ${id === FILE_COLUMNS.name ? "" : "ml-auto"}`}
                     onClick={() => header.column.toggleSorting()}
                   >
                     {flexRender(header.column.columnDef.header, header.getContext())}
@@ -209,6 +212,7 @@ export function FileListHeader({
             })}
           </Fragment>
         ))}
+      </div>
       </div>
     </>
   );

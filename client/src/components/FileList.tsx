@@ -9,7 +9,7 @@ import type {
   RefObject,
 } from "react";
 import type { FileTableRow } from "../hooks/useFileTable";
-import { Copy, Download, FolderOpen } from "lucide-react";
+import { Copy, Download, FolderOpen, MoreHorizontal } from "lucide-react";
 import { contentUrl } from "../api/nodes";
 import { FileGrid } from "./FileGrid";
 import { FileRowCells } from "./FileRow";
@@ -77,6 +77,8 @@ interface Props {
   onContainerKeyDown?: (e: ReactKeyboardEvent<HTMLElement>) => void;
   /** 拖拽移动：节点拖放到文件夹行/面包屑（toDirId=""=根） */
   onDropMove?: (id: string, toDirId: string) => void;
+  /** 移动端「更多」菜单：由页面提供菜单渲染（桌面仍显示完整行内操作） */
+  onMoreMenu?: (node: Node, rect: DOMRect) => void;
 }
 
 /**
@@ -105,6 +107,7 @@ export default function FileList({
   containerRef,
   onContainerKeyDown,
   onDropMove,
+  onMoreMenu,
 }: Props) {
   // 拖拽移动状态：拖拽中禁用选择；文件夹行 dragover 高亮
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -276,13 +279,9 @@ export default function FileList({
 
   // 操作列：下载（蓝）/ 外部 actions（分享紫、重命名中性、移动琥珀、删除红）。
   // 始终显示（不随 hover 隐藏），按钮组并列居中；点击/双击阻断冒泡：不触发行选择或行打开
-  const actionCell = (n: Node) => (
-    <span
-      className="row-actions flex shrink-0 items-center justify-center gap-0.5 px-1"
-      onClick={(e) => e.stopPropagation()}
-      onDoubleClick={(e) => e.stopPropagation()}
-    >
-      {!n.is_dir && (
+  const actionCell = (n: Node) => {
+    const download =
+      n.is_dir ? null : (
         <a
           href={contentUrl(n.id, true)}
           aria-label={`下载 ${n.name}`}
@@ -291,10 +290,40 @@ export default function FileList({
         >
           <Download size={14} aria-hidden />
         </a>
-      )}
-      {actions?.(n)}
-    </span>
-  );
+      );
+    return (
+      <span
+        className="row-actions flex shrink-0 items-center justify-center gap-0.5 px-1"
+        onClick={(e) => e.stopPropagation()}
+        onDoubleClick={(e) => e.stopPropagation()}
+      >
+        {onMoreMenu ? (
+          <>
+            {/* 桌面：完整操作组；移动：收进「更多」菜单，把宽度让给文件名 */}
+            <span className="hidden items-center gap-0.5 md:flex">
+              {download}
+              {actions?.(n)}
+            </span>
+            <RowAction
+              label={`更多操作 ${n.name}`}
+              className="md:hidden"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoreMenu(n, e.currentTarget.getBoundingClientRect());
+              }}
+            >
+              <MoreHorizontal size={14} aria-hidden />
+            </RowAction>
+          </>
+        ) : (
+          <>
+            {download}
+            {actions?.(n)}
+          </>
+        )}
+      </span>
+    );
+  };
 
   const listHeader = (
     <FileListHeader

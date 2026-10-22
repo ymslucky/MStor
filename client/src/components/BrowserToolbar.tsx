@@ -39,9 +39,11 @@ export function BrowserToolbar({
       </div>
 
       <div className="flex items-center gap-1.5">
-        <IconButton label="上传文件夹" onClick={onUploadFolder}>
-          <FolderUp size={17} aria-hidden />
-        </IconButton>
+        <span className="hidden sm:inline-flex">
+          <IconButton label="上传文件夹" onClick={onUploadFolder}>
+            <FolderUp size={17} aria-hidden />
+          </IconButton>
+        </span>
         <Button size="sm" variant="ghost" onClick={onCreateDir}>
           <FolderPlus size={15} aria-hidden />
           新建文件夹

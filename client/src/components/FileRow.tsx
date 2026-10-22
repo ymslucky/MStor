@@ -46,7 +46,7 @@ export function FileRowCells({ row, selectable, checkboxEl, copyButton, badge, a
         >
           {truncateMiddle(node.name)}
         </button>
-        {copyButton}
+        {copyButton && <span className="hidden md:inline-flex">{copyButton}</span>}
         {badge}
       </span>
       {showSize && <span className="truncate px-2 text-right tabular-nums text-ink-dim">{formatBytes(node.size)}</span>}

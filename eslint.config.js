@@ -13,6 +13,7 @@ export default tseslint.config(
       "dist/**",
       ".tmp-verify/**",
       ".tmp-build/**",
+      ".tmp-preview/**",
       ".npm-cache/**",
     ],
   },

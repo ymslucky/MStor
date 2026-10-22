@@ -65,13 +65,21 @@ export default function Breadcrumb({ crumbs, onDropNode }: Props) {
   const highlight = (dirId: string) => (dropTarget === dirId ? "rounded bg-primary-soft ring-2 ring-primary" : "");
 
   const currentId = crumbs[crumbs.length - 1]?.id;
+  const atRoot = crumbs.length === 0;
   const collapsed = crumbs.length > 3; // 根 + crumbs > 4 ⇔ crumbs > 3
   const hidden = collapsed ? crumbs.slice(0, crumbs.length - 2) : [];
   const tail = collapsed ? crumbs.slice(crumbs.length - 2) : crumbs;
 
   return (
     <nav className="flex flex-wrap items-center gap-1 text-sm" aria-label="面包屑">
-      <Link to="/" {...dropProps("")} className={`text-ink-dim hover:underline ${highlight("")}`}>全部文件</Link>
+      <Link
+        to="/"
+        {...dropProps("")}
+        aria-current={atRoot ? "page" : undefined}
+        className={`text-base font-semibold hover:underline ${atRoot ? "text-ink" : "text-ink-2"} ${highlight("")}`}
+      >
+        全部文件
+      </Link>
       {collapsed && (
         <span ref={popRef} className="relative flex items-center gap-1">
           <Chevron />

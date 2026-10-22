@@ -462,7 +462,18 @@
 - 客户端 **43 文件 / 249 例**通过；双 `tsc`、`eslint`、`vite build` 全绿。
 - 文档：[design-system.md](docs/design-system.md) 升级为 v7，新增「AppHeader/PageHeader/页面契约」与 v7 记录。
 
-### 19.4 下一步视觉细化
+### 19.4 视觉复核与修正（已做）
+
+用 headless Chrome + mock API 对 1440×900 与 390×844 实际截图复核（截图：[files-desktop.png](docs/design/v7/files-desktop.png)、[files-mobile.png](docs/design/v7/files-mobile.png)），发现并修复：
+
+- 移动端表头未隐藏：表头的 `gridStyle` 带 inline `display:grid`，覆盖了 `hidden sm:grid`；改为外层隐藏、内层网格。
+- 移动端文件名被截成 4 个字：行内 6 个操作图标占 156px；手机上收进「更多」菜单，文件名吃满宽度。
+- 表头对齐：名称左对齐、大小/时间/操作右对齐；面包屑根「全部文件」升级为页面锚点。
+- 首次见面配色：默认皮肤从 slate（青）改为 paper（靛蓝中性），与 v7 方向一致。
+- 设置页限制 `max-w-3xl`；桌面行操作仅在真桌面 hover 设备淡出。
+- 复核指标：390/1440 视口 `scrollWidth === viewportWidth`，无横向溢出、无裁切。
+
+### 19.5 下一步视觉细化
 
 - 网格卡片与文件类型图标再收敛一轮（缩略图比例、角标位置）。
 - 设置页/平台表格的表头、行高、弹窗密度统一到 v7 节奏。

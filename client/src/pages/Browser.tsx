@@ -330,6 +330,7 @@ export default function Browser() {
             emptyText={filtered ? "没有符合筛选条件的文件" : "该目录为空"}
             emptyActions={filtered ? undefined : emptyDirActions}
             gridActions={gridActionsFor}
+            onMoreMenu={(node, rect) => setMenu({ node, x: rect.right, y: rect.bottom })}
             actions={(n) => (
               <NodeRowActions
                 node={n}

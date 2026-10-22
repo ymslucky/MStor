@@ -6,3 +6,4 @@ client/dist/
 .tmp-verify/
 .npm-cache/
 .tmp-build/
+.tmp-preview/

@@ -6,7 +6,7 @@ export type Density = "comfortable" | "compact";
 const SKIN_KEY = STORAGE_KEYS.skin;
 const DENSITY_KEY = STORAGE_KEYS.density;
 
-const DEFAULT_SKIN: Skin = "slate";
+const DEFAULT_SKIN: Skin = "paper";
 
 function apply(attr: "data-skin" | "data-density", value: string | null) {
   if (typeof document === "undefined") return;

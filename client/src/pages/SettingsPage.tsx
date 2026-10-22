@@ -163,7 +163,7 @@ export default function SettingsPage({ me }: { me: Me }) {
     ? (seg as TabKey)
     : "account";
   return (
-    <div className="md:pb-4">
+    <div className="mx-auto w-full max-w-3xl md:pb-4">
       <PageHeader title="设置" description="账户、上传与空间成员管理" />
       <TabBar tabs={tabs} active={tab} />
       <div className="space-y-4">

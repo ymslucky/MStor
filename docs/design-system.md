@@ -3,6 +3,7 @@
 > **令牌唯一来源**：`client/src/index.css` 的 `@theme`（含暗色覆盖）。
 > **原语唯一来源**：`client/src/components/ui/*`；页面骨架 `components/layout/PageHeader` + `shell/AppHeader`。
 > **可视化验收**：应用内 `/design` 页（`pages/DesignPage.tsx`）——新增令牌/原语**必须先在此登记**。
+> **v7 实机基线**：`docs/design/v7/files-desktop.png`（1440×900）与 `files-mobile.png`（390×844）。
 > 类名合并统一走 `client/src/lib/cn.ts`（clsx + tailwind-merge）。
 
 ## 1. 方向：从「演示型玻璃拟态」到「安静、内容优先的工作台」
@@ -53,7 +54,7 @@ v7 的取舍：
 | `Surface` | 卡片/面板唯一出处（描边+圆角+投影） | ✅ 新增 |
 | `Pill` | 胶囊标签唯一出处（替代手写 rounded-full bg-*-soft） | ✅ 新增 |
 | 状态反馈 | `.state-layer`（hover 6% / press 12%，与底色无关）；Button / IconButton / ListRow / NavItem 已采用 | ✅ |
-| 皮肤 | paper / **slate（默认）** / ink / **brutal（新粗野主义）**，只覆盖 L1 + 形态令牌 | ✅ |
+| 皮肤 | **paper（默认）** / slate / ink / brutal，只覆盖 L1 + 形态令牌 | ✅ |
 | 密度 | comfortable（行高 48）/ compact（40），行高由 --density-row-h 驱动 | ✅ |
 | `Skeleton` | 自研 | ✅ |
 | `ListSkeleton` | 统一列表加载占位（rows × 整行，aria-busy） | ✅ 新增 |
@@ -180,3 +181,13 @@ AppHeader（全端，h-14）：移动=菜单 + 品牌；桌面=当前空间 · M
 - 新增 `AppHeader`（统一搜索/通知/空间上下文）与 `PageHeader`（统一页面标题与动作）；删除桌面右下浮动簇与抽屉重复搜索。
 - 文件页工具条上移并建立主操作（上传）；列表去斑马纹、行操作渐进呈现；详情栏 EmptyState Dialog 等原语同步收紧。
 - 闸门：对比度 5 变体通过；**43 文件 249 例**；双 `tsc` / `eslint` / `vite build` 全绿。
+
+### v7.1 视觉验收与移动端修正
+
+- **默认皮肤改为 paper**（中性靛蓝）；slate / ink / brutal 保留为备选，不再作为首次见面。
+- **表头**：名称左对齐、大小/时间/操作右对齐；移动端隐藏表头（此前 `gridStyle` 的 inline `display:grid` 覆盖了 `hidden sm:grid`）。
+- **移动行**：行操作在手机收进「更多」菜单，把宽度让给文件名（此前 6 个图标占 156px，文件名只剩 4 个字）；窄屏不显示 `上传文件夹` 图标。
+- **桌面行操作**：仅在 `min-width:768px` 且 `hover:hover` 时默认淡出，避免在触屏/分屏下不可见。
+- **面包屑**：根级「全部文件」升级为 16px 半粗页面锚点，根级时带 `aria-current`。
+- **设置页**：内容宽度限制在 `max-w-3xl`，表单不再横跨 1200px。
+- 视觉复核：headless Chrome + mock API 对 1440×900 / 390×844 / 设置页截图检查，无横向溢出、无裁切。
