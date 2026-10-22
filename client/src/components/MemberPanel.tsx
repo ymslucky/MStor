@@ -18,6 +18,8 @@ export function MemberPanel() {
   const [role, setRole] = useState<"member" | "admin">("member");
   // 移除是不可逆的危险操作：先弹确认，再发请求
   const [pendingRemove, setPendingRemove] = useState<{ id: string; name: string } | null>(null);
+  // 邀请链接只此一次可见：创建/重新生成后同时展示并尝试写入剪贴板
+  const [createdInvite, setCreatedInvite] = useState<{ url: string } | null>(null);
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -47,13 +49,26 @@ export function MemberPanel() {
   const members = useQuery({ queryKey: queryKeys.members, queryFn: listMembers });
   const invites = useQuery({ queryKey: queryKeys.invitations, queryFn: listInvitations });
 
+  const copyLink = async (url: string, message = "邀请链接已复制") => {
+    try {
+      if (!navigator.clipboard) throw new Error("clipboard unavailable");
+      await navigator.clipboard.writeText(url);
+      toast(message, "info");
+      return true;
+    } catch {
+      toast("复制失败，请手动选择链接", "error");
+      return false;
+    }
+  };
+
   const invite = useMutation({
     mutationFn: () => createInvitation(email.trim(), role),
     onSuccess: async (r) => {
       setEmail("");
+      setCreatedInvite({ url: r.url });
       await queryClient.invalidateQueries({ queryKey: queryKeys.invitations });
-      // 链接只此一次可见：直接放进提示，让管理员立刻转达
-      toast(`邀请已创建：${r.url}`, "info");
+      // 链接只此一次可见：展示 + 自动复制，失败时保留手动复制入口
+      await copyLink(r.url, "邀请已创建，链接已复制");
     },
     onError: (e) => toast(e instanceof Error ? e.message : "邀请失败", "error"),
   });
@@ -61,9 +76,10 @@ export function MemberPanel() {
   const regenerate = useMutation({
     mutationFn: ({ email, role }: { email: string; role: "member" | "admin" }) => createInvitation(email, role),
     onSuccess: async (r) => {
+      setCreatedInvite({ url: r.url });
       await queryClient.invalidateQueries({ queryKey: queryKeys.invitations });
       // 重新生成会作废旧链接；新链接仍只展示一次
-      toast(`邀请已重新生成：${r.url}`, "info");
+      await copyLink(r.url, "邀请已重新生成，链接已复制");
     },
     onError: (e) => toast(e instanceof Error ? e.message : "重新生成邀请失败", "error"),
   });
@@ -82,6 +98,26 @@ export function MemberPanel() {
         <UserPlus size={16} aria-hidden className="text-primary-text" />
         空间成员
       </h2>
+
+      {createdInvite && (
+        <SettingRow title="邀请链接" hint="仅本次创建可见；可复制转达，关闭后如需再获取请重新生成">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+            <Input
+              aria-label="邀请链接"
+              readOnly
+              value={createdInvite.url}
+              onFocus={(e) => e.currentTarget.select()}
+              className="min-w-0 flex-1"
+            />
+            <Button variant="ghost" size="sm" onClick={() => void copyLink(createdInvite.url)}>
+              复制链接
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setCreatedInvite(null)}>
+              关闭
+            </Button>
+          </div>
+        </SettingRow>
+      )}
 
       <SettingRow title="邀请成员" hint="受邀者需先在 Cloudflare Access 侧被放行（GitHub 登录），首次登录后自动加入本空间">
         <form

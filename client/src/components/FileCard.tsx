@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { ReactNode } from "react";
 import type { Node } from "../api/types";
 import { formatBytes, truncateMiddle } from "../lib/format";
@@ -20,20 +21,32 @@ interface Props {
  * 否则每个文件都会在 Tab 序列里多出一个无动作的按钮。
  */
 export function FileCard({ node, thumbSrc, badge, actions }: Props) {
+  const [thumbFailed, setThumbFailed] = useState(false);
+  const ext = node.name.split(".").pop() ?? "";
+  const typeLabel = ext && ext !== node.name && ext.length <= 6 ? ext.toUpperCase() : "文件";
+  const showImage = !!thumbSrc && !thumbFailed;
   return (
     <>
       <div className="block w-full text-left" title={node.name}>
-        <div className="flex aspect-[4/3] items-center justify-center overflow-hidden bg-bg-sub">
-          {thumbSrc ? (
+        <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden bg-bg-sub">
+          {showImage ? (
             <img
               src={thumbSrc}
               alt={node.name}
               loading="lazy"
               decoding="async"
+              onError={() => setThumbFailed(true)}
               className="h-full w-full object-cover transition-transform duration-(--duration-320) ease-(--ease-out-soft) group-hover:scale-[1.03]"
             />
           ) : (
-            <NodeIcon node={node} size={44} className="text-ink-3" />
+            <span className="flex h-16 w-16 items-center justify-center rounded-2xl border border-line bg-surface-1 shadow-soft transition-transform duration-(--duration-320) ease-(--ease-out-soft) group-hover:scale-[1.03]">
+              <NodeIcon node={node} size={34} />
+            </span>
+          )}
+          {!node.is_dir && (
+            <span className="absolute bottom-2 left-2 rounded-md border border-line bg-surface-1/90 px-1.5 py-0.5 text-2xs font-medium text-ink-3">
+              {typeLabel}
+            </span>
           )}
         </div>
         <div className="px-2.5 py-2">

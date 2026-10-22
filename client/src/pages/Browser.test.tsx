@@ -6,6 +6,7 @@ import type { ListFilesResult, Node } from "../api/types";
 import { renderWithProviders } from "../test/utils";
 import { Toaster } from "../components/Toaster";
 import { UploadQueueProvider } from "../hooks/UploadQueueProvider";
+import { NODE_DRAG_TYPE } from "../lib/dnd";
 import Browser from "./Browser";
 
 // FileList 引用真实的 contentUrl 生成下载链接，mock 时保留其余导出
@@ -351,6 +352,24 @@ test("drag-drop onto drop zone shows overlay and queues files into current dir",
   expect(parentId).toBe("");
   // drop 后覆盖层关闭
   expect(screen.queryByTestId("drop-overlay")).not.toBeInTheDocument();
+});
+
+test("内部节点拖拽不显示上传覆盖层、不入上传队列", async () => {
+  queueAdd.mockClear();
+  vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
+  renderWithProviders(
+    <UploadQueueProvider>
+      <Browser />
+    </UploadQueueProvider>,
+  );
+  await screen.findByText("hello.txt");
+  const zone = screen.getByTestId("drop-zone");
+  const dt = { types: [NODE_DRAG_TYPE], files: [] as File[] };
+  fireEvent.dragEnter(zone, { dataTransfer: dt });
+  expect(screen.queryByTestId("drop-overlay")).toBeNull();
+  fireEvent.drop(zone, { dataTransfer: dt });
+  await new Promise((r) => setTimeout(r, 0));
+  expect(queueAdd).not.toHaveBeenCalled();
 });
 
 test("拖动同名文件先弹出冲突策略，不直接入队", async () => {

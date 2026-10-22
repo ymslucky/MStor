@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { DragEvent as ReactDragEvent } from "react";
 import { toast } from "../components/Toaster";
+import { hasNodeDrag } from "../lib/dnd";
 import { collectUploads } from "../lib/dirscan";
 import type { PendingUpload } from "../lib/dirscan";
 
@@ -13,14 +14,19 @@ export function useDropUpload({ enqueue }: { enqueue: (items: PendingUpload[]) =
 
   const onDragEnter = (e: ReactDragEvent<HTMLElement>) => {
     e.preventDefault();
+    // 内部节点拖拽由行/面包屑的 onDropMove 处理，不能触发上传覆盖层/上传队列
+    if (hasNodeDrag(e.dataTransfer)) return;
     setDragDepth((d) => d + 1);
   };
-  const onDragOver = (e: ReactDragEvent<HTMLElement>) => e.preventDefault();
+  const onDragOver = (e: ReactDragEvent<HTMLElement>) => {
+    if (!hasNodeDrag(e.dataTransfer)) e.preventDefault();
+  };
   const onDragLeave = () => setDragDepth((d) => Math.max(0, d - 1));
   const onDrop = (e: ReactDragEvent<HTMLElement>) => {
     e.preventDefault();
     setDragDepth(0);
     const dt = e.dataTransfer;
+    if (hasNodeDrag(dt)) return;
     const hasItems = !!dt && ((dt.items?.length ?? 0) > 0 || (dt.files?.length ?? 0) > 0);
     // 目录树递归采集（含文件与文件夹混合拖入），入队后由队列逐级建目录
     void collectUploads(dt)

@@ -152,6 +152,10 @@ export default function Browser() {
   // 拖拽移动（文件夹行/面包屑 drop）：复用既有 moveNode
   const dropMove = (id: string, to: string) => {
     if (!id) return;
+    // 拖回当前目录/当前文件夹自身：不做移动，避免无意义请求与“已移动”撤销条
+    const source = allNodes.find((n) => n.id === id);
+    const targetParent = to || query.data?.rootId;
+    if (source && targetParent && source.parent_id === targetParent) return;
     move.mutate({ id, to });
   };
 

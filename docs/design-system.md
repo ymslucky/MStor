@@ -3,7 +3,7 @@
 > **令牌唯一来源**：`client/src/index.css` 的 `@theme`（含暗色覆盖）。
 > **原语唯一来源**：`client/src/components/ui/*`；页面骨架 `components/layout/PageHeader` + `shell/AppHeader`。
 > **可视化验收**：应用内 `/design` 页（`pages/DesignPage.tsx`）——新增令牌/原语**必须先在此登记**。
-> **v7 实机基线**：`docs/design/v7/` 下 `files-desktop` / `files-mobile`（1440×900 / 390×844）、`grid-desktop`、`dark-desktop`、`tags-desktop`、`platform-users`、`platform-audit`、`shares-desktop`、`settings-desktop`、`trash-desktop`（共 10 张）。
+> **v7 实机基线**：`docs/design/v7/` 下 `files-desktop` / `files-mobile`（1440×900 / 390×844）、`grid-desktop`、`dark-desktop`、`tags-desktop`、`platform-users`、`platform-audit`、`shares-desktop`、`settings-desktop`、`trash-desktop`、`grid-mobile`（共 11 张）。
 > 类名合并统一走 `client/src/lib/cn.ts`（clsx + tailwind-merge）。
 
 ## 1. 方向：从「演示型玻璃拟态」到「安静、内容优先的工作台」
@@ -208,7 +208,7 @@ AppHeader（全端，h-14）：移动=菜单 + 品牌；桌面=当前空间 · M
 
 - 表格统一：表头 `text-2xs uppercase tracking-wide text-ink-3`；行 `py-2.5`、分隔线、hover 用 `bg-bg-sub/70`；分享页补「名称 / 分享信息 / 操作」表头。
 - 审计动作补齐常见标签（上传、创建分享、登录、重命名、移动），避免裸 action key。
-- 新增 `scripts/visual-check.mjs` + `npm run visual:check`：自起静态服务器 + mock API + headless Chrome/CDP，覆盖 1440/390、暗色、网格、设置、标签、平台、回收站、分享共 10 个页面；断言核心标记存在且 `scrollWidth <= viewportWidth`，截图输出到 `.tmp-build/visual`。前置 `npm run build`，可用 `CHROME_BIN` 指定浏览器。
+- 新增 `scripts/visual-check.mjs` + `npm run visual:check`：自起静态服务器 + mock API + headless Chrome/CDP，覆盖 1440/390、暗色、桌面/移动网格、设置、标签、平台、回收站、分享共 11 个页面/视口；断言核心标记存在且 `scrollWidth <= viewportWidth`，截图输出到 `.tmp-build/visual`。前置 `npm run build`，可用 `CHROME_BIN` 指定浏览器。
 
 ### v7.5 标签颜色编辑
 
@@ -245,4 +245,10 @@ AppHeader（全端，h-14）：移动=菜单 + 品牌；桌面=当前空间 · M
 
 - `visual:check` 支持 `--baseline`：在页面 canvas 中逐像素比较当前截图与 `docs/design/v7/*.png`，默认差异阈值 1.5%（`VISUAL_DIFF_MAX` 可覆盖），同时校验尺寸；失败退出码 1。
 - 支持 `--update-baseline`：有意改版后重写基线；mock 时间固定为 UTC 2026-10-22 10:00，保证同机同浏览器下可复现。
-- 当前 10 个页面在基线对比下均为 `diff 0.00%`。
+- 当前 11 个页面/视口在基线对比下均为 `diff 0.00%`。
+
+### v7.11 缩略图、拖拽与邀请复制
+
+- 网格卡片：图标从灰底直接摆放改为白色圆角 tile + 文件类型角标（文件夹不重复角标）；缩略图加载失败回退到类型图标；新增 390×844 网格基线。
+- 拖拽：内部节点拖拽不再触发上传覆盖层/上传队列；拖回当前目录直接 no-op，不再产生移动撤销条。
+- 邀请：创建/重新生成后自动尝试写入剪贴板，并在成员面板展示只读链接 + 复制按钮；复制失败提示手动复制。

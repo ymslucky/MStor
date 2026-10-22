@@ -304,6 +304,11 @@ const CASES = [
     setup: "localStorage.setItem('mstor_view','grid'); location.reload(); true",
     check: "!!document.querySelector('[data-testid=\"file-grid\"]')",
   },
+  {
+    name: "grid-mobile", path: "/", width: 390, height: 844, marker: "项目资料",
+    setup: "localStorage.setItem('mstor_view','grid'); location.reload(); true",
+    check: "!!document.querySelector('[data-testid=\"file-grid\"]')",
+  },
 ];
 
 async function main() {

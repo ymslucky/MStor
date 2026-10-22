@@ -29,6 +29,25 @@ test("待接受邀请按邮箱撤销（列表不回传 token）", async () => {
   await waitFor(() => expect(revokeInvitationByEmail).toHaveBeenCalledWith("b@example.com"));
 });
 
+test("创建邀请后自动复制，并提供可点击的复制链接", async () => {
+  vi.mocked(listMembers).mockResolvedValue({ members: [] });
+  vi.mocked(listInvitations).mockResolvedValue({ invitations: [] });
+  vi.mocked(createInvitation).mockResolvedValue({ token: "t", expiresAt: 2, url: "https://mstor.example/?invite=t" });
+  const user = userEvent.setup();
+  const writeText = vi.fn(async () => undefined);
+  Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+  renderWithProviders(<MemberPanel />);
+
+  await user.type(screen.getByPlaceholderText("name@example.com"), "b@example.com");
+  await user.click(screen.getByRole("button", { name: "生成邀请链接" }));
+  await waitFor(() => expect(createInvitation).toHaveBeenCalledWith("b@example.com", "member"));
+  await waitFor(() => expect(writeText).toHaveBeenCalledWith("https://mstor.example/?invite=t"));
+  expect(screen.getByLabelText("邀请链接")).toHaveValue("https://mstor.example/?invite=t");
+
+  await user.click(screen.getByRole("button", { name: "复制链接" }));
+  await waitFor(() => expect(writeText).toHaveBeenCalledTimes(2));
+});
+
 test("待接受邀请可重新生成链接", async () => {
   vi.mocked(listMembers).mockResolvedValue({ members: [] });
   vi.mocked(listInvitations).mockResolvedValue({
