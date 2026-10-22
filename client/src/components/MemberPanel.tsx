@@ -58,6 +58,15 @@ export function MemberPanel() {
     onError: (e) => toast(e instanceof Error ? e.message : "邀请失败", "error"),
   });
 
+  const regenerate = useMutation({
+    mutationFn: ({ email, role }: { email: string; role: "member" | "admin" }) => createInvitation(email, role),
+    onSuccess: async (r) => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.invitations });
+      // 重新生成会作废旧链接；新链接仍只展示一次
+      toast(`邀请已重新生成：${r.url}`, "info");
+    },
+    onError: (e) => toast(e instanceof Error ? e.message : "重新生成邀请失败", "error"),
+  });
   const revoke = useMutation({
     mutationFn: (email: string) => revokeInvitationByEmail(email),
     onSuccess: async () => {
@@ -164,6 +173,14 @@ export function MemberPanel() {
                       {ROLE_LABEL[inv.role] ?? inv.role} · {formatDate(inv.expires_at)} 过期
                     </div>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={regenerate.isPending}
+                    onClick={() => regenerate.mutate({ email: inv.email, role: inv.role === "admin" ? "admin" : "member" })}
+                  >
+                    重新生成
+                  </Button>
                   <Button variant="ghost" size="sm" disabled={revoke.isPending} onClick={() => revoke.mutate(inv.email)}>
                     撤销
                   </Button>

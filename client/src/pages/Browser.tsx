@@ -133,7 +133,6 @@ export default function Browser() {
   const isDesktop = useMediaQuery(DETAIL_PANE_MEDIA_QUERY);
 
 
-  const drop = useDropUpload({ enqueue: (items) => add(items, dir) });
   const upload = useBrowserUpload({
     dir,
     nodes: allNodes,
@@ -141,6 +140,8 @@ export default function Browser() {
     purge: purgeNow,
   });
   const { enqueue } = upload;
+  // 拖拽与文件选择走同一套同名冲突策略；此前拖拽直接 add，会绕过冲突对话框
+  const drop = useDropUpload({ enqueue: (items) => upload.enqueue(items) });
 
   const selectedNodes = allNodes.filter((n) => selection.selected.has(n.id));
   const hasFileSelected = selectedNodes.some((n) => !n.is_dir);

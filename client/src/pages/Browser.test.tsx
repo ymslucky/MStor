@@ -353,6 +353,25 @@ test("drag-drop onto drop zone shows overlay and queues files into current dir",
   expect(screen.queryByTestId("drop-overlay")).not.toBeInTheDocument();
 });
 
+test("拖动同名文件先弹出冲突策略，不直接入队", async () => {
+  queueAdd.mockClear();
+  vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
+  renderWithProviders(
+    <UploadQueueProvider>
+      <Browser />
+    </UploadQueueProvider>,
+  );
+  await screen.findByText("hello.txt");
+  const zone = screen.getByTestId("drop-zone");
+  fireEvent.drop(zone, {
+    dataTransfer: { files: [new File(["x"], "hello.txt", { type: "text/plain" })] },
+  });
+  expect(await screen.findByText(/有 1 个同名文件/)).toBeInTheDocument();
+  expect(queueAdd).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "保留两者" }));
+  await waitFor(() => expect(queueAdd).toHaveBeenCalledTimes(1));
+});
+
 test("drag overlay survives partial dragleave (counter) until leaving window", async () => {
   queueAdd.mockClear();
   vi.mocked(listFiles).mockResolvedValue(ROOT_LIST);
