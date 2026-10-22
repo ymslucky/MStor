@@ -11,6 +11,12 @@ export interface AuditEvent {
 }
 
 const ACTION_LABEL: Record<string, string> = {
+  upload: "上传文件",
+  "node.upload": "上传文件",
+  "node.rename": "重命名",
+  "node.move": "移动文件",
+  "share.create": "创建分享",
+  "auth.login": "登录",
   "admin.act_as": "以管理员身份进入空间",
   "admin.user_patch": "修改用户",
   "admin.settings_patch": "修改全局设置",
@@ -52,7 +58,7 @@ export function AuditTable({ events }: { events: AuditEvent[] }) {
       ) : (
         <table className="w-full border-collapse text-sm">
           <thead className="sticky top-0 bg-bg-sub">
-            <tr className="text-left text-2xs text-ink-3">
+            <tr className="text-left text-2xs tracking-wide text-ink-3 uppercase">
               <th scope="col" className="px-3 py-2 font-medium">动作</th>
               <th scope="col" className="hidden px-3 py-2 font-medium sm:table-cell">操作者</th>
               <th scope="col" className="hidden px-3 py-2 font-medium md:table-cell">对象</th>
@@ -62,14 +68,14 @@ export function AuditTable({ events }: { events: AuditEvent[] }) {
           <tbody className="divide-y divide-line">
             {rows.map((ev, i) => (
               <tr key={ev.action + ev.createdAt + i} className="state-layer">
-                <td className="px-3 py-2">
+                <td className="px-3 py-2.5">
                   <Pill tone={toneOf(ev.action)}>{ACTION_LABEL[ev.action] ?? ev.action}</Pill>
                 </td>
-                <td className="hidden max-w-[10rem] truncate px-3 py-2 text-ink-2 sm:table-cell">{ev.actorName ?? "—"}</td>
-                <td className="hidden max-w-[12rem] truncate px-3 py-2 text-ink-3 md:table-cell" title={ev.targetId ?? undefined}>
+                <td className="hidden max-w-[10rem] truncate px-3 py-2.5 text-ink-2 sm:table-cell">{ev.actorName ?? "—"}</td>
+                <td className="hidden max-w-[12rem] truncate px-3 py-2.5 text-ink-3 md:table-cell" title={ev.targetId ?? undefined}>
                   {ev.targetId ? ev.targetId.slice(0, 12) : "—"}
                 </td>
-                <td className="num px-3 py-2 text-right text-xs whitespace-nowrap text-ink-3">{formatDate(ev.createdAt)}</td>
+                <td className="num px-3 py-2.5 text-right text-xs whitespace-nowrap text-ink-3">{formatDate(ev.createdAt)}</td>
               </tr>
             ))}
           </tbody>

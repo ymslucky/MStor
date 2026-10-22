@@ -485,7 +485,13 @@
 - Toast 从 `top-4` 移到 `top-16`，避免 PWA 更新提示遮挡 AppHeader 的菜单/搜索/通知。
 - 标签页截图更新为带色点版本（`docs/design/v7/tags-desktop.png`）。
 
-### 19.7 下一步视觉细化
+### 19.7 表格节奏统一 + 视觉烟雾闸门
+
+- 分享页补表头（名称/分享信息/操作），审计、用户管理表头统一 `2xs uppercase`，行高统一 `py-2.5`，让文件页/平台/分享三类表格节奏一致。
+- 审计动作标签补齐 upload / share.create / auth.login 等，避免直接显示 action key。
+- 新增 `npm run visual:check`（`scripts/visual-check.mjs`）：Node 静态服务器 + mock API + 本机 Chrome headless/CDP，覆盖 10 个页面与 1440/390 视口，自动断言标记与横向溢出；本轮运行 **10/10 通过**。
+
+### 19.8 下一步视觉细化
 
 - 网格卡片与文件类型图标再收敛一轮（缩略图比例、角标位置）。
 - 设置页/平台表格的表头、行高、弹窗密度统一到 v7 节奏。

@@ -69,11 +69,19 @@ export default function SharesPage() {
           <EmptyState icon={Link2} title="暂无分享" />
         ) : (
         <GlassCard className="p-3 sm:p-4">
-          <table className="w-full text-sm">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-line text-left text-2xs tracking-wide text-ink-3 uppercase">
+                <th scope="col" className="w-8 py-2" />
+                <th scope="col" className="py-2 font-medium">名称</th>
+                <th scope="col" className="hidden py-2 font-medium sm:table-cell">分享信息</th>
+                <th scope="col" className="py-2 text-right font-medium">操作</th>
+              </tr>
+            </thead>
             <tbody>
               {shares.map((s) => (
-                <tr key={s.id} className="border-b border-line transition-colors last:border-b-0 hover:bg-bg-sub">
-                  <td className="w-8 py-2">
+                <tr key={s.id} className="border-b border-line transition-colors last:border-b-0 hover:bg-bg-sub/70">
+                  <td className="w-8 py-2.5">
                     <input
                       type="checkbox"
                       aria-label={`选择 ${s.node_name}`}
@@ -82,7 +90,7 @@ export default function SharesPage() {
                       onChange={() => selection.toggle(s.id)}
                     />
                   </td>
-                  <td className="py-2">
+                  <td className="py-2.5">
                     <div className="flex items-center gap-1.5 font-medium text-ink">
                       <NodeIcon node={{ is_dir: s.node_is_dir, mime: null }} size={16} className="shrink-0" />
                       <span className="truncate">{s.node_name}</span>
@@ -96,14 +104,14 @@ export default function SharesPage() {
                     </div>
                     <div className="text-xs text-ink-3">/s/{s.token}</div>
                   </td>
-                  <td className="hidden py-2 text-xs text-ink-2 sm:table-cell">
+                  <td className="hidden py-2.5 text-xs text-ink-2 sm:table-cell">
                     {s.node_is_dir ? "文件夹" : formatBytes(s.node_size)}
                     {" · "}已下载 {s.downloads} 次
                     {s.max_downloads != null ? ` / 上限 ${s.max_downloads}` : " · 不限次数"}
                     {s.last_download_at ? ` · 最近 ${formatDate(s.last_download_at)}` : " · 尚未下载"}
                     {s.expires_at ? ` · 至 ${formatDate(s.expires_at)}` : " · 永久"}
                   </td>
-                  <td className="py-2 text-right">
+                  <td className="py-2.5 text-right">
                     <a href={`/s/${s.token}`} className="mr-3 text-primary-text hover:underline" target="_blank" rel="noreferrer">
                       打开
                     </a>

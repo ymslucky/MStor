@@ -203,3 +203,9 @@ AppHeader（全端，h-14）：移动=菜单 + 品牌；桌面=当前空间 · M
 - 新增 `lib/tagColors.ts`（6 色）；LibraryPage 新建标签与 TagDialog 新建并添加均可选颜色，标签 pills/列表行显示色点。
 - Toast viewport 从 `top-4` 移到 `top-16`：提示不再遮挡 AppHeader 的菜单/搜索/通知。
 - 网格卡片 footer 内边距微调；标签页截图基线更新为带色点版本。
+
+### v7.4 表格节奏与视觉烟雾闸门
+
+- 表格统一：表头 `text-2xs uppercase tracking-wide text-ink-3`；行 `py-2.5`、分隔线、hover 用 `bg-bg-sub/70`；分享页补「名称 / 分享信息 / 操作」表头。
+- 审计动作补齐常见标签（上传、创建分享、登录、重命名、移动），避免裸 action key。
+- 新增 `scripts/visual-check.mjs` + `npm run visual:check`：自起静态服务器 + mock API + headless Chrome/CDP，覆盖 1440/390、暗色、网格、设置、标签、平台、回收站、分享共 10 个页面；断言核心标记存在且 `scrollWidth <= viewportWidth`，截图输出到 `.tmp-build/visual`。前置 `npm run build`，可用 `CHROME_BIN` 指定浏览器。

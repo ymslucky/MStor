@@ -87,7 +87,7 @@ export function AdminUsersSection({ selfId }: { selfId: string }) {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[36rem] border-collapse text-sm">
               <thead className="sticky top-0 bg-bg-sub">
-                <tr className="text-left text-2xs text-ink-3">
+                <tr className="text-left text-2xs tracking-wide text-ink-3 uppercase">
                   <th scope="col" className="px-3 py-2 font-medium">用户</th>
                   <th scope="col" className="px-3 py-2 font-medium">角色</th>
                   <th scope="col" className="px-3 py-2 font-medium">配额</th>

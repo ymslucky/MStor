@@ -105,6 +105,7 @@ npm run test:coverage
 npm run check       # 双 tsc + ESLint
 npm run lint
 npm run format
+npm run build && npm run visual:check   # headless Chrome 关键页截图 + 横向溢出检查（需本机 Chrome/Edge）
 ```
 
 ## 部署
