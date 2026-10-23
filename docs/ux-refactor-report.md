@@ -559,7 +559,7 @@
 - 逐组件评估文件选择、列表布局、操作入口、工具栏、侧栏/顶栏、命令面板、弹窗、批量条、空态/加载态。
 - 操作入口：关键动作直接展示（桌面下载+分享+更多，移动下载+更多），次要动作折叠进菜单；菜单补收藏，统一 useNodeActions。
 - 选择能力：批量勾选、Shift 范围、Ctrl/Cmd+A、长按、Esc、空白区域鼠标框选均已具备；框选支持 Shift/Ctrl 追加。
-- 评分与优先级见 docs/component-ux-audit.md；客户端 269 例、server 30、visual 22/22。
+- 评分与优先级见 docs/component-ux-audit.md；客户端 269 例、server 31、visual 22/22。
 
 ### 19.19 act-as 重复审计修复
 
@@ -572,7 +572,7 @@
 - 现象：20 条审计记录时表格最后几行被 StatusBar 遮住，表头在滚动时不可用。
 - 根因：AppShell main 只有 min-h-0 没有 overflow；AuditTable 没有自己的滚动区；视觉 mock 只有 3 行，基线没有暴露。
 - 修复：main 统一 overflow-y-auto + overscroll-contain；审计页 flex 填满、表格区 md:overflow-auto；sticky 改用 th + bg + z + border-separate（修复滚动时数据行透出表头）；20 行且滚到中段的 fixture 入视觉基线；补邀请动作标签。
-- 客户端 269 例、server 30、visual 22/22。
+- 客户端 269 例、server 31、visual 22/22。
 
 ### 19.21 视频缩略图与预览
 
@@ -580,14 +580,22 @@
 - 修复：客户端视频抽帧（中间帧，300MB/8s 上限）；队列侧统一补缩略图覆盖三条上传路径；网格用首帧+播放角标；预览补 poster、preload=metadata、playsInline、加载与编码不支持提示。
 - 新增视频卡片/预览用例；客户端 265 例、server 29、visual 22/22。
 
-### 19.22 PWA 静默更新
+### 19.22 审计模型 v2 与覆盖扩展
+
+- migration 0018：新增 category/result/severity/resource_type/resource_id/actor_ip_hash/actor_ua，并按 action 回填旧数据。
+- auditStmt 自动推断分类/严重级；新增 share/node/member 审计，与业务写同 batch 或紧随动作。
+- 覆盖：act-as、管理员用户/设置、邀请、分享创建/撤销、文件删除/恢复/彻底删除/移动/复制、成员角色/移除。
+- 仍未覆盖登录/下载/查看审计本身；查询分页与保留完整性为下一步。
+- 服务端测试 31 项、客户端 269 例、visual 22/22；详见 docs/audit-system-analysis.md。
+
+### 19.23 PWA 静默更新
 
 - 根因：registerType 为 prompt 时，新 SW 会停在 waiting；只要用户没点刷新，每次加载都会再次触发 onNeedRefresh，于是反复出现「发现新版本」。这不是构建 diff，而是 prompt 模式的预期行为。
 - 改为 registerType: autoUpdate：新 SW 直接 skipWaiting/clientsClaim 接管，页面下次刷新或导航使用新版本；移除 onNeedRefresh / onOfflineReady toast，离线状态继续由 OfflineBar 表达。
 - manifest 的 background/theme color 同步到 v8 canvas (#f5f6f8)，并开启 cleanupOutdatedCaches。
 - 已安装的旧 prompt SW 最多再弹一次，点刷新后进入静默更新轨道。
 
-### 19.23 OpenDesign 校准（v8）
+### 19.24 OpenDesign 校准（v8）
 
 - 调研 OpenDesign 的 9 段 DESIGN.md schema 与 150+ 品牌设计系统，重点分析 Stripe（克制编辑感）、Linear（工程极简）、Vercel（高对比排版）的 prose 约束与 anti-patterns。
 - 新增根目录 DESIGN.md，把 MStor 的颜色角色、字体、间距、布局、组件、动效、语气、品牌与反模式写成可维护的设计意图。

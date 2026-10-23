@@ -116,6 +116,10 @@ me.post("/admin/act-as", requireAdmin, async (c) => {
     targetId: target.id,
     // 进入动作只记一次；meta 保留目标可读名，审计页不需要再 join 用户表
     meta: { targetName: target.name, targetEmail: target.email },
+    category: "security",
+    severity: "critical",
+    resourceType: "user",
+    resourceId: target.id,
     requestId: c.req.header("cf-ray") ?? null,
   });
   return c.json({ ok: true });

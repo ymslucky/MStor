@@ -10,6 +10,7 @@ import { copyNode } from "../data/copy";
 import { getThumb, putThumb } from "../data/thumbs";
 import { recordMoveUndo, undoOperation } from "../data/operations";
 import { moveMany, permanentDeleteMany, softDeleteMany, softDeleteNode, parseIds } from "../data/trash";
+import { recordAudit } from "../lib/audit";
 
 export const files = new Hono<AppEnv>();
 
@@ -30,7 +31,8 @@ files.patch("/:id", async (c) => {
   const node = await getNode(c.env.DB, c.get("workspace").id, c.req.param("id"));
   if (!node) throw errors.notFound();
   const nextName = name !== undefined ? validateNodeName(name) : node.name;
-  await moveNode(c.env.DB, c.get("workspace").id, node.id, parentId ?? node.parent_id, nextName);
+  const nextParentId = parentId ?? node.parent_id;
+  await moveNode(c.env.DB, c.get("workspace").id, node.id, nextParentId, nextName);
   // 记录 30 秒撤销窗口（前端 Snackbar 用 undoId 回滚）
   const undoId = await recordMoveUndo(c.env.DB, {
     workspaceId: c.get("workspace").id,
@@ -39,6 +41,25 @@ files.patch("/:id", async (c) => {
     oldParentId: node.parent_id,
     oldName: node.name,
   });
+  if (nextParentId !== node.parent_id || nextName !== node.name) {
+    await recordAudit(c.env.DB, {
+      workspaceId: c.get("workspace").id,
+      actorId: c.get("selfId"),
+      action: nextParentId !== node.parent_id ? "node.move" : "node.rename",
+      targetId: node.id,
+      resourceType: "node",
+      resourceId: node.id,
+      meta: {
+        fromParentId: node.parent_id,
+        toParentId: nextParentId,
+        fromName: node.name,
+        toName: nextName,
+      },
+      category: "file",
+      severity: "info",
+      requestId: c.req.header("cf-ray") ?? null,
+    });
+  }
   return c.json({ ok: true, undoId });
 });
 
@@ -52,6 +73,17 @@ files.post("/:id/copy", async (c) => {
     c.req.param("id"),
     parentId ?? "",
   );
+  await recordAudit(c.env.DB, {
+    workspaceId: c.get("workspace").id,
+    actorId: c.get("selfId"),
+    action: "node.copy",
+    targetId: c.req.param("id"),
+    resourceType: "node",
+    resourceId: result.id,
+    category: "file",
+    severity: "info",
+    requestId: c.req.header("cf-ray") ?? null,
+  });
   return c.json(result, 201);
 });
 
@@ -173,6 +205,17 @@ files.put("/upload", async (c) => {
 files.delete("/:id", async (c) => {
   await softDeleteNode(c.env.DB, c.get("workspace").id, c.req.param("id"));
   await recomputeStorageStats(c.env.DB, c.get("workspace").id);
+  await recordAudit(c.env.DB, {
+    workspaceId: c.get("workspace").id,
+    actorId: c.get("selfId"),
+    action: "node.delete",
+    targetId: c.req.param("id"),
+    resourceType: "node",
+    resourceId: c.req.param("id"),
+    category: "file",
+    severity: "warn",
+    requestId: c.req.header("cf-ray") ?? null,
+  });
   return c.json({ ok: true });
 });
 
@@ -225,6 +268,16 @@ files.post("/batch-delete", async (c) => {
     ? (await softDeleteMany(c.env.DB, c.get("workspace").id, list), await permanentDeleteMany(c.env, c.get("workspace").id, list))
     : await softDeleteMany(c.env.DB, c.get("workspace").id, list);
   await recomputeStorageStats(c.env.DB, c.get("workspace").id);
+  await recordAudit(c.env.DB, {
+    workspaceId: c.get("workspace").id,
+    actorId: c.get("selfId"),
+    action: permanent ? "node.batch_purge" : "node.batch_delete",
+    resourceType: "node",
+    meta: { requested: list.length, deleted, permanent: !!permanent },
+    category: "file",
+    severity: permanent ? "critical" : "warn",
+    requestId: c.req.header("cf-ray") ?? null,
+  });
   return c.json({ ok: true, deleted, failed: [] });
 });
 

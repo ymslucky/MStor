@@ -117,7 +117,7 @@ planner 选 idx_nodes_sha(workspace_id) 全扫 workspace。
 
 - 生产迁移：0017 已执行，6 条索引创建成功；Worker 已部署（版本 3e52c7d0-c52c-457f-941f-c6d24069b84d）；
 - EXPLAIN 复核：audit 走 idx_audit_created；tree 走 idx_nodes_dirs_tree；ancestor 走 PK；membership 走覆盖索引且无 TEMP B-TREE；
-- 本地：tsc / eslint / test:server:local 30 项 / check:migrations 17 文件 / check:schema 通过。
+- 本地：tsc / eslint / test:server:local 31 项 / check:migrations 18 文件 / check:schema 通过。
 
 ## 6. 后续监控
 

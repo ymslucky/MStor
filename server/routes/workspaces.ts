@@ -3,6 +3,7 @@ import type { AppEnv } from "../env";
 import { createInvitation, listInvitations, listMembers, revokeInvitation, revokeInvitationByEmail } from "../data/invitations";
 import { listMemberships, removeMember, updateMemberRole } from "../data/workspaces";
 import { errors } from "../lib/errors";
+import { recordAudit } from "../lib/audit";
 
 // 租户与成员管理：只有 owner/admin 能发邀请；member 只能读自己的空间列表
 export const workspaces = new Hono<AppEnv>();
@@ -61,6 +62,18 @@ workspaces.patch("/members/:userId", async (c) => {
   const result = await updateMemberRole(c.env.DB, c.get("workspace").id, userId, role);
   if (result === "not_found") throw errors.notFound();
   if (result === "last_owner") throw errors.badRequest("空间至少保留一名所有者");
+  await recordAudit(c.env.DB, {
+    workspaceId: c.get("workspace").id,
+    actorId: c.get("selfId"),
+    action: "member.role",
+    targetId: userId,
+    resourceType: "user",
+    resourceId: userId,
+    meta: { role },
+    category: "member",
+    severity: "warn",
+    requestId: c.req.header("cf-ray") ?? null,
+  });
   return c.json({ ok: true });
 });
 
@@ -71,5 +84,16 @@ workspaces.delete("/members/:userId", async (c) => {
   const result = await removeMember(c.env.DB, c.get("workspace").id, userId);
   if (result === "not_found") throw errors.notFound();
   if (result === "last_owner") throw errors.badRequest("空间至少保留一名所有者");
+  await recordAudit(c.env.DB, {
+    workspaceId: c.get("workspace").id,
+    actorId: c.get("selfId"),
+    action: "member.remove",
+    targetId: userId,
+    resourceType: "user",
+    resourceId: userId,
+    category: "member",
+    severity: "warn",
+    requestId: c.req.header("cf-ray") ?? null,
+  });
   return c.json({ ok: true });
 });

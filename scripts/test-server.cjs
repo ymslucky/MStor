@@ -366,9 +366,40 @@ async function main() {
     });
     assertEqual(enter.status, 200, "进入空间应 200，实际 " + enter.status + " " + enter.text.slice(0, 120));
     assertEqual(db.prepare("SELECT COUNT(*) c FROM audit_events WHERE action = 'admin.act_as'").first().c, 1, "进入动作应恰好 1 条审计");
+    const event = db.prepare("SELECT category, severity, result FROM audit_events WHERE action = 'admin.act_as'").first();
+    assertEqual(event.category, "security", "act-as 应归类 security");
+    assertEqual(event.severity, "critical", "act-as 应为 critical");
+    assertEqual(event.result, "success", "成功动作 result 应为 success");
     const view = await call(env, "/api/me", { headers: { ...auth, "x-act-as": targetId } });
     assertEqual(view.status, 200, "x-act-as 请求应 200");
     assertEqual(db.prepare("SELECT COUNT(*) c FROM audit_events WHERE action = 'admin.act_as'").first().c, 1, "普通请求不得重复写审计");
+  });
+
+  await check("HTTP：审计 v2 覆盖分享创建与文件删除", async () => {
+    const db = makeD1(schema1x);
+    const env = makeEnv(db, makeR2());
+    const auth = { "x-dev-email": "a@example.com" };
+    await call(env, "/api/me", { headers: auth });
+    const dir = await call(env, "/api/dirs", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ parentId: "", name: "audit-docs" }),
+    });
+    assertEqual(dir.status, 201, "建目录应 201");
+    const share = await call(env, "/api/shares", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ nodeId: dir.json.id, expiresInDays: 1 }),
+    });
+    assertEqual(share.status, 201, "创建分享应 201，实际 " + share.status + " " + share.text.slice(0, 120));
+    const del = await call(env, "/api/files/" + dir.json.id, { method: "DELETE", headers: auth });
+    assertEqual(del.status, 200, "软删应 200，实际 " + del.status + " " + del.text.slice(0, 120));
+    const shareEvent = db.prepare("SELECT category, severity FROM audit_events WHERE action = 'share.create'").first();
+    assertEqual(shareEvent.category, "share", "分享事件应归类 share");
+    assertEqual(shareEvent.severity, "info", "创建分享应为 info");
+    const deleteEvent = db.prepare("SELECT category, severity FROM audit_events WHERE action = 'node.delete'").first();
+    assertEqual(deleteEvent.category, "file", "文件删除应归类 file");
+    assertEqual(deleteEvent.severity, "warn", "文件删除应为 warn");
   });
 
   await check("HTTP：建目录 → 列表 → 上传 → 下载 → Range 206", async () => {

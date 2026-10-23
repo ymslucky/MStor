@@ -160,20 +160,43 @@ audit_events：
 - 新写入带 request_id（cf-ray）；
 - 保持审计写与业务写同 batch 的 fail-closed 语义。
 
-### Step 2（模型 v2，下一轮）
+### Step 2（模型 v2，已完成）
 
-建议新增字段（保留原表，增量迁移）：
+migration 0018 已增加：
 
 - category：auth / admin / file / share / member / security
-- result：success / denied / failed
+- result：success / denied / failed（默认 success）
 - severity：info / warn / critical
-- actor_ip_hash、actor_ua（隐私哈希）
-- resource_type、resource_id（与 target_id 分工）
-- before / after 或 changes（JSON，限制大小）
-- request_id（新写入必填）
-- action 采用 domain.verb 命名并在服务端集中注册
+- resource_type、resource_id
+- actor_ip_hash、actor_ua（字段已留，暂未采集）
+- 新写入由 auditStmt 按 action 自动推断分类/严重级
+- 索引：(actor_id, created_at DESC)、(category, created_at DESC)；既有 (created_at DESC) 保留
 
-索引：(created_at DESC)、(actor_id, created_at DESC)、(workspace_id, created_at DESC)、(category, created_at DESC)。
+旧数据已按 action 前缀回填；生产验证：
+
+- 24 条 admin.act_as → category=security, severity=critical, result=success
+- 12 条 invitation.* → category=member, severity=info, result=success
+
+### Step 3（覆盖范围，部分完成）
+
+已完成：
+
+- act-as（一次动作一条）
+- admin.user_patch / admin.settings_patch
+- invitation.create / revoke / accept
+- share.create / share.revoke / share.batch_revoke
+- node.delete / node.batch_delete / node.batch_purge
+- node.restore / node.batch_restore
+- node.move / node.rename / node.copy
+- member.role / member.remove
+
+仍未覆盖：
+
+- auth.login / logout / denied
+- share.download（可采样）
+- 普通文件读取/预览（按分层策略默认不记）
+- audit.view / audit.export（审计查看本身）
+- 失败/拒绝事件的 result=denied/failed 写入（字段已就绪）
 
 ### Step 3（覆盖范围）
 

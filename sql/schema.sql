@@ -166,9 +166,18 @@ CREATE TABLE IF NOT EXISTS audit_events (
   target_id TEXT,
   meta TEXT,
   request_id TEXT,
+  category TEXT NOT NULL DEFAULT 'security',
+  result TEXT NOT NULL DEFAULT 'success',
+  severity TEXT NOT NULL DEFAULT 'info',
+  actor_ip_hash TEXT,
+  actor_ua TEXT,
+  resource_type TEXT,
+  resource_id TEXT,
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_audit_ws_time ON audit_events(workspace_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_actor_time ON audit_events(actor_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_category_time ON audit_events(category, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_events(created_at DESC);
 
 -- 存储四分项（解释性；配额真相在 workspaces.used_bytes）

@@ -28,6 +28,13 @@ const ACTION_LABEL: Record<string, string> = {
   "member.role": "修改成员角色",
   "share.revoke": "撤销分享",
   "node.purge": "彻底删除",
+  "node.delete": "删除文件",
+  "node.batch_delete": "批量删除",
+  "node.batch_purge": "批量彻底删除",
+  "node.restore": "还原文件",
+  "node.batch_restore": "批量还原",
+  "node.copy": "复制",
+  "share.batch_revoke": "批量撤销分享",
 };
 
 /** 动作 → 语义色：读取/查看 = 中性，写入 = 强调，删除/撤销 = 危险 */

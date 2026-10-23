@@ -1,5 +1,6 @@
 import { errors } from "../lib/errors";
 import { isUniqueViolation } from "../lib/sql";
+import { auditStmt } from "../lib/audit";
 import { notifyManagers } from "./notifications";
 import type { WorkspaceRole } from "../types";
 
@@ -53,9 +54,15 @@ export async function createInvitation(
         "INSERT INTO invitations (token_hash, workspace_id, email, role, created_at, expires_at, accepted_at) VALUES (?1,?2,?3,?4,?5,?6,NULL)",
       ).bind(tokenHash, workspaceId, email, role, now, expiresAt),
       // 审计与业务写同 batch
-      db.prepare(
-        "INSERT INTO audit_events (id, workspace_id, actor_id, action, target_id, meta, created_at) VALUES (?1,?2,?3,'invitation.create',?4,?5,?6)",
-      ).bind(crypto.randomUUID(), workspaceId, actorId, email, JSON.stringify({ role }), now),
+      auditStmt(db, {
+        workspaceId,
+        actorId,
+        action: "invitation.create",
+        targetId: email,
+        meta: { role },
+        category: "member",
+        severity: "info",
+      }),
     ]);
   } catch (e) {
     if (isUniqueViolation(e)) throw errors.conflict("邀请已存在，请重试");
@@ -83,9 +90,14 @@ export async function revokeInvitationByEmail(db: D1Database, workspaceId: strin
     .bind(workspaceId, email)
     .run();
   if (!res.meta.changes) throw errors.notFound();
-  await db.prepare(
-    "INSERT INTO audit_events (id, workspace_id, actor_id, action, target_id, created_at) VALUES (?1,?2,?3,'invitation.revoke',?4,?5)",
-  ).bind(crypto.randomUUID(), workspaceId, actorId, email, Date.now()).run();
+  await auditStmt(db, {
+    workspaceId,
+    actorId,
+    action: "invitation.revoke",
+    targetId: email,
+    category: "member",
+    severity: "warn",
+  }).run();
 }
 
 /** 撤销邀请：按明文 token 定位（只有拿到链接的人知道） */
@@ -94,9 +106,14 @@ export async function revokeInvitation(db: D1Database, workspaceId: string, toke
   const res = await db.prepare("DELETE FROM invitations WHERE token_hash = ?1 AND workspace_id = ?2 AND accepted_at IS NULL")
     .bind(tokenHash, workspaceId).run();
   if (!res.meta.changes) throw errors.notFound();
-  await db.prepare(
-    "INSERT INTO audit_events (id, workspace_id, actor_id, action, target_id, created_at) VALUES (?1,?2,?3,'invitation.revoke',?4,?5)",
-  ).bind(crypto.randomUUID(), workspaceId, actorId, tokenHash, Date.now()).run();
+  await auditStmt(db, {
+    workspaceId,
+    actorId,
+    action: "invitation.revoke",
+    targetId: tokenHash,
+    category: "member",
+    severity: "warn",
+  }).run();
 }
 
 /**
@@ -116,8 +133,15 @@ export async function acceptPendingInvitations(db: D1Database, userId: string, r
     db.prepare("INSERT OR IGNORE INTO memberships (workspace_id, user_id, role, created_at) VALUES (?1,?2,?3,?4)")
       .bind(inv.workspace_id, userId, inv.role, now),
     db.prepare("UPDATE invitations SET accepted_at = ?1 WHERE token_hash = ?2").bind(now, inv.token_hash),
-    db.prepare("INSERT INTO audit_events (id, workspace_id, actor_id, action, target_id, created_at) VALUES (?1,?2,?3,'invitation.accept',?2,?4)")
-      .bind(crypto.randomUUID(), inv.workspace_id, userId, now),
+    auditStmt(db, {
+      workspaceId: inv.workspace_id,
+      actorId: userId,
+      action: "invitation.accept",
+      targetId: inv.workspace_id,
+      meta: { email, role: inv.role },
+      category: "member",
+      severity: "info",
+    }),
   ]);
   await db.batch(stmts);
   // 通知空间管理者：有人加入了

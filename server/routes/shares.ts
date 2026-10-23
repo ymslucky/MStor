@@ -7,6 +7,7 @@ import { getNode, isDescendant, listChildren } from "../lib/nodes";
 import { parseIds } from "../data/trash";
 import { serveObject } from "../lib/serve";
 import { isDownloadIntent, releaseDownloadSlot, takeDownloadSlot } from "../data/shares";
+import { auditStmt, recordAudit } from "../lib/audit";
 import type { NodeRow, ShareRow } from "../types";
 
 export const shares = new Hono<AppEnv>();
@@ -27,11 +28,26 @@ shares.post("/", async (c) => {
     throw errors.badRequest("maxDownloads 须为 1-10000 的整数");
   }
   const token = randomToken(16);
+  const shareId = randomToken(12);
   const passwordHash = password ? await pbkdf2Hash(password) : null;
   const expiresAt = expiresInDays ? Date.now() + expiresInDays * 86400000 : null;
-  await c.env.DB.prepare(
-    "INSERT INTO shares (id, workspace_id, node_id, token, password_hash, expires_at, max_downloads, downloads, created_at, revoked_at) VALUES (?1,?2,?3,?4,?5,?6,?7,0,?8,NULL)"
-  ).bind(randomToken(12), c.get("workspace").id, nodeId, token, passwordHash, expiresAt, limit ?? null, Date.now()).run();
+  await c.env.DB.batch([
+    c.env.DB.prepare(
+      "INSERT INTO shares (id, workspace_id, node_id, token, password_hash, expires_at, max_downloads, downloads, created_at, revoked_at) VALUES (?1,?2,?3,?4,?5,?6,?7,0,?8,NULL)"
+    ).bind(shareId, c.get("workspace").id, nodeId, token, passwordHash, expiresAt, limit ?? null, Date.now()),
+    auditStmt(c.env.DB, {
+      workspaceId: c.get("workspace").id,
+      actorId: c.get("selfId"),
+      action: "share.create",
+      targetId: nodeId,
+      resourceType: "share",
+      resourceId: shareId,
+      meta: { expiresAt, maxDownloads: limit ?? null, hasPassword: !!passwordHash },
+      category: "share",
+      severity: "info",
+      requestId: c.req.header("cf-ray") ?? null,
+    }),
+  ]);
   return c.json({ token, url: `${c.env.PUBLIC_URL}/s/${token}` }, 201);
 });
 
@@ -54,6 +70,17 @@ shares.delete("/:id", async (c) => {
      WHERE id = ?2 AND node_id IN (SELECT id FROM nodes WHERE workspace_id = ?3)`
   ).bind(Date.now(), c.req.param("id"), c.get("workspace").id).run();
   if (!res.meta.changes) throw errors.notFound();
+  await recordAudit(c.env.DB, {
+    workspaceId: c.get("workspace").id,
+    actorId: c.get("selfId"),
+    action: "share.revoke",
+    targetId: c.req.param("id"),
+    resourceType: "share",
+    resourceId: c.req.param("id"),
+    category: "share",
+    severity: "warn",
+    requestId: c.req.header("cf-ray") ?? null,
+  });
   return c.json({ ok: true });
 });
 
@@ -70,6 +97,17 @@ shares.post("/batch-revoke", async (c) => {
     ).bind(Date.now(), id, userId).run();
     if (res.meta.changes) revoked++;
     else failed.push({ id, reason: "分享不存在" });
+  }
+  if (revoked > 0) {
+    await recordAudit(c.env.DB, {
+      workspaceId: userId,
+      actorId: c.get("selfId"),
+      action: "share.batch_revoke",
+      meta: { requested: ids.length, revoked, failed: failed.length },
+      category: "share",
+      severity: "warn",
+      requestId: c.req.header("cf-ray") ?? null,
+    });
   }
   return c.json({ ok: true, revoked, failed });
 });
