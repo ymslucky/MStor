@@ -35,9 +35,10 @@ const CHROME_CANDIDATES = [
 
 // 固定 mock 时间：截图基线必须可复现（否则列表时间/分享有效期每次都在变）
 const NOW = Date.UTC(2026, 9, 22, 10, 0, 0);
-const node = (id, name, is_dir, size, mime = null) => ({
+const node = (id, name, is_dir, size, mime = null, extra = {}) => ({
   id, parent_id: "", name, is_dir, size, mime,
   created_at: NOW - 86400000, updated_at: NOW - 3600000, thumb_key: null, deleted_at: null,
+  ...extra,
 });
 const FILES = [
   node("d1", "项目资料", 1, null),
@@ -47,6 +48,7 @@ const FILES = [
   node("f3", "旅行照片-京都.jpg", 0, 5820339, "image/jpeg"),
   node("f4", "发布说明.md", 0, 12204, "text/markdown"),
   node("f5", "设计交付物.zip", 0, 18882112, "application/zip"),
+  node("v1", "家庭录像.mp4", 0, 50331648, "video/mp4", { thumb_key: "demo-video" }),
 ];
 const ME = {
   id: "u1", name: "Alice", role: "admin", quotaBytes: 109951162368, usedBytes: 61920724992,
@@ -140,6 +142,11 @@ function startStaticServer() {
   const server = http.createServer(async (req, res) => {
     try {
       const u = new URL(req.url ?? "/", "http://127.0.0.1");
+      if (u.pathname === "/api/files/v1/thumb") {
+        res.writeHead(200, { "content-type": "image/svg+xml", "cache-control": "no-store" });
+        res.end('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1f2937"/><stop offset="1" stop-color="#4f46e5"/></linearGradient></defs><rect width="400" height="300" fill="url(#g)"/><circle cx="200" cy="150" r="34" fill="#ffffff" opacity="0.9"/><polygon points="190,132 214,150 190,168" fill="#4f46e5"/></svg>');
+        return;
+      }
       if (u.pathname === "/api/files/f3/content") {
         res.writeHead(200, { "content-type": "image/svg+xml" });
         res.end('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="280"><rect width="400" height="280" fill="#c7d2fe"/></svg>');

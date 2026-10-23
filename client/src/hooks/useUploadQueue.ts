@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ensureDir } from "../api/nodes";
-import { abortUpload, getSmallFileLimit, instantUpload, sha256Hex, uploadLarge, uploadSmall } from "../api/uploads";
+import { abortUpload, attachThumbnail, getSmallFileLimit, instantUpload, sha256Hex, uploadLarge, uploadSmall } from "../api/uploads";
 import type { Part } from "../api/uploads";
 import type { PendingUpload } from "../lib/dirscan";
 import { clearResume, fingerprint, loadResume, saveResume } from "../lib/resume";
@@ -145,7 +145,10 @@ export function useUploadQueue() {
           const resume = isLarge && next.fingerprint ? loadResume(next.fingerprint) : null;
           // 秒传（先查后传）：流式算 SHA-256（大文件安全）后查询，命中直接建 node 零文件体传输
           const sha = resume ? null : await sha256Hex(next.file).catch(() => null);
-          if (sha && (await instantUpload(next.file, parentId, sha))) {
+          const instant = sha ? await instantUpload(next.file, parentId, sha) : null;
+          let uploadedNodeId: string | null = null;
+          if (instant) {
+            uploadedNodeId = instant.id;
             onProgress(next.key, 1);
           } else if (isLarge) {
             const fp = next.fingerprint ?? fingerprint(next.file, next.parentId);
@@ -158,7 +161,7 @@ export function useUploadQueue() {
               acc.done = resume.done;
             }
             partAcc.current.set(next.key, acc);
-            await uploadLarge(next.file, parentId, (p) => onProgress(next.key, p), 1000, {
+            const created = await uploadLarge(next.file, parentId, (p) => onProgress(next.key, p), 1000, {
               signal: controller.signal,
               onUploadId: (uploadId) => {
                 update(next.key, { uploadId });
@@ -174,12 +177,14 @@ export function useUploadQueue() {
               resume: resume ? { uploadId: resume.uploadId, partSize: resume.partSize, parts: resume.parts } : undefined,
               sha256: sha ?? undefined, // complete 时写入 nodes.sha256，后续同文件可秒传
             });
+            uploadedNodeId = created.nodeId;
           } else {
-            await uploadSmall(next.file, parentId, {
+            const created = await uploadSmall(next.file, parentId, {
               signal: controller.signal,
               onProgress: (r) => onProgress(next.key, r),
               sha256: sha ?? undefined,
             });
+            uploadedNodeId = created.id;
           }
           // 上传期间被取消/暂停：不标完成
           if (!cancelled.current.has(next.key)) {
@@ -188,6 +193,10 @@ export function useUploadQueue() {
             update(next.key, { status: "done", progress: 1, speed: undefined });
             resetSampling(next.key);
             scheduleFilesRefresh();
+            // 图片/视频缩略图统一在队列侧生成：秒传/大文件/小文件都能覆盖；晚到后刷新一次列表
+            if (uploadedNodeId) {
+              void attachThumbnail(next.file, uploadedNodeId).then(() => scheduleFilesRefresh());
+            }
           }
         } catch (e) {
           // 取消/暂停触发的失败：保持 cancel 已写入的状态

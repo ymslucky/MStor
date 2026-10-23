@@ -69,7 +69,7 @@ Selection：黑白高对比，不使用 accent tint。列表选中行 ink 5% tin
 Table：表头 11px 大写弱化色；行高 44；行 hover 只改背景。
 Dialog：桌面居中圆角 12，移动端底部抽屉；遮罩不使用重模糊。
 Command palette：单纵向面板；输入 → 分段筛选 → 结果滚动 → 键盘提示；禁止输入框下再套绝对定位下拉。
-Photo thumbnail：4:3；文件类型角标固定左下；加载失败回退类型图标。
+Photo thumbnail：4:3；文件类型角标固定左下；加载失败回退类型图标。视频也用抽帧缩略图；无缩略图时用 muted/metadata 首帧 + 播放角标，预览必须 poster + playsInline + 错误回退。
 
 ## 6. Motion
 

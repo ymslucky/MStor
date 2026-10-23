@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
 import type { JSX } from "react";
@@ -26,9 +26,15 @@ test("renders image with inline content url and download link", async () => {
   await user.click(screen.getByRole("button", { name: "关闭" }));
 });
 
-test("renders video with controls", () => {
-  render(<PreviewModal node={node({ mime: "video/mp4" })} onClose={() => {}} />);
-  expect(document.querySelector("video[controls]")).toBeTruthy();
+test("video uses metadata preload, playsInline and shows an error fallback", () => {
+  render(<PreviewModal node={node({ mime: "video/mp4", name: "clip.mp4" })} onClose={() => {}} />);
+  const video = document.querySelector("video");
+  expect(video).toBeTruthy();
+  expect(video).toHaveAttribute("preload", "metadata");
+  expect(video).toHaveAttribute("playsinline");
+  expect(video).toHaveAttribute("aria-label", "clip.mp4");
+  fireEvent.error(video!);
+  expect(screen.getByText(/无法播放此视频/)).toBeInTheDocument();
 });
 
 test("text preview fetches first 1MB and shows content", async () => {

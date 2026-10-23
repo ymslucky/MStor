@@ -9,6 +9,16 @@ export const DEFAULT_SMALL_FILE_LIMIT = 60 * 1024 * 1024;
 export const DEFAULT_PART_SIZE = 16 * 1024 * 1024;
 let smallFileLimit = DEFAULT_SMALL_FILE_LIMIT;
 
+/** 上传成功后异步补缩略图（图片/视频）；失败静默，不能影响上传主流程 */
+export async function attachThumbnail(file: File, nodeId: string): Promise<void> {
+  try {
+    const blob = await makeThumbnail(file);
+    if (blob) await uploadThumb(nodeId, blob);
+  } catch {
+    // 缩略图是增强项
+  }
+}
+
 /** 应用服务端下发的上传限制（AppShell 在 /api/me 返回后调用） */
 export function setUploadLimits(limits?: { smallFileLimit?: number; partSize?: number }): void {
   if (limits?.smallFileLimit && limits.smallFileLimit > 0) smallFileLimit = limits.smallFileLimit;
@@ -83,10 +93,6 @@ export const uploadSmall = (file: File, parentId: string, opts?: UploadSmallOpts
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
           const created = JSON.parse(xhr.responseText) as { id: string; name: string; size: number };
-          // 缩略图尽力而为：客户端生成 WebP（图片且 ≤20MB），失败静默不影响上传
-          void makeThumbnail(file)
-            .then((blob) => (blob ? uploadThumb(created.id, blob) : null))
-            .catch(() => null);
           resolve(created);
         } catch {
           reject(new ApiError(xhr.status, "INTERNAL", "响应解析失败"));

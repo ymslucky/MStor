@@ -104,6 +104,21 @@ test("部分选中时表头全选框显示 indeterminate", () => {
   expect(all).toHaveAttribute("aria-checked", "mixed");
 });
 
+test("grid video without a server thumbnail falls back to a metadata poster", () => {
+  renderWithProviders(
+    <FileList
+      nodes={[node({ id: "v1", name: "clip.mp4", mime: "video/mp4" })]}
+      onOpenDir={noop}
+      onOpenFile={noop}
+      view="grid"
+    />,
+  );
+  const video = document.querySelector("video");
+  expect(video).toBeTruthy();
+  expect(video).toHaveAttribute("preload", "metadata");
+  expect(video?.getAttribute("src")).toContain("#t=0.1");
+});
+
 // —— 名称过滤 ——
 test("name filter narrows the list", async () => {
   const { user } = renderList([node(), node({ id: "f2", name: "world.md" })]);

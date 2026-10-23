@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Download, X } from "lucide-react";
 import { recordView } from "../api/library";
 import { contentUrl } from "../api/nodes";
+import { thumbUrl } from "../api/thumbs";
 import type { Node } from "../api/types";
 import { formatBytes } from "../lib/format";
 import { previewKind } from "../lib/preview";
@@ -29,6 +30,8 @@ export default function PreviewModal({ node, onClose }: Props) {
   const kind = previewKind(node.mime);
   const [text, setText] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [videoReady, setVideoReady] = useState(false);
+  const [videoError, setVideoError] = useState(false);
   // 轻量进场：挂载后经两帧 rAF 切类，单次 transition 完成 modal-in（不再使用 spring）
   const [entered, setEntered] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -111,7 +114,33 @@ export default function PreviewModal({ node, onClose }: Props) {
             {kind === "image" && (
               <img src={contentUrl(node.id)} alt={node.name} className="max-h-[80vh] max-w-full object-contain" />
             )}
-            {kind === "video" && <video src={contentUrl(node.id)} controls className="max-h-[80vh] w-full" />}
+            {kind === "video" &&
+              (videoError ? (
+                <div className="max-w-md rounded-xl border border-line bg-bg-sub px-6 py-10 text-center text-sm text-ink-2">
+                  无法播放此视频，可能是浏览器不支持该编码。
+                  <br />
+                  请使用右上角「下载」后用本地播放器打开。
+                </div>
+              ) : (
+                <div className="relative">
+                  <video
+                    src={contentUrl(node.id)}
+                    poster={node.thumb_key ? thumbUrl(node.id) : undefined}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    aria-label={node.name}
+                    onLoadedMetadata={() => setVideoReady(true)}
+                    onError={() => setVideoError(true)}
+                    className="max-h-[80vh] w-full rounded-lg bg-black"
+                  />
+                  {!videoReady && (
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs text-ink-2">
+                      加载视频…
+                    </div>
+                  )}
+                </div>
+              ))}
             {kind === "audio" && <audio src={contentUrl(node.id)} controls className="w-80" />}
             {kind === "pdf" && (
               <iframe src={contentUrl(node.id)} title={node.name} className="h-[80vh] w-[80vw] rounded bg-surface-2" />

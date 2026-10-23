@@ -527,8 +527,8 @@
 
 ### 19.14 功能与操作体验验证
 
-- 逐功能走查 + 自动化复核发现并修复 21 个问题：邀请撤销 404、审计操作者空白、分享子目录 loading、分享下载 objectURL、提取码空提交不重试、命令面板空态文案、预览层语义/焦点、成员加载错误、入群通知链接、平台兜底 header、重复 title、选中态弱/不稳定。
-- 详见 [functional-audit.md](functional-audit.md)；闸门：客户端 264 例、server 本地 29 项、visual 22/22（像素 0.00%）。
+- 逐功能走查 + 自动化复核发现并修复 22 个问题：邀请撤销 404、审计操作者空白、分享子目录 loading、分享下载 objectURL、提取码空提交不重试、命令面板空态文案、预览层语义/焦点、成员加载错误、入群通知链接、平台兜底 header、重复 title、选中态弱/不稳定、视频缩略图/预览缺失。
+- 详见 [functional-audit.md](functional-audit.md)；闸门：客户端 265 例、server 本地 29 项、visual 22/22（像素 0.00%）。
 
 ### 19.16 命令面板重构
 
@@ -554,7 +554,13 @@
 - hover 不再覆盖选中色；表头全选增加 indeterminate；Esc 在列表/网格/行首 checkbox 焦点下均可清空选择。
 - 新增 list-selected / grid-selected 基线；补充 FileList/useKeyboardNav 用例。
 
-### 19.18 PWA 静默更新
+### 19.18 视频缩略图与预览
+
+- 根因：makeThumbnail 只处理图片；uploadSmall 才补缩略图，分片/秒传路径完全跳过；网格对无 thumb 的视频只显示类型图标；video 预览没有 poster/加载/错误态。
+- 修复：客户端视频抽帧（10% 处，300MB/8s 上限）；队列侧统一补缩略图覆盖三条上传路径；网格用首帧+播放角标；预览补 poster、preload=metadata、playsInline、加载与编码不支持提示。
+- 新增视频卡片/预览用例；客户端 265 例、server 29、visual 22/22。
+
+### 19.19 PWA 静默更新
 
 - 根因：registerType 为 prompt 时，新 SW 会停在 waiting；只要用户没点刷新，每次加载都会再次触发 onNeedRefresh，于是反复出现「发现新版本」。这不是构建 diff，而是 prompt 模式的预期行为。
 - 改为 registerType: autoUpdate：新 SW 直接 skipWaiting/clientsClaim 接管，页面下次刷新或导航使用新版本；移除 onNeedRefresh / onOfflineReady toast，离线状态继续由 OfflineBar 表达。

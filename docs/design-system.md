@@ -20,6 +20,14 @@ v8 借鉴并落地：
 - 视觉基线保持 22 张；visual:check 屏蔽 service worker，避免 PWA toast 污染截图。
 - 新增 design-guard 测试扫描 UI 源码，禁止 hover 位移/缩放、active 缩放、玻璃模糊、spring、渐变背景回潮。
 
+### v8.3 视频缩略图与预览
+
+- 上传后统一在队列侧补缩略图：小文件、大文件分片、秒传三条路径都覆盖；图片与视频由客户端 Canvas 生成 WebP。
+- 视频抽帧：加载 metadata 后 seek 到 10% 处（短视频 0.1s），Canvas 输出 256px WebP；源文件上限 300MB、抽帧超时 8s，失败静默。
+- 网格：有服务端缩略图用图；没有则用 muted/metadata 视频首帧并叠加播放角标；加载失败回退类型图标。
+- 预览：有缩略图作为 poster；preload=metadata、playsInline；加载态与「编码不支持，请下载」错误态。
+- 服务端无需转码：继续复用 /api/files/:id/thumb 的 image/* 上传与 R2 immutable 缓存。
+
 ### v8.1 / v8.2 选中态系统（黑白高对比）
 
 - 采用 Vercel 式黑白选中，不使用 accent tint：列表选中行 ink 5% tint + 3px ink rail；网格选中卡 ink 边框 + ring；checkbox 使用 accent-ink。

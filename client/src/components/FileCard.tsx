@@ -1,5 +1,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
+import { Play } from "lucide-react";
+import { contentUrl } from "../api/nodes";
 import type { Node } from "../api/types";
 import { formatBytes, truncateMiddle } from "../lib/format";
 import { NodeIcon } from "./NodeIcon";
@@ -22,6 +24,8 @@ interface Props {
  */
 export function FileCard({ node, thumbSrc, badge, actions }: Props) {
   const [thumbFailed, setThumbFailed] = useState(false);
+  const [videoFailed, setVideoFailed] = useState(false);
+  const isVideo = !node.is_dir && !!node.mime?.startsWith("video/");
   const ext = node.name.split(".").pop() ?? "";
   const typeLabel = ext && ext !== node.name && ext.length <= 6 ? ext.toUpperCase() : "文件";
   const showImage = !!thumbSrc && !thumbFailed;
@@ -38,9 +42,27 @@ export function FileCard({ node, thumbSrc, badge, actions }: Props) {
               onError={() => setThumbFailed(true)}
               className="h-full w-full object-cover"
             />
+          ) : isVideo && !videoFailed ? (
+            // 旧视频没有服务端缩略图：用 muted + metadata 的视频首帧作 poster，避免只有图标
+            <video
+              src={contentUrl(node.id) + "#t=0.1"}
+              preload="metadata"
+              muted
+              playsInline
+              aria-label={node.name}
+              onError={() => setVideoFailed(true)}
+              className="pointer-events-none h-full w-full object-cover"
+            />
           ) : (
             <span className="flex h-16 w-16 items-center justify-center rounded-xl border border-line bg-surface-1">
               <NodeIcon node={node} size={34} />
+            </span>
+          )}
+          {isVideo && !videoFailed && (
+            <span aria-hidden className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/45 text-white">
+                <Play size={16} fill="currentColor" />
+              </span>
             </span>
           )}
           {!node.is_dir && (
