@@ -193,7 +193,7 @@ export default function FileList({
         disabled={!!draggingId}
         onChange={() => onToggle(n.id)}
         onClick={(e) => e.stopPropagation()}
-        className={`h-4 w-4 shrink-0 cursor-pointer accent-primary ${cls}`}
+        className={`h-4 w-4 shrink-0 cursor-pointer accent-ink ${cls}`}
       />
     ) : null;
 
@@ -213,7 +213,7 @@ export default function FileList({
       focusIndex === i ? "ring-2 ring-primary" : "",
       dragOverId === n.id ? "ring-2 ring-primary" : "",
       selected.has(n.id) && selectable
-        ? "bg-primary-soft shadow-[inset_3px_0_0_var(--color-primary)] hover:bg-primary-soft"
+        ? "bg-ink/5 shadow-[inset_3px_0_0_var(--color-ink)] hover:bg-ink/10"
         : "hover:bg-bg-sub/70",
     ]
       .filter(Boolean)
@@ -226,7 +226,7 @@ export default function FileList({
       "group relative overflow-hidden rounded-card border border-line bg-surface-1 transition-colors select-none [-webkit-touch-callout:none] hover:border-line-strong",
       focusIndex === i ? "ring-2 ring-primary" : "",
       dragOverId === n.id ? "ring-2 ring-primary" : "",
-      selected.has(n.id) && selectable ? "border-primary ring-2 ring-primary/30" : "",
+      selected.has(n.id) && selectable ? "border-ink ring-2 ring-ink/25 hover:border-ink" : "",
       animate ? "anim-item-in" : "",
     ]
       .filter(Boolean)
@@ -439,7 +439,9 @@ export default function FileList({
           cellClass={gridCellClass}
           cellStyle={(_i, n) => ({
             ...dropHoverStyle(n),
-            ...(selected.has(n.id) && selectable ? { backgroundColor: "var(--color-primary-soft)" } : {}),
+            ...(selected.has(n.id) && selectable
+              ? { backgroundColor: "color-mix(in srgb, var(--color-ink) 5%, transparent)" }
+              : {}),
           })}
           onClick={rowClick}
           onDoubleClick={rowDoubleClick}

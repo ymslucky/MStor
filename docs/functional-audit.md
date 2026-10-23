@@ -63,7 +63,7 @@
 | 18 | P3 | 缩略图请求 404 时卡片显示破图 | onError 回退到文件类型图标 tile |
 | 19 | P2 | 命令面板「新建文件夹」只跳回文件页，不打开创建弹窗 | 改为 /?newFolder=1，Browser 消费参数打开弹窗并清理 URL；补测试 |
 | 20 | P2 | 命令面板层级混乱：标题、输入、筛选、绝对定位下拉叠在一起，高度/滚动不可控 | 重构为单纵向面板：输入/分段筛选/滚动结果/键盘提示；桌面宽面板、移动端底部抽屉 |
-| 21 | P2 | 选中态弱且不稳定：hover 覆盖选中色、表头部分选中无 indeterminate、网格只有细 ring | 列表整行 tint + 3px rail、网格 tint + 边框/ring、表头 mixed、Esc 清空；补 2 个用例与 2 张基线 |
+| 21 | P2 | 选中态弱且不稳定：hover 覆盖选中色、表头部分选中无 indeterminate、网格只有细 ring | 黑白高对比选中：列表 ink tint + 3px rail、网格 ink 边框/ring、checkbox accent-ink、表头 mixed、Esc 清空；补 2 个用例与 2 张基线 |
 
 ## 4. 操作体验复核
 

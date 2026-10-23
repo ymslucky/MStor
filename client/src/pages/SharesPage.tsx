@@ -73,7 +73,7 @@ export default function SharesPage() {
               <input
                 type="checkbox"
                 aria-label="全选分享"
-                className="h-4 w-4 accent-primary"
+                className="h-4 w-4 accent-ink"
                 checked={allSelected}
                 onChange={() => (allSelected ? selection.clear() : selection.selectAll())}
               />
@@ -134,7 +134,7 @@ export default function SharesPage() {
                     <input
                       type="checkbox"
                       aria-label={`选择 ${s.node_name}`}
-                      className="h-4 w-4 accent-primary"
+                      className="h-4 w-4 accent-ink"
                       checked={selection.isSelected(s.id)}
                       onChange={() => selection.toggle(s.id)}
                     />

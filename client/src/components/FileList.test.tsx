@@ -206,7 +206,7 @@ test("grid view keeps the name filter and renders per-card actions", async () =>
   expect(onToggle).not.toHaveBeenCalled();
 });
 
-test("grid selected card is highlighted with border/ring (background tint would be overridden)", () => {
+test("grid selected card uses monochrome border/ring", () => {
   renderWithProviders(
     <FileList
       nodes={[node()]}
@@ -219,7 +219,7 @@ test("grid selected card is highlighted with border/ring (background tint would 
     />,
   );
   const cell = screen.getByTitle("hello.txt").closest("[data-file-row]") as HTMLElement;
-  expect(cell).toHaveClass("border-primary", "ring-2");
+  expect(cell).toHaveClass("border-ink", "ring-2");
 });
 
 test("grid long press toggles selection on touch", () => {

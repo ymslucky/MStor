@@ -161,7 +161,7 @@ export function FileListHeader({
                       }}
                       onChange={onToggleAll}
                       disabled={dragging}
-                      className="h-4 w-4 cursor-pointer accent-primary"
+                      className="h-4 w-4 cursor-pointer accent-ink"
                     />
                   </div>
                 );

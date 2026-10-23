@@ -548,11 +548,11 @@
 - 设置页/平台表格的表头、行高、弹窗密度统一到 v7 节奏。
 - 接入 Playwright 三断点视觉回归，给 v7 建立截图基线。
 
-### 19.17 选中态系统（v8.1）
+### 19.17 选中态系统（v8.1 / v8.2）
 
-- 列表选中行改为完整 accent tint + 3px 左侧 rail，hover 保持选中色；表头全选增加 indeterminate。
-- 网格选中卡用 inline tint + border/ring，避免背景类被 surface-1 覆盖；新增 list-selected / grid-selected 基线。
-- Esc 在列表/网格/行首 checkbox 焦点下均可清空选择；补充 FileList/useKeyboardNav 用例。
+- 采用 Vercel 式黑白高对比：列表选中行 ink 5% tint + 3px ink rail；网格选中卡 ink 边框/ring；checkbox accent-ink；不再使用 accent tint。
+- hover 不再覆盖选中色；表头全选增加 indeterminate；Esc 在列表/网格/行首 checkbox 焦点下均可清空选择。
+- 新增 list-selected / grid-selected 基线；补充 FileList/useKeyboardNav 用例。
 
 ### 19.18 OpenDesign 校准（v8）
 

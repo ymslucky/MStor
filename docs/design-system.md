@@ -20,12 +20,12 @@ v8 借鉴并落地：
 - 视觉基线保持 22 张；visual:check 屏蔽 service worker，避免 PWA toast 污染截图。
 - 新增 design-guard 测试扫描 UI 源码，禁止 hover 位移/缩放、active 缩放、玻璃模糊、spring、渐变背景回潮。
 
-### v8.1 选中态系统
+### v8.1 / v8.2 选中态系统（黑白高对比）
 
-- 列表：选中行使用完整 accent tint + 3px 左侧 rail；hover 不再把选中色覆盖成灰色；表头全选在部分选中时显示 indeterminate。
-- 网格：选中卡使用 inline accent tint + accent 边框 + 2px ring，避免背景类被 surface-1 覆盖；新增 list-selected / grid-selected 视觉基线。
+- 采用 Vercel 式黑白选中，不使用 accent tint：列表选中行 ink 5% tint + 3px ink rail；网格选中卡 ink 边框 + ring；checkbox 使用 accent-ink。
+- hover 不再把选中色覆盖成灰色；表头全选在部分选中时显示 indeterminate。
 - 键盘：焦点在列表/网格/行首 checkbox 上时，Esc 均可清空选择。
-- 选中态现为 22 张视觉基线的一部分。
+- 新增 list-selected / grid-selected 视觉基线，共 22 张。
 
 ## 1. 方向：从「演示型玻璃拟态」到「安静、内容优先的工作台」
 
