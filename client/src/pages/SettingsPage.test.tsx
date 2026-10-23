@@ -24,6 +24,7 @@ function renderWith(ui: JSX.Element) {
 
 beforeEach(() => {
   vi.clearAllMocks(); // 首个用例断言「未调用」，调用记录不能跨用例残留
+  vi.mocked(getAdminSettings).mockResolvedValue({ trash_retention_days: 30, audit_enabled: true });
 });
 
 test("account tab shows login account info", async () => {
@@ -46,7 +47,7 @@ test("upload tab saves concurrency to localStorage", async () => {
 
 // 保留期已归入「上传」分区（平台管理员可见），不再依赖设置页的管理标签
 test("admin saves trash retention days in upload tab", async () => {
-  vi.mocked(getAdminSettings).mockResolvedValue({ trash_retention_days: 30 });
+  vi.mocked(getAdminSettings).mockResolvedValue({ trash_retention_days: 30, audit_enabled: true });
   vi.mocked(patchAdminSettings).mockResolvedValue({ ok: true });
   const { user } = renderWith(<SettingsPage me={ME} />);
   await user.click(await screen.findByRole("link", { name: "上传" }));
@@ -57,4 +58,15 @@ test("admin saves trash retention days in upload tab", async () => {
   await user.type(input, "7");
   await user.click(screen.getByRole("button", { name: "保存保留天数" }));
   await waitFor(() => expect(patchAdminSettings).toHaveBeenCalledWith({ trash_retention_days: 7 }));
+});
+
+test("admin can turn the audit feature off from upload tab", async () => {
+  vi.mocked(getAdminSettings).mockResolvedValue({ trash_retention_days: 30, audit_enabled: true });
+  vi.mocked(patchAdminSettings).mockResolvedValue({ ok: true });
+  const { user } = renderWith(<SettingsPage me={ME} />);
+  await user.click(await screen.findByRole("link", { name: "上传" }));
+  const toggle = await screen.findByRole("checkbox", { name: "已开启" });
+  expect(toggle).toBeChecked();
+  await user.click(toggle);
+  await waitFor(() => expect(patchAdminSettings).toHaveBeenCalledWith({ audit_enabled: false }));
 });

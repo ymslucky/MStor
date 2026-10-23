@@ -33,8 +33,12 @@ export interface AdminOverview {
 export const getAdminOverview = () => api<AdminOverview>("/api/me/admin/overview", { skipActAs: true });
 
 // 动态配置（admin）：回收站保留天数等，白名单键由服务端校验
-export const getAdminSettings = () =>
-  api<{ trash_retention_days: number }>("/api/me/admin/settings", { skipActAs: true });
+export interface AdminSettings {
+  trash_retention_days: number;
+  audit_enabled: boolean;
+}
 
-export const patchAdminSettings = (body: { trash_retention_days: number }) =>
+export const getAdminSettings = () => api<AdminSettings>("/api/me/admin/settings", { skipActAs: true });
+
+export const patchAdminSettings = (body: { trash_retention_days?: number; audit_enabled?: boolean }) =>
   api<{ ok: true }>("/api/me/admin/settings", { method: "PATCH", json: body, skipActAs: true });

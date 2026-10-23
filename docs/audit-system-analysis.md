@@ -160,6 +160,17 @@ audit_events：
 - 新写入带 request_id（cf-ray）；
 - 保持审计写与业务写同 batch 的 fail-closed 语义。
 
+### 功能开关（本轮）
+
+审计不是“开箱即必须常开”的功能，先做成可配置开关：
+
+- settings 全局键 audit_enabled（1/0），默认开启；
+- 设置页「上传」分区（平台管理员）增加审计日志开关；
+- 关闭后服务端 auditStmt 直接 no-op，停止新审计写入；
+- 历史记录保留，审计页仍可查看；
+- 服务端用 30s isolate 缓存读取开关，避免每个请求都查 settings；多 isolate 最多 30s 收敛；
+- 开关切换本身仍写一条 admin.settings_patch，保证配置变更可追溯。
+
 ### Step 2（模型 v2，已完成）
 
 migration 0018 已增加：

@@ -113,6 +113,34 @@ function TrashRetentionRow() {
   );
 }
 
+/** 平台级审计开关：关闭后服务端停止写入新审计，历史记录保留 */
+function AuditEnabledRow() {
+  const query = useQuery({ queryKey: queryKeys.adminSettings, queryFn: getAdminSettings });
+  const queryClient = useQueryClient();
+  const enabled = query.data?.audit_enabled ?? true;
+  const save = useMutation({
+    mutationFn: (next: boolean) => patchAdminSettings({ audit_enabled: next }),
+    onSuccess: (_data, next) => {
+      toast(next ? "审计日志已开启" : "审计日志已关闭（历史记录保留）", "info");
+      void queryClient.invalidateQueries({ queryKey: queryKeys.adminSettings });
+    },
+  });
+  return (
+    <SettingRow title="审计日志" hint="记录管理员、分享、文件删除等高风险动作；关闭后不再写入新事件，历史记录保留。">
+      <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 text-sm text-ink">
+        <input
+          type="checkbox"
+          className="h-4 w-4 accent-ink"
+          checked={enabled}
+          disabled={query.isPending || save.isPending}
+          onChange={(e) => save.mutate(e.target.checked)}
+        />
+        <span>{enabled ? "已开启" : "已关闭"}</span>
+      </label>
+    </SettingRow>
+  );
+}
+
 function UploadSection({ isPlatformAdmin }: { isPlatformAdmin: boolean }) {
   // 本地偏好：上传并发数（分片与文件队列共用），保存后对新上传任务生效
   const [n, setN] = useState(String(getUploadConcurrency()));
@@ -144,8 +172,9 @@ function UploadSection({ isPlatformAdmin }: { isPlatformAdmin: boolean }) {
           保存并发数
         </Button>
       </SettingRow>
-      {/* 回收站保留期属平台级配置，仅平台管理员可见（服务端同样校验） */}
+      {/* 平台级配置，仅平台管理员可见（服务端同样校验） */}
       {isPlatformAdmin && <TrashRetentionRow />}
+      {isPlatformAdmin && <AuditEnabledRow />}
     </Surface>
   );
 }

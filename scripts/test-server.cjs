@@ -950,14 +950,31 @@ async function main() {
     const initial = await call(env, "/api/me/admin/settings", { headers: admin });
     assertEqual(initial.status, 200, "GET 设置应 200，实际 " + initial.status + " " + initial.text.slice(0, 160));
     assertEqual(initial.json.trash_retention_days, 30, "默认回收站天数应回退到 env（30）");
+    assertEqual(initial.json.audit_enabled, true, "审计默认应开启");
     const patched = await call(env, "/api/me/admin/settings", {
       method: "PATCH",
       headers: { ...admin, "content-type": "application/json" },
-      body: JSON.stringify({ trash_retention_days: 7 }),
+      body: JSON.stringify({ trash_retention_days: 7, audit_enabled: false }),
     });
     assertEqual(patched.status, 200, "PATCH 设置应 200，实际 " + patched.status + " " + patched.text.slice(0, 200));
     const after = await call(env, "/api/me/admin/settings", { headers: admin });
     assertEqual(after.json.trash_retention_days, 7, "PATCH 后应读到 7");
+    assertEqual(after.json.audit_enabled, false, "审计开关应关闭");
+    const dir = await call(env, "/api/dirs", {
+      method: "POST",
+      headers: { ...admin, "content-type": "application/json" },
+      body: JSON.stringify({ parentId: "", name: "audit-off" }),
+    });
+    assertEqual(dir.status, 201, "建目录应 201");
+    await call(env, "/api/files/" + dir.json.id, { method: "DELETE", headers: admin });
+    assertEqual(db.prepare("SELECT COUNT(*) c FROM audit_events WHERE action = 'node.delete'").first().c, 0, "关闭审计后不应写 node.delete");
+    const reenabled = await call(env, "/api/me/admin/settings", {
+      method: "PATCH",
+      headers: { ...admin, "content-type": "application/json" },
+      body: JSON.stringify({ audit_enabled: true }),
+    });
+    assertEqual(reenabled.status, 200, "重新开启审计应 200");
+    assertEqual(db.prepare("SELECT value FROM settings WHERE key = 'audit_enabled'").first().value, "1", "audit_enabled 应持久化为 1");
     const member = { "x-dev-email": "m@example.com" };
     await call(env, "/api/me", { headers: member });
     const forbidden = await call(env, "/api/me/admin/settings", { headers: member });

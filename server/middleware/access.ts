@@ -5,6 +5,7 @@ import { HttpError, errors } from "../lib/errors";
 import { ensurePersonalWorkspace, resolveWorkspace } from "../data/workspaces";
 import { acceptPendingInvitations } from "../data/invitations";
 import { ensureRootDir } from "../lib/nodes";
+import { refreshAuditEnabled } from "../lib/audit";
 import { bindOrProvision, type AccessIdentity } from "../lib/users";
 import type { UserRow } from "../types";
 
@@ -82,6 +83,8 @@ function csrfGuard(c: Context<AppEnv>) {
 export async function accessMiddleware(c: Context<AppEnv>, next: Next) {
   const ident = await resolveIdentity(c);
   csrfGuard(c);
+  // 只读一次设置（30s isolate 缓存）；关闭后 auditStmt 直接 no-op
+  await refreshAuditEnabled(c.env.DB);
   let user = await bindOrProvision(c.env, ident);
   if (user.disabled_at) throw errors.forbidden("账号已被停用");
   // 记录会话原始用户：act-as 切换后 c.get("user") 是目标用户，self 类校验应以原始用户为准

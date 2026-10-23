@@ -11,7 +11,7 @@ import { listUnboundUsers } from "../data/invitations";
 import { readStorageStats, storageLevel } from "../data/storage";
 import { unreadCount } from "../data/notifications";
 import { adminOverview } from "../data/admin";
-import { auditStmt, recordAudit } from "../lib/audit";
+import { auditStmt, recordAudit, setAuditEnabled } from "../lib/audit";
 
 export const me = new Hono<AppEnv>();
 
@@ -64,30 +64,60 @@ const TRASH_RETENTION_MIN = 1;
 const TRASH_RETENTION_MAX = 365;
 
 me.get("/admin/settings", requireAdmin, async (c) => {
-  const configured = await getSetting(c.env, "trash_retention_days");
-  return c.json({ trash_retention_days: Number(configured ?? c.env.TRASH_RETENTION_DAYS) });
+  const [configured, audit] = await Promise.all([
+    getSetting(c.env, "trash_retention_days"),
+    getSetting(c.env, "audit_enabled"),
+  ]);
+  return c.json({
+    trash_retention_days: Number(configured ?? c.env.TRASH_RETENTION_DAYS),
+    // 未配置时默认开启；关闭后服务端 auditStmt 退化为 no-op，历史记录仍保留
+    audit_enabled: audit === null ? true : audit !== "0",
+  });
 });
 
 me.patch("/admin/settings", requireAdmin, async (c) => {
-  const { trash_retention_days } = await c.req.json<{ trash_retention_days?: unknown }>();
+  const body = await c.req.json<{ trash_retention_days?: unknown; audit_enabled?: unknown }>();
+  const hasTrash = body.trash_retention_days !== undefined;
+  const hasAudit = body.audit_enabled !== undefined;
+  if (!hasTrash && !hasAudit) throw errors.badRequest("没有需要更新的设置");
   if (
-    !Number.isInteger(trash_retention_days) ||
-    (trash_retention_days as number) < TRASH_RETENTION_MIN ||
-    (trash_retention_days as number) > TRASH_RETENTION_MAX
+    hasTrash &&
+    (!Number.isInteger(body.trash_retention_days) ||
+      (body.trash_retention_days as number) < TRASH_RETENTION_MIN ||
+      (body.trash_retention_days as number) > TRASH_RETENTION_MAX)
   ) {
     throw errors.badRequest(`保留天数须为 ${TRASH_RETENTION_MIN}-${TRASH_RETENTION_MAX} 的整数`);
   }
-  await c.env.DB.batch([
-    c.env.DB.prepare(
-      "INSERT INTO settings (scope, key, value) VALUES ('global', 'trash_retention_days', ?1) ON CONFLICT(scope, key) DO UPDATE SET value = excluded.value",
-    ).bind(String(trash_retention_days)),
-    auditStmt(c.env.DB, {
-      actorId: c.get("selfId"),
-      action: "admin.settings_patch",
-      meta: { trash_retention_days },
-      requestId: c.req.header("cf-ray") ?? null,
-    }),
-  ]);
+  if (hasAudit && typeof body.audit_enabled !== "boolean") throw errors.badRequest("audit_enabled 须为布尔值");
+  const nextAudit = hasAudit ? (body.audit_enabled as boolean) : undefined;
+  const settings: D1PreparedStatement[] = [];
+  if (hasTrash) {
+    settings.push(
+      c.env.DB.prepare(
+        "INSERT INTO settings (scope, key, value) VALUES ('global', 'trash_retention_days', ?1) ON CONFLICT(scope, key) DO UPDATE SET value = excluded.value",
+      ).bind(String(body.trash_retention_days)),
+    );
+  }
+  if (hasAudit) {
+    settings.push(
+      c.env.DB.prepare(
+        "INSERT INTO settings (scope, key, value) VALUES ('global', 'audit_enabled', ?1) ON CONFLICT(scope, key) DO UPDATE SET value = excluded.value",
+      ).bind(nextAudit ? "1" : "0"),
+    );
+  }
+  // 开启动作先恢复缓存再写审计；关闭动作先写审计，成功后再关闭缓存（确保开关本身可追溯）
+  if (nextAudit === true) setAuditEnabled(true);
+  const auditEvent = auditStmt(c.env.DB, {
+    actorId: c.get("selfId"),
+    action: "admin.settings_patch",
+    meta: {
+      ...(hasTrash ? { trash_retention_days: body.trash_retention_days } : {}),
+      ...(hasAudit ? { audit_enabled: nextAudit } : {}),
+    },
+    requestId: c.req.header("cf-ray") ?? null,
+  });
+  await c.env.DB.batch([...settings, auditEvent]);
+  if (nextAudit !== undefined) setAuditEnabled(nextAudit);
   return c.json({ ok: true });
 });
 
