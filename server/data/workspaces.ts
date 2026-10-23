@@ -93,7 +93,8 @@ export async function resolveWorkspace(
     return { workspace, role: row.role as WorkspaceRole };
   }
   const { results } = await db.prepare(
-    "SELECT w.*, m.role AS role FROM memberships m JOIN workspaces w ON w.id = m.workspace_id WHERE m.user_id = ?1 ORDER BY m.created_at ASC, w.id ASC LIMIT 1",
+    // 用 m.workspace_id 做次序 tie-break（与 w.id 等值）：可直接吃覆盖索引，避免临时排序
+    "SELECT w.*, m.role AS role FROM memberships m JOIN workspaces w ON w.id = m.workspace_id WHERE m.user_id = ?1 ORDER BY m.created_at ASC, m.workspace_id ASC LIMIT 1",
   ).bind(userId).all<Record<string, unknown>>();
   const row = results[0];
   if (!row) throw errors.notFound();
@@ -107,8 +108,8 @@ export async function listMemberships(
   userId: string,
 ): Promise<{ workspace: WorkspaceRow; role: WorkspaceRole }[]> {
   const { results } = await db.prepare(
-    // 同毫秒加入时用 id 兜底排序，避免列表顺序抖动
-    "SELECT w.*, m.role AS role FROM memberships m JOIN workspaces w ON w.id = m.workspace_id WHERE m.user_id = ?1 ORDER BY m.created_at ASC, w.id ASC",
+    // 同毫秒加入时用 id 兜底排序，避免列表顺序抖动；用 m.workspace_id 保持与 w.id 等值且可走覆盖索引
+    "SELECT w.*, m.role AS role FROM memberships m JOIN workspaces w ON w.id = m.workspace_id WHERE m.user_id = ?1 ORDER BY m.created_at ASC, m.workspace_id ASC",
   ).bind(userId).all<Record<string, unknown>>();
   return results.map((row) => ({ workspace: rowToWorkspace(row), role: row.role as WorkspaceRole }));
 }

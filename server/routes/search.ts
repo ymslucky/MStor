@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../env";
-import { jsonList, jsonSet } from "../lib/sql";
+import { NODES_PK_INDEX, jsonList, jsonSet } from "../lib/sql";
 
 /** 文件名检索 2.0（方案 P2 B8）：只索引文件名，服务端过滤/排序/分页，不做正文检索 */
 export const search = new Hono<AppEnv>();
@@ -86,7 +86,7 @@ search.get("/", async (c) => {
   const nameById = new Map<string, string>();
   if (ancestorIds.size) {
     const { results: rows } = await c.env.DB.prepare(
-      `SELECT id, name FROM nodes WHERE workspace_id = ?1 AND id IN ${jsonSet()}`,
+      `SELECT id, name FROM nodes INDEXED BY ${NODES_PK_INDEX} WHERE workspace_id = ?1 AND id IN ${jsonSet()}`,
     ).bind(workspaceId, jsonList([...ancestorIds])).all<{ id: string; name: string }>();
     for (const row of rows) nameById.set(row.id, row.name);
   }

@@ -39,6 +39,8 @@ CREATE TABLE IF NOT EXISTS memberships (
   PRIMARY KEY (workspace_id, user_id)
 );
 CREATE INDEX IF NOT EXISTS idx_memberships_user ON memberships(user_id);
+CREATE INDEX IF NOT EXISTS idx_memberships_user_created ON memberships(user_id, created_at, workspace_id, role);
+CREATE INDEX IF NOT EXISTS idx_memberships_workspace_created ON memberships(workspace_id, created_at);
 
 -- 邀请：令牌只存 sha256；经 Access 首登认领，单次消费。不发事务邮件。
 CREATE TABLE IF NOT EXISTS invitations (
@@ -84,6 +86,7 @@ CREATE INDEX IF NOT EXISTS idx_nodes_sha ON nodes(workspace_id, sha256);
 CREATE INDEX IF NOT EXISTS idx_nodes_r2key ON nodes(r2_key);
 CREATE INDEX IF NOT EXISTS idx_nodes_trash ON nodes(workspace_id, deleted_at) WHERE deleted_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_nodes_thumb ON nodes(workspace_id, thumb_key) WHERE thumb_key IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_nodes_dirs_tree ON nodes(workspace_id, path, name) WHERE is_dir = 1 AND deleted_at IS NULL AND name <> '';
 
 -- 分享：token 外部可见；max_downloads 由原子 UPDATE 扣减；撤销即 revoked_at
 CREATE TABLE IF NOT EXISTS shares (
@@ -166,6 +169,7 @@ CREATE TABLE IF NOT EXISTS audit_events (
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_audit_ws_time ON audit_events(workspace_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_events(created_at DESC);
 
 -- 存储四分项（解释性；配额真相在 workspaces.used_bytes）
 CREATE TABLE IF NOT EXISTS storage_stats (
@@ -200,6 +204,7 @@ CREATE TABLE IF NOT EXISTS favorites (
   PRIMARY KEY (workspace_id, user_id, node_id)
 );
 CREATE INDEX IF NOT EXISTS idx_favorites_user ON favorites(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_favorites_workspace_user_time ON favorites(workspace_id, user_id, created_at DESC);
 
 -- 最近访问（5 分钟节流：同一节点短时间重复打开不写库，避免写放大）
 CREATE TABLE IF NOT EXISTS node_views (
@@ -210,6 +215,7 @@ CREATE TABLE IF NOT EXISTS node_views (
   PRIMARY KEY (workspace_id, user_id, node_id)
 );
 CREATE INDEX IF NOT EXISTS idx_node_views_recent ON node_views(user_id, viewed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_node_views_workspace_user_time ON node_views(workspace_id, user_id, viewed_at DESC);
 
 -- 标签（空间维度共享，名称在空间内唯一）与节点关联
 CREATE TABLE IF NOT EXISTS tags (

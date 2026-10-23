@@ -2,7 +2,7 @@
 import type { Env } from "../env";
 import { errors, HttpError } from "../lib/errors";
 import { childPath, ensureRootDir, getNode, isDescendant, resolveParent, subtreePrefix, subtreeRange, uniqueName } from "../lib/nodes";
-import { chunk, DIRS_PER_STMT, isUniqueViolation, jsonList, jsonSet } from "../lib/sql";
+import { chunk, DIRS_PER_STMT, NODES_PK_INDEX, isUniqueViolation, jsonList, jsonSet } from "../lib/sql";
 import { recomputeStorageStatsStmt } from "./storage";
 import type { NodeRow } from "../types";
 import { getSetting } from "../lib/settings";
@@ -45,13 +45,13 @@ export async function permanentDeleteMany(env: Env, workspaceId: string, ids: st
   if (!ids.length) return 0;
   // 校验：只处理回收站内的根（owner 过滤在 SQL 内，不再拉回 JS 过滤）
   const { results: roots } = await env.DB.prepare(
-    `SELECT id, path, is_dir FROM nodes WHERE workspace_id = ?1 AND deleted_at IS NOT NULL AND id IN ${jsonSet()}`
+    `SELECT id, path, is_dir FROM nodes INDEXED BY ${NODES_PK_INDEX} WHERE workspace_id = ?1 AND deleted_at IS NOT NULL AND id IN ${jsonSet()}`
   ).bind(workspaceId, jsonList(ids)).all<Pick<NodeRow, "id" | "path" | "is_dir">>();
   if (!roots.length) return 0;
   // 闭包：自身 id（json_each 单参数）+ 目录区间（每条目录 2 参数），全部读取合并成一次 batch
   const selects: D1PreparedStatement[] = [
     env.DB.prepare(
-      `SELECT id, r2_key FROM nodes WHERE workspace_id = ?1 AND id IN ${jsonSet()}`
+      `SELECT id, r2_key FROM nodes INDEXED BY ${NODES_PK_INDEX} WHERE workspace_id = ?1 AND id IN ${jsonSet()}`
     ).bind(workspaceId, jsonList(roots.map((r) => r.id))),
   ];
   for (const part of chunk(roots.filter((r) => r.is_dir), DIRS_PER_STMT)) {
@@ -126,7 +126,7 @@ export async function softDeleteMany(db: D1Database, workspaceId: string, ids: s
   if (!ids.length) return 0;
   // 选中项一次查全（json_each 单参数，任意长度）；owner 过滤在 SQL 内完成
   const { results: rows } = await db.prepare(
-    `SELECT id, name, is_dir, path FROM nodes WHERE workspace_id = ?1 AND deleted_at IS NULL AND id IN ${jsonSet()}`
+    `SELECT id, name, is_dir, path FROM nodes INDEXED BY ${NODES_PK_INDEX} WHERE workspace_id = ?1 AND deleted_at IS NULL AND id IN ${jsonSet()}`
   ).bind(workspaceId, jsonList(ids)).all<Pick<NodeRow, "id" | "name" | "is_dir" | "path">>();
   // 根目录哨兵行（name=''）不可删除
   const valid = rows.filter((r) => r.name !== "");
@@ -177,7 +177,7 @@ export async function moveMany(db: D1Database, workspaceId: string, ids: string[
   const targetParentId = parent.id;
   // 一次查全（json_each 单参数，任意长度）；owner 过滤在 SQL 内完成
   const { results: sel } = await db.prepare(
-    `SELECT * FROM nodes WHERE workspace_id = ?1 AND deleted_at IS NULL AND id IN ${jsonSet()}`
+    `SELECT * FROM nodes INDEXED BY ${NODES_PK_INDEX} WHERE workspace_id = ?1 AND deleted_at IS NULL AND id IN ${jsonSet()}`
   ).bind(workspaceId, jsonList(ids)).all<NodeRow>();
   if (!sel.length) return 0;
   // 目录不能移入自身子树：对所选目录做祖先检查（目录数通常极少）

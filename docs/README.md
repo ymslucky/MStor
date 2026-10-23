@@ -14,6 +14,7 @@
 | [functional-audit.md](./functional-audit.md) | 2026-10-22 功能与操作体验验证：逐功能矩阵、已修缺陷、真机回归清单 | 记录 |
 | [video-pipeline-analysis.md](./video-pipeline-analysis.md) | 视频缩略图/预览：当前方案、Cloudflare Stream/Mux/MediaConvert/GCP 对比、分步演进建议 | 记录 |
 | [component-ux-audit.md](./component-ux-audit.md) | 组件用户体验评估：选择/列表/操作入口/工具栏/弹窗评分与优先级 | 记录 |
+| [d1-query-optimization.md](./d1-query-optimization.md) | D1 生产查询分析：Top SQL、索引/planner 修复、优化前后读取行数 | 记录 |
 | [../DESIGN.md](../DESIGN.md) | OpenDesign 9 段 schema 的 MStor 设计意图（色/字/间距/组件/动效/语气/品牌/反模式） | 权威 |
 
 ## 阅读顺序（新人/接手）

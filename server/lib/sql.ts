@@ -11,6 +11,11 @@
 /** D1/SQLite 单语句绑定参数硬上限（不是配额；超限报 too many SQL variables） */
 export const SQL_PARAM_LIMIT = 100;
 
+/** nodes 的 TEXT PRIMARY KEY 自动索引名。
+ * json_each 的 IN 子查询会被 planner 误判为「先按 workspace 全扫」；
+ * 纯 id 集合查询显式 INDEXED BY 强制主键点查（生产实测 328 行读 → 9 行读）。 */
+export const NODES_PK_INDEX = "sqlite_autoindex_nodes_1";
+
 /** 目录子树区间每语句最多 32 个：每个目录消耗 3 个绑定参数（自身 id + 区间 lo/hi） */
 export const DIRS_PER_STMT = 32;
 
