@@ -6,6 +6,10 @@ export const getMe = () => api<Me>("/api/me");
 export const listAdminUsers = () =>
   api<{ users: AdminUser[] }>("/api/me/admin/users", { skipActAs: true });
 
+/** 进入他人空间：只记录一次 admin.act_as（x-act-as 仅作为后续请求上下文） */
+export const startActAs = (userId: string) =>
+  api<{ ok: true }>("/api/me/admin/act-as", { method: "POST", json: { userId }, skipActAs: true });
+
 export const patchAdminUser = (
   id: string,
   body: { quota_bytes?: number; role?: "admin" | "member"; disabled?: boolean; name?: string; email?: string | null },

@@ -1,6 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Ban, CircleCheck, LogIn, Mail, Pencil } from "lucide-react";
-import { patchAdminUser } from "../../api/me";
+import { patchAdminUser, startActAs } from "../../api/me";
+import { friendlyMessage } from "../../api/client";
+import { toast } from "../Toaster";
 import type { AdminUser } from "../../api/types";
 import { formatBytes } from "../../lib/format";
 import { queryKeys } from "../../lib/queryKeys";
@@ -26,6 +28,14 @@ export function UserRow({
   const patch = useMutation({
     mutationFn: (body: PatchBody) => patchAdminUser(u.id, body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.adminUsers }),
+  });
+  const enter = useMutation({
+    mutationFn: () => startActAs(u.id),
+    onSuccess: () => {
+      setString(STORAGE_KEYS.actAs, u.id);
+      window.location.assign("/");
+    },
+    onError: (e) => toast(friendlyMessage(e), "error"),
   });
   const disabled = u.disabled_at !== null;
   return (
@@ -72,15 +82,15 @@ export function UserRow({
               <Ban size={15} aria-hidden />
             </IconButton>
           )}
-          <IconButton
-            label={`进入空间（${u.name}）`}
-            onClick={() => {
-              setString(STORAGE_KEYS.actAs, u.id);
-              window.location.assign("/");
-            }}
-          >
-            <LogIn size={15} aria-hidden />
-          </IconButton>
+          {u.id !== selfId && (
+            <IconButton
+              label={`进入空间（${u.name}）`}
+              disabled={enter.isPending}
+              onClick={() => enter.mutate()}
+            >
+              <LogIn size={15} aria-hidden />
+            </IconButton>
+          )}
         </div>
       </td>
     </tr>

@@ -11,6 +11,7 @@ import { listUnboundUsers } from "../data/invitations";
 import { readStorageStats, storageLevel } from "../data/storage";
 import { unreadCount } from "../data/notifications";
 import { adminOverview } from "../data/admin";
+import { auditStmt, recordAudit } from "../lib/audit";
 
 export const me = new Hono<AppEnv>();
 
@@ -76,17 +77,48 @@ me.patch("/admin/settings", requireAdmin, async (c) => {
   ) {
     throw errors.badRequest(`保留天数须为 ${TRASH_RETENTION_MIN}-${TRASH_RETENTION_MAX} 的整数`);
   }
-  await c.env.DB.prepare(
-    "INSERT INTO settings (scope, key, value) VALUES ('global', 'trash_retention_days', ?1) ON CONFLICT(scope, key) DO UPDATE SET value = excluded.value",
-  )
-    .bind(String(trash_retention_days))
-    .run();
+  await c.env.DB.batch([
+    c.env.DB.prepare(
+      "INSERT INTO settings (scope, key, value) VALUES ('global', 'trash_retention_days', ?1) ON CONFLICT(scope, key) DO UPDATE SET value = excluded.value",
+    ).bind(String(trash_retention_days)),
+    auditStmt(c.env.DB, {
+      actorId: c.get("selfId"),
+      action: "admin.settings_patch",
+      meta: { trash_retention_days },
+      requestId: c.req.header("cf-ray") ?? null,
+    }),
+  ]);
   return c.json({ ok: true });
 });
 
 me.get("/admin/overview", requireAdmin, async (c) => {
   // 管理台一屏：人/空间/存储/审计，单次聚合（5 条语句）
   return c.json(await adminOverview(c.env.DB));
+});
+
+/**
+ * 显式进入他人空间：只在这里记一次审计。
+ * x-act-as 是后续请求的读取上下文，不能在每个请求上写日志（否则 10 个接口 = 10 条 act_as）。
+ */
+me.post("/admin/act-as", requireAdmin, async (c) => {
+  const { userId } = await c.req.json<{ userId?: unknown }>();
+  if (typeof userId !== "string" || !userId) throw errors.badRequest("userId 必填");
+  const selfId = c.get("selfId");
+  if (userId === selfId) throw errors.badRequest("不能以自己身份进入空间");
+  const target = await c.env.DB.prepare("SELECT id, name, email, disabled_at FROM users WHERE id = ?1")
+    .bind(userId)
+    .first<{ id: string; name: string; email: string | null; disabled_at: number | null }>();
+  if (!target) throw errors.notFound();
+  if (target.disabled_at) throw errors.forbidden("目标用户已停用");
+  await recordAudit(c.env.DB, {
+    actorId: selfId,
+    action: "admin.act_as",
+    targetId: target.id,
+    // 进入动作只记一次；meta 保留目标可读名，审计页不需要再 join 用户表
+    meta: { targetName: target.name, targetEmail: target.email },
+    requestId: c.req.header("cf-ray") ?? null,
+  });
+  return c.json({ ok: true });
 });
 
 me.get("/admin/unbound", requireAdmin, async (c) => {
@@ -178,6 +210,24 @@ me.patch("/admin/users/:id", requireAdmin, async (c) => {
     throw errors.badRequest("该用户尚未首次登录，暂无个人空间可配置");
   }
   if (!stmts.length) throw errors.badRequest("无可更新字段");
+  stmts.push(
+    auditStmt(c.env.DB, {
+      workspaceId: personal?.id ?? null,
+      actorId: c.get("selfId"),
+      action: "admin.user_patch",
+      targetId,
+      meta: {
+        changes: {
+          ...(role !== undefined ? { role } : {}),
+          ...(disabled !== undefined ? { disabled } : {}),
+          ...(quota_bytes !== undefined ? { quota_bytes } : {}),
+          ...(name !== undefined ? { name: name.trim() } : {}),
+          ...(email !== undefined ? { email } : {}),
+        },
+      },
+      requestId: c.req.header("cf-ray") ?? null,
+    }),
+  );
   try {
     await c.env.DB.batch(stmts);
   } catch (e) {

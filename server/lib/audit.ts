@@ -4,11 +4,18 @@
  */
 export function auditStmt(
   db: D1Database,
-  ev: { workspaceId?: string | null; actorId: string; action: string; targetId?: string | null; meta?: unknown },
+  ev: {
+    workspaceId?: string | null;
+    actorId: string;
+    action: string;
+    targetId?: string | null;
+    meta?: unknown;
+    requestId?: string | null;
+  },
 ): D1PreparedStatement {
   return db
     .prepare(
-      "INSERT INTO audit_events (id, workspace_id, actor_id, action, target_id, meta, created_at) VALUES (?1,?2,?3,?4,?5,?6,?7)",
+      "INSERT INTO audit_events (id, workspace_id, actor_id, action, target_id, meta, request_id, created_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8)",
     )
     .bind(
       crypto.randomUUID(),
@@ -17,13 +24,21 @@ export function auditStmt(
       ev.action,
       ev.targetId ?? null,
       ev.meta === undefined ? null : JSON.stringify(ev.meta),
+      ev.requestId ?? null,
       Date.now(),
     );
 }
 
 export async function recordAudit(
   db: D1Database,
-  ev: { workspaceId?: string | null; actorId: string; action: string; targetId?: string | null; meta?: unknown },
+  ev: {
+    workspaceId?: string | null;
+    actorId: string;
+    action: string;
+    targetId?: string | null;
+    meta?: unknown;
+    requestId?: string | null;
+  },
 ): Promise<void> {
   await auditStmt(db, ev).run();
 }

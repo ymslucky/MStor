@@ -349,6 +349,28 @@ async function main() {
     assertEqual(db.prepare("SELECT COUNT(*) c FROM users").first().c, 1, "应只建一个用户");
   });
 
+  await check("HTTP：act-as 只在进入端点写一次审计，x-act-as 普通请求不再重复留痕", async () => {
+    const db = makeD1(schema1x);
+    const env = makeEnv(db, makeR2());
+    const auth = { "x-dev-email": "a@example.com" };
+    const me = await call(env, "/api/me", { headers: auth });
+    assertEqual(me.status, 200, "admin 首登应 200");
+    const targetId = "u-target";
+    db.prepare(
+      "INSERT INTO users (id, access_sub, email, access_bound_at, name, platform_admin, disabled_at, created_at) VALUES (?1,?2,?3,?4,?5,0,NULL,?6)",
+    ).run(targetId, "sub-target", "target@example.com", Date.now(), "Target", Date.now());
+    const enter = await call(env, "/api/me/admin/act-as", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ userId: targetId }),
+    });
+    assertEqual(enter.status, 200, "进入空间应 200，实际 " + enter.status + " " + enter.text.slice(0, 120));
+    assertEqual(db.prepare("SELECT COUNT(*) c FROM audit_events WHERE action = 'admin.act_as'").first().c, 1, "进入动作应恰好 1 条审计");
+    const view = await call(env, "/api/me", { headers: { ...auth, "x-act-as": targetId } });
+    assertEqual(view.status, 200, "x-act-as 请求应 200");
+    assertEqual(db.prepare("SELECT COUNT(*) c FROM audit_events WHERE action = 'admin.act_as'").first().c, 1, "普通请求不得重复写审计");
+  });
+
   await check("HTTP：建目录 → 列表 → 上传 → 下载 → Range 206", async () => {
     const db = makeD1(schema1x);
     const bucket = makeR2();

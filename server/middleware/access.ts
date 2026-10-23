@@ -5,7 +5,6 @@ import { HttpError, errors } from "../lib/errors";
 import { ensurePersonalWorkspace, resolveWorkspace } from "../data/workspaces";
 import { acceptPendingInvitations } from "../data/invitations";
 import { ensureRootDir } from "../lib/nodes";
-import { recordAudit } from "../lib/audit";
 import { bindOrProvision, type AccessIdentity } from "../lib/users";
 import type { UserRow } from "../types";
 
@@ -96,8 +95,8 @@ export async function accessMiddleware(c: Context<AppEnv>, next: Next) {
     if (!target) throw errors.notFound();
     if (target.disabled_at) throw errors.forbidden("目标用户已停用");
     user = target;
-    // 冒充是高危动作：留痕失败即拒绝（fail closed）
-    await recordAudit(c.env.DB, { actorId: c.get("selfId"), action: "admin.act_as", targetId: target.id });
+    // 不在每个请求上写审计：x-act-as 是读取上下文，不是一次「进入空间」动作。
+    // 进入动作由 POST /api/me/admin/act-as 显式记录一次（见 routes/me.ts）。
   }
   c.set("user", user);
   // 租户解析：未指定 x-workspace 时用默认空间；首登无空间则就地建个人空间（幂等）

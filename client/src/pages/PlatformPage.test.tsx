@@ -9,10 +9,11 @@ import PlatformPage from "./PlatformPage";
 vi.mock("../api/me", () => ({
   listAdminUsers: vi.fn(),
   patchAdminUser: vi.fn(),
+  startActAs: vi.fn(),
   getAdminOverview: vi.fn(),
 }));
 
-import { listAdminUsers, patchAdminUser } from "../api/me";
+import { listAdminUsers, patchAdminUser, startActAs } from "../api/me";
 
 // PlatformPage 支持注入 me：直接渲染（不经 Outlet）也能测
 const ME: Me = { id: "u-admin", name: "Alice", role: "admin", quotaBytes: 100, usedBytes: 10, trashRetentionDays: 30, self: { id: "u-admin", name: "Alice", role: "admin" } };
@@ -53,6 +54,7 @@ test("admin edits quota through the dialog", async () => {
 test("admin disables a user only after confirmation, then enters the space", async () => {
   vi.mocked(listAdminUsers).mockResolvedValue({ users: [mkUser()] });
   vi.mocked(patchAdminUser).mockResolvedValue({ ok: true });
+  vi.mocked(startActAs).mockResolvedValue({ ok: true });
   const { user } = renderWith(<PlatformPage me={ME} kind="users" />);
   await screen.findByText("Bob");
   await user.click(screen.getByRole("button", { name: "停用（Bob）" }));
@@ -62,8 +64,17 @@ test("admin disables a user only after confirmation, then enters the space", asy
   await user.click(screen.getByRole("button", { name: "停用" }));
   await waitFor(() => expect(patchAdminUser).toHaveBeenCalledWith("u1", { disabled: true }));
   await user.click(screen.getByRole("button", { name: "进入空间（Bob）" }));
-  expect(localStorage.getItem("mstor_act_as")).toBe("u1");
+  await waitFor(() => expect(startActAs).toHaveBeenCalledTimes(1));
+  expect(startActAs).toHaveBeenCalledWith("u1");
+  await waitFor(() => expect(localStorage.getItem("mstor_act_as")).toBe("u1"));
   localStorage.removeItem("mstor_act_as");
+});
+
+test("self row does not offer entering your own space", async () => {
+  vi.mocked(listAdminUsers).mockResolvedValue({ users: [mkUser({ id: "u-admin", name: "Alice", platform_admin: 1 })] });
+  renderWith(<PlatformPage me={ME} kind="users" />);
+  await screen.findByText("Alice");
+  expect(screen.queryByRole("button", { name: "进入空间（Alice）" })).not.toBeInTheDocument();
 });
 
 test("admin binds an email through the dialog with validation", async () => {
