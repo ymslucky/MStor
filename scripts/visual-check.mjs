@@ -100,19 +100,6 @@ const apiResponse = (url) => {
       ],
     };
   }
-  if (p === "/api/workspaces/members") {
-    return {
-      members: [
-        { user_id: "u1", name: "Alice", email: "alice@example.com", role: "owner", created_at: NOW - 86400000 },
-        { user_id: "u2", name: "Bob", email: "bob@example.com", role: "member", created_at: NOW - 3600000 },
-      ],
-    };
-  }
-  if (p === "/api/workspaces/invitations") {
-    return {
-      invitations: [{ email: "carol@example.com", role: "member", created_at: NOW - 3600000, expires_at: NOW + 604800000 }],
-    };
-  }
   if (p === "/api/search") return { nodes: [], paths: {} };
   if (p === "/api/me/admin/settings") {
     return {

@@ -13,8 +13,6 @@ export const queryKeys = {
   library: (kind: "tags", tagId: string | null) => ["library", kind, tagId] as const,
   /** 某节点已打的标签 */
   nodeTags: (nodeId: string) => ["node-tags", nodeId] as const,
-  members: ["members"] as const,
-  invitations: ["invitations"] as const,
   trash: ["trash"] as const,
   notifications: ["notifications"] as const,
   adminUsers: ["admin-users"] as const,

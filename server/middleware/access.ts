@@ -3,7 +3,6 @@ import { createLocalJWKSet, createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey 
 import type { AppEnv } from "../env";
 import { HttpError, errors } from "../lib/errors";
 import { ensurePersonalWorkspace, resolveWorkspace } from "../data/workspaces";
-import { acceptPendingInvitations } from "../data/invitations";
 import { ensureRootDir } from "../lib/nodes";
 import { refreshAuditEnabled } from "../lib/audit";
 import { getSetting } from "../lib/settings";
@@ -121,17 +120,12 @@ export async function accessMiddleware(c: Context<AppEnv>, next: Next) {
     resolved = await resolveWorkspace(c.env.DB, user.id, requested);
   } catch (e) {
     if (requested || !(e instanceof HttpError) || e.status !== 404) throw e;
-    // 首登：先认领邮件邀请（落 membership），没有邀请才建个人空间
-    const joined = await acceptPendingInvitations(c.env.DB, user.id, user.email);
-    if (joined.length) {
-      resolved = await resolveWorkspace(c.env.DB, user.id, null);
-    } else {
-      const rawQuota = Number(await getSetting(c.env, "default_quota_bytes"));
-      const quotaBytes = Number.isFinite(rawQuota) && rawQuota > 0 ? rawQuota : 1_073_741_824;
-      const created = await ensurePersonalWorkspace(c.env.DB, user.id, { quotaBytes });
-      await ensureRootDir(c.env.DB, created.id);
-      resolved = { workspace: created, role: "owner" as const };
-    }
+    // 个人云盘：首登直接建私有空间；不再认领邀请/共享空间
+    const rawQuota = Number(await getSetting(c.env, "default_quota_bytes"));
+    const quotaBytes = Number.isFinite(rawQuota) && rawQuota > 0 ? rawQuota : 1_073_741_824;
+    const created = await ensurePersonalWorkspace(c.env.DB, user.id, { quotaBytes });
+    await ensureRootDir(c.env.DB, created.id);
+    resolved = { workspace: created, role: "owner" as const };
   }
   c.set("workspace", resolved.workspace);
   c.set("role", resolved.role);

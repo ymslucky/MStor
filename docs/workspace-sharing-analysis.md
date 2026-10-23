@@ -56,5 +56,5 @@ MStor 现在是三层能力混在一起：
 
 1. 设置页移除「成员」入口；侧栏/移动抽屉移除空间切换；
 2. 每个用户一个私有空间；保留公开外链分享；
-3. memberships/invitations 数据与 API 暂留兼容，后续可删除；
+3. 成员/邀请 API 与 invitations 表已删除；memberships 仅保留个人空间 owner 关系；
 4. 管理员通过 act-as 排障，不再作为正常家庭协作通道。

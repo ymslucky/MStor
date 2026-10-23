@@ -500,61 +500,6 @@ async function main() {
     assertEqual(db.prepare("SELECT deleted_at FROM nodes WHERE id = ?").first(nodeId).deleted_at, null, "Alice 的文件不应被删");
   });
 
-  // —— 邀请与成员（P1.3）：Access 身份 + 邀请令牌 → 自动落 membership ——
-  await check("HTTP：邀请 → 首登认领 → 落在邀请方空间，member 不能发邀请", async () => {
-    const db = makeD1(schema1x);
-    const env = makeEnv(db, makeR2());
-    const alice = { "x-dev-email": "a@example.com" };
-    const bob = { "x-dev-email": "b@example.com" };
-    const meAlice = await call(env, "/api/me", { headers: alice });
-    assertEqual(meAlice.status, 200, "Alice 首登应 200");
-    const invite = await call(env, "/api/workspaces/invitations", {
-      method: "POST",
-      headers: { ...alice, "content-type": "application/json" },
-      body: JSON.stringify({ email: "b@example.com", role: "member" }),
-    });
-    assertEqual(invite.status, 201, "发邀请应 201，实际 " + invite.status + " " + invite.text.slice(0, 160));
-    assert(invite.json.token && invite.json.url, "应返回 token 与 url");
-    const auditCreate = db.prepare("SELECT COUNT(*) c FROM audit_events WHERE action = 'invitation.create'").first().c;
-    assertEqual(auditCreate, 1, "发邀请应写审计事件");
-    const meBob = await call(env, "/api/me", { headers: bob });
-    assertEqual(meBob.status, 200, "Bob 首登应 200（认领邀请，不建个人空间）");
-    assertEqual(meBob.json.workspaces.length, 1, "Bob 应只属于邀请方空间");
-    assertEqual(meBob.json.workspace.id, meAlice.json.workspace.id, "Bob 的当前空间应是 Alice 的空间");
-    const accepted = db.prepare("SELECT COUNT(*) c FROM invitations WHERE accepted_at IS NOT NULL").first().c;
-    assertEqual(accepted, 1, "邀请应被标记为已接受");
-    const auditAccept = db.prepare("SELECT COUNT(*) c FROM audit_events WHERE action = 'invitation.accept'").first().c;
-    assertEqual(auditAccept, 1, "认领应写审计事件");
-    const asMember = await call(env, "/api/workspaces/invitations", {
-      method: "POST",
-      headers: { ...bob, "content-type": "application/json" },
-      body: JSON.stringify({ email: "c@example.com" }),
-    });
-    assertEqual(asMember.status, 403, "member 发邀请应 403，实际 " + asMember.status);
-    const members = await call(env, "/api/workspaces/members", { headers: alice });
-    assertEqual(members.json.members.length, 2, "空间应有 2 名成员");
-    const carolInvite = await call(env, "/api/workspaces/invitations", {
-      method: "POST",
-      headers: { ...alice, "content-type": "application/json" },
-      body: JSON.stringify({ email: "c@example.com", role: "member" }),
-    });
-    assertEqual(carolInvite.status, 201, "给 Carol 发邀请应 201");
-    const invList = await call(env, "/api/workspaces/invitations", { headers: alice });
-    assert(invList.json.invitations.some((i) => i.email === "c@example.com"), "邀请列表应包含 Carol");
-    const bobRevoke = await call(env, "/api/workspaces/invitations/by-email/c%40example.com", {
-      method: "DELETE",
-      headers: bob,
-    });
-    assertEqual(bobRevoke.status, 403, "member 撤销邀请应 403，实际 " + bobRevoke.status);
-    const revokeByEmail = await call(env, "/api/workspaces/invitations/by-email/c%40example.com", {
-      method: "DELETE",
-      headers: alice,
-    });
-    assertEqual(revokeByEmail.status, 200, "按邮箱撤销邀请应 200，实际 " + revokeByEmail.status);
-    const invAfter = await call(env, "/api/workspaces/invitations", { headers: alice });
-    assert(!invAfter.json.invitations.some((i) => i.email === "c@example.com"), "撤销后邀请应消失");
-  });
-
   // —— 存储治理（P2 B1）：四分项 + 全局预算 + 507 ——
   await check("HTTP：四分项随上传/软删/还原/彻底删除变化，且与 used_bytes 一致", async () => {
     const db = makeD1(schema1x);
@@ -761,21 +706,13 @@ async function main() {
     const alice = { "x-dev-email": "a@example.com" };
     const bob = { "x-dev-email": "b@example.com" };
     await call(env, "/api/me", { headers: alice });
-    const invite = await call(env, "/api/workspaces/invitations", {
-      method: "POST",
-      headers: { ...alice, "content-type": "application/json" },
-      body: JSON.stringify({ email: "b@example.com", role: "member" }),
-    });
-    assertEqual(invite.status, 201, "发邀请应 201");
     await call(env, "/api/me", { headers: bob });
     const ov = await call(env, "/api/me/admin/overview", { headers: alice });
     assertEqual(ov.status, 200, "平台管理员应 200，实际 " + ov.status + " " + ov.text.slice(0, 160));
     assertEqual(ov.json.users.total, 2, "应统计到 2 个用户");
-    assertEqual(ov.json.workspaces.total, 1, "应只有 1 个空间（Bob 加入 Alice 的空间）");
-    assertEqual(ov.json.topWorkspaces[0].members, 2, "空间成员应为 2");
-    assert(ov.json.recentAudit.length >= 2, "审计应至少含邀请创建/接受两条，实际 " + ov.json.recentAudit.length);
-    const inviteEvent = ov.json.recentAudit.find((e) => e.action === "invitation.create");
-    assert(inviteEvent?.actorName, "审计动作应回传操作者姓名，而不是只有 actorId");
+    assertEqual(ov.json.workspaces.total, 2, "每个用户应有独立个人空间");
+    assertEqual(ov.json.topWorkspaces[0].members, 1, "个人空间成员应为 1");
+    assert(Array.isArray(ov.json.recentAudit), "应返回审计数组");
     const forbidden = await call(env, "/api/me/admin/overview", { headers: bob });
     assertEqual(forbidden.status, 403, "普通成员访问应 403，实际 " + forbidden.status);
   });
@@ -1045,41 +982,6 @@ async function main() {
       "SELECT w.quota_bytes q FROM users u JOIN memberships m ON m.user_id = u.id JOIN workspaces w ON w.id = m.workspace_id WHERE u.email = 'new@example.com'",
     ).first();
     assertEqual(row.q, 1073741824, "新用户默认额度应为 1GB");
-  });
-
-  // —— 通知中心（P2 B11 收尾）——
-  await check("HTTP：邀请被接受 → 管理者收到通知；标已读后未读数归零", async () => {
-    const db = makeD1(schema1x);
-    const env = makeEnv(db, makeR2());
-    const alice = { "x-dev-email": "a@example.com" };
-    const bob = { "x-dev-email": "b@example.com" };
-    await call(env, "/api/me", { headers: alice });
-    // 该用例验证邀请认领，不测审核；显式关闭审核让 Bob 首登自动通过
-    await call(env, "/api/me/admin/settings", {
-      method: "PATCH",
-      headers: { ...alice, "content-type": "application/json" },
-      body: JSON.stringify({ registration_requires_approval: false }),
-    });
-    await call(env, "/api/workspaces/invitations", {
-      method: "POST",
-      headers: { ...alice, "content-type": "application/json" },
-      body: JSON.stringify({ email: "b@example.com", role: "member" }),
-    });
-    await call(env, "/api/me", { headers: bob }); // Bob 首登认领邀请
-    const list = await call(env, "/api/notifications", { headers: alice });
-    assertEqual(list.status, 200, "通知列表应 200，实际 " + list.status);
-    assert(list.json.items.length >= 1, "管理者应收到成员加入通知，实际 " + list.json.items.length);
-    assertEqual(list.json.items[0].kind, "member.joined", "通知类型应为 member.joined");
-    const me = await call(env, "/api/me", { headers: alice });
-    assert(me.json.unreadNotifications >= 1, "/api/me 应返回未读数，实际 " + me.json.unreadNotifications);
-    const id = list.json.items[0].id;
-    const readOne = await call(env, "/api/notifications/" + id + "/read", { method: "POST", headers: alice });
-    assertEqual(readOne.status, 200, "标记已读应 200");
-    // Bob 不能标记 Alice 的通知
-    const readOther = await call(env, "/api/notifications/" + list.json.items[0].id + "/read", { method: "POST", headers: bob });
-    assertEqual(readOther.status, 404, "他人的通知应 404，实际 " + readOther.status);
-    const afterMe = await call(env, "/api/me", { headers: alice });
-    assertEqual(afterMe.json.unreadNotifications, 0, "全部已读后未读数应为 0");
   });
 
   await check("HTTP：存储水位越线通知管理者，且 24h 内不重复", async () => {

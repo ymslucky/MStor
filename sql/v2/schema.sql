@@ -44,18 +44,6 @@ CREATE INDEX IF NOT EXISTS idx_memberships_user ON memberships(user_id);
 CREATE INDEX IF NOT EXISTS idx_memberships_user_created ON memberships(user_id, created_at, workspace_id, role);
 CREATE INDEX IF NOT EXISTS idx_memberships_workspace_created ON memberships(workspace_id, created_at);
 
--- 邀请：令牌只存 sha256；经 Access 首登认领，单次消费。不发事务邮件。
-CREATE TABLE IF NOT EXISTS invitations (
-  token_hash TEXT PRIMARY KEY,
-  workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-  email TEXT NOT NULL,
-  role TEXT NOT NULL CHECK (role IN ('owner','admin','member')),
-  created_at INTEGER NOT NULL,
-  expires_at INTEGER NOT NULL,
-  accepted_at INTEGER
-);
-CREATE INDEX IF NOT EXISTS idx_invitations_pending ON invitations(workspace_id, expires_at) WHERE accepted_at IS NULL;
-
 -- 文件树：邻接表(parent_id) + 物化路径(path=祖先 id 链)，隔离维度 workspace_id 置于索引前缀。
 -- 根哨兵行：每个 workspace 恰好一行（parent_id='' AND name=''），由部分唯一索引保证。
 CREATE TABLE IF NOT EXISTS nodes (
