@@ -64,7 +64,7 @@ test("admin can turn the audit feature off from upload tab", async () => {
   vi.mocked(getAdminSettings).mockResolvedValue({ trash_retention_days: 30, audit_enabled: true });
   vi.mocked(patchAdminSettings).mockResolvedValue({ ok: true });
   const { user } = renderWith(<SettingsPage me={ME} />);
-  await user.click(await screen.findByRole("link", { name: "上传" }));
+  await user.click(await screen.findByRole("link", { name: "审计" }));
   const toggle = await screen.findByRole("checkbox", { name: "已开启" });
   expect(toggle).toBeChecked();
   await user.click(toggle);

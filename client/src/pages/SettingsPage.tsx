@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { CloudUpload, UserPlus, UserRound } from "lucide-react";
+import { CloudUpload, ShieldCheck, UserPlus, UserRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getAdminSettings, patchAdminSettings } from "../api/me";
+import { friendlyMessage } from "../api/client";
 import type { Me } from "../api/types";
 import { MAX_UPLOAD_CONCURRENCY, MIN_UPLOAD_CONCURRENCY, getUploadConcurrency, setUploadConcurrency } from "../lib/settings";
 import { formatBytes } from "../lib/format";
@@ -14,12 +15,13 @@ import { MemberPanel } from "../components/MemberPanel";
 import { Button, Field, Input, Pill, SettingRow, Surface } from "../components/ui";
 
 /** 设置只剩三个分区：平台管理能力已迁到 /platform/users、/platform/audit */
-type TabKey = "account" | "upload" | "members";
+type TabKey = "account" | "upload" | "members" | "audit";
 
-const TABS: { key: TabKey; label: string; icon: LucideIcon; workspaceOnly?: boolean }[] = [
+const TABS: { key: TabKey; label: string; icon: LucideIcon; workspaceOnly?: boolean; platformOnly?: boolean }[] = [
   { key: "account", label: "账户", icon: UserRound },
   { key: "upload", label: "上传", icon: CloudUpload },
   { key: "members", label: "成员", icon: UserPlus, workspaceOnly: true },
+  { key: "audit", label: "审计", icon: ShieldCheck, platformOnly: true },
 ];
 
 function TabBar({ tabs, active }: { tabs: typeof TABS; active: TabKey }) {
@@ -124,6 +126,7 @@ function AuditEnabledRow() {
       toast(next ? "审计日志已开启" : "审计日志已关闭（历史记录保留）", "info");
       void queryClient.invalidateQueries({ queryKey: queryKeys.adminSettings });
     },
+    onError: (e) => toast(friendlyMessage(e), "error"),
   });
   return (
     <SettingRow title="审计日志" hint="记录管理员、分享、文件删除等高风险动作；关闭后不再写入新事件，历史记录保留。">
@@ -172,9 +175,20 @@ function UploadSection({ isPlatformAdmin }: { isPlatformAdmin: boolean }) {
           保存并发数
         </Button>
       </SettingRow>
-      {/* 平台级配置，仅平台管理员可见（服务端同样校验） */}
+      {/* 回收站保留期属平台级配置，仅平台管理员可见（服务端同样校验） */}
       {isPlatformAdmin && <TrashRetentionRow />}
-      {isPlatformAdmin && <AuditEnabledRow />}
+    </Surface>
+  );
+}
+
+function AuditSection() {
+  return (
+    <Surface className="p-4">
+      <h2 className="mb-2 flex items-center gap-1.5 font-semibold text-ink">
+        <ShieldCheck size={16} aria-hidden className="text-primary-text" />
+        审计日志
+      </h2>
+      <AuditEnabledRow />
     </Surface>
   );
 }
@@ -184,21 +198,23 @@ export default function SettingsPage({ me }: { me: Me }) {
   const account = me.self ?? me;
   // 成员管理按「当前空间角色」放行（owner/admin）
   const workspaceRole = me.workspace?.role ?? "member";
-  const tabs = TABS.filter((t) => !t.workspaceOnly || workspaceRole !== "member");
-  // 设置分区由子路由决定（可深链、可后退）；非法路径回落到账户页
+  const tabs = TABS.filter(
+    (t) => (!t.workspaceOnly || workspaceRole !== "member") && (!t.platformOnly || account.role === "admin"),
+  );
+  // 设置分区由子路由决定（可深链、可后退）；非法路径或无权路径回落到账户页
   const { pathname } = useLocation();
   const seg = pathname.split("/")[2] ?? "account";
-  const tab: TabKey = (["account", "upload", "members"] as const).includes(seg as TabKey)
-    ? (seg as TabKey)
-    : "account";
+  const known = (["account", "upload", "members", "audit"] as const).includes(seg as TabKey);
+  const tab: TabKey = known && (seg !== "audit" || account.role === "admin") ? (seg as TabKey) : "account";
   return (
     <div className="mx-auto w-full max-w-3xl md:pb-4">
-      <PageHeader title="设置" description="账户、上传与空间成员管理" />
+      <PageHeader title="设置" description="账户、上传、成员与审计" />
       <TabBar tabs={tabs} active={tab} />
       <div className="space-y-4">
         {tab === "account" && <AccountSection me={me} />}
         {tab === "upload" && <UploadSection isPlatformAdmin={account.role === "admin"} />}
         {tab === "members" && workspaceRole !== "member" && <MemberPanel />}
+        {tab === "audit" && account.role === "admin" && <AuditSection />}
       </div>
     </div>
   );
