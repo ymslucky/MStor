@@ -6,7 +6,7 @@ import { pbkdf2Hash, pbkdf2Verify, randomToken } from "../lib/crypto";
 import { getNode, isDescendant, listChildren } from "../lib/nodes";
 import { parseIds } from "../data/trash";
 import { serveObject } from "../lib/serve";
-import { assertSharePasswordAllowed, clearSharePasswordFailures, isDownloadIntent, recordSharePasswordFailure, releaseDownloadSlot, takeDownloadSlot } from "../data/shares";
+import { assertSharePasswordAllowed, clearSharePasswordFailures, createShareSession, isDownloadIntent, recordSharePasswordFailure, releaseDownloadSlot, takeDownloadSlot, verifyShareSession } from "../data/shares";
 import { auditStmt, recordAudit } from "../lib/audit";
 import type { NodeRow, ShareRow } from "../types";
 
@@ -114,7 +114,11 @@ shares.post("/batch-revoke", async (c) => {
 
 export const publicShares = new Hono<AppEnv>();
 
-async function loadShare(c: Context<AppEnv>, token: string): Promise<{ share: ShareRow; node: NodeRow }> {
+async function loadShare(
+  c: Context<AppEnv>,
+  token: string,
+  opts: { allowSession?: boolean } = {},
+): Promise<{ share: ShareRow; node: NodeRow }> {
   const share = await c.env.DB.prepare("SELECT * FROM shares WHERE token = ?1").bind(token).first<ShareRow>();
   if (!share || share.revoked_at) throw errors.notFound();
   if (share.expires_at && Date.now() > share.expires_at) throw new HttpError(410, "SHARE_EXPIRED", "分享已过期");
@@ -122,8 +126,11 @@ async function loadShare(c: Context<AppEnv>, token: string): Promise<{ share: Sh
     .bind(share.node_id).first<NodeRow>();
   if (!node) throw errors.notFound();
   if (share.password_hash) {
-    await assertSharePasswordAllowed(c, token);
     const pw = c.req.header("x-share-password");
+    if (!pw && opts.allowSession && (await verifyShareSession(c, token, share.id))) {
+      return { share, node };
+    }
+    await assertSharePasswordAllowed(c, token);
     if (!pw) throw new HttpError(401, "SHARE_PASSWORD", "需要提取码");
     if (!(await pbkdf2Verify(pw, share.password_hash))) {
       const blocked = await recordSharePasswordFailure(c, token);
@@ -137,6 +144,11 @@ async function loadShare(c: Context<AppEnv>, token: string): Promise<{ share: Sh
 
 publicShares.get("/:token", async (c) => {
   const { share, node } = await loadShare(c, c.req.param("token"));
+  // 密码校验通过后签发短会话：匿名页里的 <a> 直链下载可以直接带 cookie，避免 blob 全量载入
+  if (share.password_hash) {
+    const session = await createShareSession(c, share.id, c.req.param("token"));
+    c.header("set-cookie", session.cookie);
+  }
   const base = {
     id: node.id,
     name: node.name,
@@ -155,7 +167,7 @@ publicShares.get("/:token", async (c) => {
 });
 
 publicShares.on(["GET", "HEAD"], "/:token/raw/:fileId", async (c) => {
-  const { share, node } = await loadShare(c, c.req.param("token"));
+  const { share, node } = await loadShare(c, c.req.param("token"), { allowSession: true });
   const fileId = c.req.param("fileId");
   const target = await getNode(c.env.DB, node.workspace_id, fileId);
   // 回收站内的后代文件不可通过公开链接下载（getNode 不过滤 deleted_at，需显式排除）
@@ -180,7 +192,7 @@ publicShares.on(["GET", "HEAD"], "/:token/raw/:fileId", async (c) => {
 
 // 文件夹分享的子树浏览：dirId 必须在分享根子树内（含根本身）且未删除
 publicShares.get("/:token/children/:dirId", async (c) => {
-  const { node } = await loadShare(c, c.req.param("token"));
+  const { node } = await loadShare(c, c.req.param("token"), { allowSession: true });
   if (!node.is_dir) throw errors.notFound();
   const dirId = c.req.param("dirId");
   if (!(await isDescendant(c.env.DB, node.workspace_id, node.id, dirId))) throw errors.notFound();

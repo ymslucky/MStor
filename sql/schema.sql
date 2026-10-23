@@ -102,6 +102,14 @@ CREATE TABLE IF NOT EXISTS share_auth_attempts (
   blocked_until INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_share_auth_window ON share_auth_attempts(window_start);
+-- 密码分享短会话：匿名直链下载通过 HttpOnly cookie 授权，避免 fetch+blob 全量载入
+CREATE TABLE IF NOT EXISTS share_sessions (
+  id TEXT PRIMARY KEY,
+  share_id TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_share_sessions_expires ON share_sessions(expires_at);
 
 -- 分享下载明细：dedupe_key 防 Range/下载管理器重复计数
 CREATE TABLE IF NOT EXISTS share_downloads (

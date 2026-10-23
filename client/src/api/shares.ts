@@ -22,17 +22,13 @@ export const fetchShare = (token: string, password?: string) =>
 export const fetchShareChildren = (token: string, dirId: string, password?: string) =>
   api<{ name: string; children: PublicNode[] }>(`/api/s/${token}/children/${dirId}`, password ? { headers: { "x-share-password": password } } : {});
 
-// 受保护分享的下载无法用 <a> 带 header，统一走 blob
-export async function downloadShared(token: string, fileId: string, name: string, password?: string): Promise<void> {
-  const res = await fetch(`/api/s/${token}/raw/${fileId}`, password ? { headers: { "x-share-password": password } } : {});
-  if (!res.ok) throw new Error("下载失败");
-  const url = URL.createObjectURL(await res.blob());
+// 公开分享统一走直链：密码分享在解锁响应里已签发 HttpOnly 会话 cookie。
+// 不再用 fetch+blob，避免大文件把整个文件读进浏览器内存。
+export async function downloadShared(token: string, fileId: string, name: string, _password?: string): Promise<void> {
   const a = document.createElement("a");
-  a.href = url;
+  a.href = `/api/s/${token}/raw/${fileId}?dl=1`;
   a.download = name;
   document.body.appendChild(a);
   a.click();
   a.remove();
-  // 立即 revoke 在部分浏览器会取消下载；延迟回收对象 URL
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

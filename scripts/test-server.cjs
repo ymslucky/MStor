@@ -594,6 +594,31 @@ async function main() {
     assertEqual(db.prepare("SELECT downloads d FROM shares WHERE token = ?").first(token).d, 1, "下载次数应恰好为 1");
   });
 
+  await check("HTTP：密码分享解锁后签发会话，匿名直链可下载", async () => {
+    const db = makeD1(schema1x);
+    const env = makeEnv(db, makeR2());
+    const auth = { "x-dev-email": "a@example.com" };
+    const up = await call(env, "/api/files/upload?name=direct.bin&parentId=", {
+      method: "PUT",
+      headers: { ...auth, "content-type": "application/octet-stream" },
+      body: new Uint8Array([4, 5, 6]),
+    });
+    const created = await call(env, "/api/shares", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ nodeId: up.json.id, password: "2468" }),
+    });
+    const token = created.json.token;
+    const unlocked = await call(env, "/api/s/" + token, { headers: { "x-share-password": "2468" } });
+    assertEqual(unlocked.status, 200, "密码解锁应 200");
+    const setCookie = unlocked.headers.get("set-cookie") ?? "";
+    assert(setCookie.includes("mstor_share_"), "应签发分享会话 cookie");
+    const cookie = setCookie.split(";")[0];
+    const direct = await call(env, "/api/s/" + token + "/raw/" + up.json.id + "?dl=1", { headers: { cookie } });
+    assertEqual(direct.status, 200, "带会话 cookie 的匿名直链应 200，实际 " + direct.status);
+    assertEqual([...direct.bytes], [4, 5, 6], "直链内容应正确");
+  });
+
   await check("HTTP：分享提取码连续错误后锁定（5 次/10 分钟）", async () => {
     const db = makeD1(schema1x);
     const env = makeEnv(db, makeR2());

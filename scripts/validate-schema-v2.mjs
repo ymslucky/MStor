@@ -36,8 +36,8 @@ db.exec("PRAGMA foreign_keys = ON");
 db.exec(sql);
 const now = Date.now();
 
-const EXPECTED_TABLES = ["users","workspaces","memberships","nodes","shares","share_downloads","share_auth_attempts","uploads","file_versions","audit_events","storage_stats","settings","orphan_objects","operations","favorites","node_views","tags","node_tags","notifications","nodes_fts"];
-const EXPECTED_INDEXES = ["idx_users_email","idx_users_pending","idx_memberships_user","idx_nodes_root","idx_nodes_name_active","idx_nodes_listing","idx_nodes_name","idx_nodes_path","idx_nodes_sha","idx_nodes_r2key","idx_nodes_trash","idx_nodes_thumb","idx_shares_node","idx_shares_active","idx_share_downloads","idx_share_downloads_dedupe","idx_share_auth_window","idx_uploads_idem","idx_uploads_open","idx_versions_no","idx_versions_node","idx_versions_key","idx_versions_expire","idx_audit_ws_time","idx_audit_actor_time","idx_audit_category_time","idx_orphan_queued"];
+const EXPECTED_TABLES = ["users","workspaces","memberships","nodes","shares","share_downloads","share_auth_attempts","share_sessions","uploads","file_versions","audit_events","storage_stats","settings","orphan_objects","operations","favorites","node_views","tags","node_tags","notifications","nodes_fts"];
+const EXPECTED_INDEXES = ["idx_users_email","idx_users_pending","idx_memberships_user","idx_nodes_root","idx_nodes_name_active","idx_nodes_listing","idx_nodes_name","idx_nodes_path","idx_nodes_sha","idx_nodes_r2key","idx_nodes_trash","idx_nodes_thumb","idx_shares_node","idx_shares_active","idx_share_downloads","idx_share_downloads_dedupe","idx_share_auth_window","idx_share_sessions_expires","idx_uploads_idem","idx_uploads_open","idx_versions_no","idx_versions_node","idx_versions_key","idx_versions_expire","idx_audit_ws_time","idx_audit_actor_time","idx_audit_category_time","idx_orphan_queued"];
 
 check("全量 DDL 可执行且表齐全", () => {
   const names = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map((r) => r.name);

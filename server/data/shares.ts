@@ -1,5 +1,6 @@
 import type { Context } from "hono";
 import type { AppEnv } from "../env";
+import { randomToken } from "../lib/crypto";
 import { HttpError } from "../lib/errors";
 import type { ShareRow } from "../types";
 
@@ -65,6 +66,44 @@ export async function recordSharePasswordFailure(c: Context<AppEnv>, token: stri
 export async function clearSharePasswordFailures(c: Context<AppEnv>, token: string): Promise<void> {
   const key = await authAttemptKey(c, token);
   await c.env.DB.prepare("DELETE FROM share_auth_attempts WHERE key = ?1").bind(key).run();
+}
+
+const SHARE_SESSION_MS = 60 * 60_000;
+
+export function shareSessionCookieName(token: string): string {
+  return `mstor_share_${token}`;
+}
+
+/** 密码校验成功后签发 1 小时 HttpOnly 会话；只存 hash，cookie 泄露不暴露其他分享。 */
+export async function createShareSession(
+  c: Context<AppEnv>,
+  shareId: string,
+  token: string,
+): Promise<{ name: string; value: string; cookie: string }> {
+  const raw = randomToken(24);
+  const name = shareSessionCookieName(token);
+  const hash = await sha256Hex(raw);
+  const now = Date.now();
+  await c.env.DB.prepare(
+    "INSERT INTO share_sessions (id, share_id, created_at, expires_at) VALUES (?1, ?2, ?3, ?4)",
+  ).bind(hash, shareId, now, now + SHARE_SESSION_MS).run();
+  const secure = new URL(c.req.url).protocol === "https:" ? "; Secure" : "";
+  const cookie = `${name}=${raw}; Path=/api/s/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(SHARE_SESSION_MS / 1000)}${secure}`;
+  return { name, value: raw, cookie };
+}
+
+export async function verifyShareSession(c: Context<AppEnv>, token: string, shareId: string): Promise<boolean> {
+  const name = shareSessionCookieName(token);
+  const cookie = c.req.header("cookie") ?? "";
+  const entry = cookie.split(";").map((x) => x.trim()).find((x) => x.startsWith(name + "="));
+  if (!entry) return false;
+  const raw = entry.slice(name.length + 1);
+  if (!raw) return false;
+  const hash = await sha256Hex(raw);
+  const row = await c.env.DB.prepare(
+    "SELECT share_id, expires_at FROM share_sessions WHERE id = ?1",
+  ).bind(hash).first<{ share_id: string; expires_at: number }>();
+  return !!row && row.share_id === shareId && row.expires_at > Date.now();
 }
 
 export type DownloadSlot = "counted" | "deduped";

@@ -50,6 +50,7 @@ export default {
       abortStaleUploads(env),
       // v2 schema 的配额真相在 workspaces.used_bytes；旧 users.owner_id 查询已废弃
       env.DB.prepare("DELETE FROM share_auth_attempts WHERE window_start < ?1").bind(Date.now() - 86_400_000).run(),
+      env.DB.prepare("DELETE FROM share_sessions WHERE expires_at < ?1").bind(Date.now()).run(),
       env.DB.prepare(`UPDATE workspaces SET used_bytes = (
         SELECT COALESCE(SUM(size), 0) FROM nodes
         WHERE workspace_id = workspaces.id AND is_dir = 0 AND deleted_at IS NULL
