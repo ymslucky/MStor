@@ -106,6 +106,7 @@ export default function TrashPage() {
             selected={selection.selected}
             onToggle={selection.toggle}
             onSelectRange={selection.selectRange}
+            onSetSelection={selection.setSelection}
             onOpenDir={() => {}}
             onOpenFile={() => {}}
             tapOpens={false}

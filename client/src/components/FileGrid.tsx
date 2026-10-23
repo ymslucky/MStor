@@ -60,6 +60,7 @@ export function FileGrid({
           <div
             key={n.id}
             data-file-row={i}
+            data-node-id={n.id}
             tabIndex={-1}
             className={cellClass(i, n)}
             style={cellStyle(i, n)}

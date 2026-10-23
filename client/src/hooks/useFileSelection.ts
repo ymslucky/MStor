@@ -12,6 +12,8 @@ export interface FileSelection {
   selectRange: (id: string) => void;
   /** 全选当前列表 */
   selectAll: () => void;
+  /** 程序化替换选择（框选/批量操作） */
+  setSelection: (ids: Iterable<string>) => void;
   clear: () => void;
 }
 
@@ -57,6 +59,11 @@ export function useFileSelection(ids: readonly string[], resetKey?: string | num
 
   const selectAll = useCallback(() => setSelected(new Set(ids)), [ids]);
 
+  const setSelection = useCallback((nextIds: Iterable<string>) => {
+    setSelected(new Set(nextIds));
+    setAnchor(null);
+  }, []);
+
   const clear = useCallback(() => {
     setSelected(new Set());
     setAnchor(null);
@@ -64,5 +71,5 @@ export function useFileSelection(ids: readonly string[], resetKey?: string | num
 
   const isSelected = useCallback((id: string) => selected.has(id), [selected]);
 
-  return { selected, count: selected.size, isSelected, toggle, selectRange, selectAll, clear };
+  return { selected, count: selected.size, isSelected, toggle, selectRange, selectAll, setSelection, clear };
 }

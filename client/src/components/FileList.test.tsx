@@ -104,6 +104,29 @@ test("部分选中时表头全选框显示 indeterminate", () => {
   expect(all).toHaveAttribute("aria-checked", "mixed");
 });
 
+test("框选：空白区域拖拽按矩形命中行并替换选择", () => {
+  const onSetSelection = vi.fn();
+  const { container } = renderWithProviders(
+    <FileList
+      nodes={[node(), node({ id: "f2", name: "world.md" })]}
+      onOpenDir={noop}
+      onOpenFile={noop}
+      selectable
+      selected={new Set()}
+      onToggle={noop}
+      onSetSelection={onSetSelection}
+    />,
+  );
+  const rows = [...container.querySelectorAll<HTMLElement>("[data-node-id]")];
+  rows[0].getBoundingClientRect = () => ({ left: 10, top: 10, right: 100, bottom: 40, width: 90, height: 30, x: 10, y: 10, toJSON: () => ({}) });
+  rows[1].getBoundingClientRect = () => ({ left: 10, top: 60, right: 100, bottom: 90, width: 90, height: 30, x: 10, y: 60, toJSON: () => ({}) });
+  const area = screen.getByTestId("file-list-area");
+  fireEvent.mouseDown(area, { clientX: 0, clientY: 0, button: 0 });
+  fireEvent.mouseMove(window, { clientX: 120, clientY: 80 });
+  fireEvent.mouseUp(window);
+  expect(onSetSelection).toHaveBeenCalledWith(["f1", "f2"]);
+});
+
 test("grid video without a server thumbnail falls back to a metadata poster", () => {
   renderWithProviders(
     <FileList

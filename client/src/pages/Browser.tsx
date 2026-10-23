@@ -350,6 +350,7 @@ export default function Browser() {
             emptyActions={filtered ? undefined : emptyDirActions}
             gridActions={gridActionsFor}
             onMoreMenu={(node, rect) => setMenu({ node, x: rect.right, y: rect.bottom })}
+            onSetSelection={selection.setSelection}
             actions={(n) => (
               <NodeRowActions
                 node={n}

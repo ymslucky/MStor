@@ -65,7 +65,7 @@ base 4px；常用 4 / 8 / 12 / 16 / 24 / 32 / 48。
 Button：高度 32 / 36，圆角 8，1px 边；hover 只改背景色，不位移、不缩放、不加投影。
 Card：1px 发丝边 + 圆角 8；内容卡片无投影；只有浮层使用 lift。
 Input：高度 36，1px 边，焦点时 border 变 accent，不加外发光。
-Selection：黑白高对比，不使用 accent tint。列表选中行 ink 5% tint + 3px ink rail；网格选中卡 ink 边框 + ring；checkbox 使用 accent-ink；表头部分选中显示 indeterminate；Esc 清空选择，不依赖焦点在行上。
+Selection：黑白高对比，不使用 accent tint。列表选中行 ink 5% tint + 3px ink rail；网格选中卡 ink 边框 + ring；checkbox 使用 accent-ink；表头部分选中显示 indeterminate；Esc 清空选择，不依赖焦点在行上。空白区域可拖拽框选（Shift/Ctrl 追加，鼠标专属）。
 Actions：列表每行常显一个「更多」入口，所有动作进菜单；网格常显「下载 + 更多」。禁止把核心动作只藏在 hover 里。
 Table：表头 11px 大写弱化色；行高 44；行 hover 只改背景。
 Dialog：桌面居中圆角 12，移动端底部抽屉；遮罩不使用重模糊。

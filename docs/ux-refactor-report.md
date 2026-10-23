@@ -558,8 +558,8 @@
 
 - 逐组件评估文件选择、列表布局、操作入口、工具栏、侧栏/顶栏、命令面板、弹窗、批量条、空态/加载态。
 - 操作入口：列表由 hover 显示 6 个图标改为常显「更多」菜单；网格常显「下载 + 更多」；菜单补收藏动作，统一 useNodeActions。
-- 选择能力：批量勾选、Shift 范围、Ctrl/Cmd+A、长按、Esc 均已有；框选仍缺失，列为下一步 P1。
-- 评分与优先级见 docs/component-ux-audit.md；客户端 265 例、server 29、visual 22/22。
+- 选择能力：批量勾选、Shift 范围、Ctrl/Cmd+A、长按、Esc、空白区域鼠标框选均已具备；框选支持 Shift/Ctrl 追加。
+- 评分与优先级见 docs/component-ux-audit.md；客户端 266 例、server 29、visual 22/22。
 
 ### 19.19 视频缩略图与预览
 

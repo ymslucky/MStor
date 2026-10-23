@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type * as React from "react";
 import type {
   CSSProperties,
@@ -77,8 +77,17 @@ interface Props {
   onContainerKeyDown?: (e: ReactKeyboardEvent<HTMLElement>) => void;
   /** 拖拽移动：节点拖放到文件夹行/面包屑（toDirId=""=根） */
   onDropMove?: (id: string, toDirId: string) => void;
+  /** 空白区域框选：替换当前选择（ids 为命中的节点 id） */
+  onSetSelection?: (ids: string[]) => void;
   /** 移动端「更多」菜单：由页面提供菜单渲染（桌面仍显示完整行内操作） */
   onMoreMenu?: (node: Node, rect: DOMRect) => void;
+}
+
+interface MarqueeRect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
 }
 
 /**
@@ -108,6 +117,7 @@ export default function FileList({
   onContainerKeyDown,
   onDropMove,
   onMoreMenu,
+  onSetSelection,
 }: Props) {
   // 拖拽移动状态：拖拽中禁用选择；文件夹行 dragover 高亮
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -142,6 +152,18 @@ export default function FileList({
     compact: isSmall,
   });
   const rows = table.getRowModel().rows;
+
+  // 框选：只在空白区域按下鼠标，避免和行拖拽移动冲突
+  const areaRef = useRef<HTMLDivElement>(null);
+  const [marquee, setMarquee] = useState<MarqueeRect | null>(null);
+  const marqueeCleanup = useRef<(() => void) | null>(null);
+
+  useEffect(
+    () => () => {
+      marqueeCleanup.current?.();
+    },
+    [],
+  );
 
   if (!nodes.length) return <EmptyState icon={FolderOpen} title={emptyText} action={emptyActions} />;
 
@@ -218,6 +240,57 @@ export default function FileList({
     ]
       .filter(Boolean)
       .join(" ");
+
+  const startMarquee = (e: ReactMouseEvent<HTMLDivElement>) => {
+    if (!selectable || !onSetSelection || e.button !== 0 || coarsePointer || marqueeCleanup.current) return;
+    const target = e.target as Element;
+    if (target.closest("[data-file-row], button, a, input, select, textarea, label, [data-testid='file-list-header']")) {
+      return;
+    }
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const base = new Set(selected);
+    const additive = e.shiftKey || e.metaKey || e.ctrlKey;
+    const previousUserSelect = document.body.style.userSelect;
+    let moved = false;
+
+    const onMove = (ev: MouseEvent) => {
+      if (!moved && Math.max(Math.abs(ev.clientX - startX), Math.abs(ev.clientY - startY)) < 4) return;
+      moved = true;
+      document.body.style.userSelect = "none";
+      const left = Math.min(startX, ev.clientX);
+      const top = Math.min(startY, ev.clientY);
+      const right = Math.max(startX, ev.clientX);
+      const bottom = Math.max(startY, ev.clientY);
+      setMarquee({ left, top, width: right - left, height: bottom - top });
+
+      const hit: string[] = [];
+      for (const el of areaRef.current?.querySelectorAll<HTMLElement>("[data-node-id]") ?? []) {
+        const r = el.getBoundingClientRect();
+        if (r.right < left || r.left > right || r.bottom < top || r.top > bottom) continue;
+        const id = el.dataset.nodeId;
+        if (id) hit.push(id);
+      }
+      const next = additive ? new Set([...base, ...hit]) : new Set(hit);
+      onSetSelection([...next]);
+    };
+
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      document.body.style.userSelect = previousUserSelect;
+      marqueeCleanup.current = null;
+      setMarquee(null);
+      // 空白处单击（没有拖动）清空选择；Shift 空白点击保留原选择
+      if (!moved && !additive) onSetSelection([]);
+    };
+
+    marqueeCleanup.current = onUp;
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    e.preventDefault();
+  };
 
   // 网格选中态：卡片自带 bg-surface-1，背景 tint 会被 CSS 顺序覆盖（构建产物中 surface-1 在 primary-soft/60 之后），
   // 因此网格改用「描边 + ring」表达选中，与底色解耦
@@ -322,6 +395,24 @@ export default function FileList({
     );
   };
 
+  const withMarquee = (content: ReactNode) => (
+    <div
+      ref={areaRef}
+      data-testid="file-list-area"
+      className="contents"
+      onMouseDown={startMarquee}
+    >
+      {content}
+      {marquee && (
+        <div
+          aria-hidden
+          className="pointer-events-none fixed z-content rounded-sm border border-ink/40 bg-ink/5"
+          style={{ left: marquee.left, top: marquee.top, width: marquee.width, height: marquee.height }}
+        />
+      )}
+    </div>
+  );
+
   const listHeader = (
     <FileListHeader
       nameFilter={nameFilter}
@@ -405,6 +496,7 @@ export default function FileList({
     return (
       <div
         data-file-row={i}
+        data-node-id={n.id}
         tabIndex={-1}
         role="row"
         className={`group absolute inset-x-0 top-0 rounded-md px-2 text-sm select-none [-webkit-touch-callout:none] ${rowCls(i, n)}`}
@@ -419,7 +511,7 @@ export default function FileList({
   };
 
   if (view === "grid") {
-    return (
+    return withMarquee(
       <div className="md:flex md:min-h-0 md:flex-1 md:flex-col">
         {/* 网格同样提供名称过滤（此前切到网格后过滤输入整个消失，只能切回列表过滤） */}
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -444,7 +536,7 @@ export default function FileList({
           badge={sharedBadge}
           actions={gridActions ?? actionCell}
         />
-      </div>
+      </div>,
     );
   }
 
@@ -457,6 +549,7 @@ export default function FileList({
           <div
             key={row.id}
             data-file-row={i}
+            data-node-id={n.id}
             tabIndex={-1}
             role="row"
             className={`group border-b border-line/60 text-sm select-none [-webkit-touch-callout:none] transition-colors ${rowCls(i, n)} ${animate ? "anim-item-in" : ""}`}
@@ -473,7 +566,7 @@ export default function FileList({
   );
 
   if (virtual) {
-    return (
+    return withMarquee(
       <div
         ref={containerRef}
         data-testid="file-list-container"
@@ -487,12 +580,12 @@ export default function FileList({
           focusIndex={focusIndex}
           row={(_n, index, top) => virtualRow(rows[index]!, index, top)}
         />
-      </div>
+      </div>,
     );
   }
 
   // 非虚拟分支也必须有滚动容器：≤49 行时列表高度可能超过视口（父级是 overflow-hidden）
-  return (
+  return withMarquee(
     <div
       ref={containerRef}
       data-testid="file-list-container"
@@ -502,6 +595,6 @@ export default function FileList({
     >
       {listHeader}
       <div className="md:min-h-0 md:flex-1 md:overflow-y-auto">{listBody}</div>
-    </div>
+    </div>,
   );
 }
