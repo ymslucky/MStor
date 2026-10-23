@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useParams } from "react-router-dom";
-import { ApiError } from "../api/client";
+import { ApiError, friendlyMessage } from "../api/client";
 import { downloadShared, fetchShare, fetchShareChildren } from "../api/shares";
 import type { PublicNode } from "../api/types";
 import { NodeIcon } from "../components/NodeIcon";
 import { toast } from "../components/Toaster";
-import { Button, GlassCard, Input } from "../components/ui";
+import { Button, GlassCard, Input, Surface } from "../components/ui";
 import { formatBytes } from "../lib/format";
 import { queryKeys } from "../lib/queryKeys";
 
@@ -33,9 +33,11 @@ export default function SharePage() {
     retry: false,
   });
 
-  const needsPassword = info.error instanceof ApiError && info.error.code === "SHARE_PASSWORD";
-  const expired = info.error instanceof ApiError && info.error.status === 410;
-  const gone = info.error instanceof ApiError && !needsPassword && !expired && info.error.status === 404;
+  const error = info.error instanceof ApiError ? info.error : null;
+  const needsPassword = error?.code === "SHARE_PASSWORD";
+  const rateLimited = error?.code === "SHARE_RATE_LIMITED" || error?.status === 429;
+  const expired = error?.status === 410;
+  const gone = error?.status === 404 && !needsPassword && !expired;
 
   // 子目录请求同样用已提交的密码，避免实时输入影响请求
   const children = useQuery({
@@ -47,14 +49,16 @@ export default function SharePage() {
 
   if (info.isPending) return <div className="p-10 text-center text-sm text-ink-dim">加载中…</div>;
   // 已提交且因提取码失败时也回到门内，允许改码重试
-  if (needsPassword)
+  if (needsPassword && !rateLimited)
     return (
-      // 提取码门：glass-modal 卡片静态居中展示
       <div className="flex min-h-dvh items-center justify-center p-4">
-        <div className="glass-modal w-80 rounded-panel p-6 text-center">
-          <p className="mb-3 text-sm text-ink">{entered ? "提取码不正确，请重试" : "该分享需要提取码"}</p>
+        <Surface className="w-80 rounded-panel p-6 text-center">
+          <p className="mb-3 text-sm text-ink" aria-live="polite">
+            {entered ? (error?.message ?? "提取码不正确，请重试") : "该分享需要提取码"}
+          </p>
           <Input
             aria-label="提取码"
+            autoComplete="off"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
@@ -68,12 +72,46 @@ export default function SharePage() {
           >
             解锁
           </Button>
-        </div>
+          <p className="mt-3 text-2xs text-ink-3">提取码由分享者提供；连续失败会暂时限制尝试。</p>
+        </Surface>
       </div>
     );
-  if (expired || gone)
-    return <div className="flex min-h-dvh items-center justify-center p-4 text-center text-sm text-ink-dim">{info.error?.message}</div>;
-  if (info.error) return <div className="flex min-h-dvh items-center justify-center p-4 text-center text-sm text-ink-dim">加载失败：{info.error.message}</div>;
+  if (rateLimited) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center p-4">
+        <Surface className="w-80 rounded-panel p-6 text-center">
+          <h1 className="text-base font-semibold text-ink">尝试次数过多</h1>
+          <p className="mt-2 text-sm leading-relaxed text-ink-2">请稍后再试，或联系分享者重新生成链接。</p>
+        </Surface>
+      </div>
+    );
+  }
+  if (expired || gone) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center p-4">
+        <Surface className="w-80 rounded-panel p-6 text-center">
+          <h1 className="text-base font-semibold text-ink">{gone ? "分享链接不存在" : "分享链接不可用"}</h1>
+          <p className="mt-2 text-sm leading-relaxed text-ink-2">
+            {gone ? "链接可能已被撤销，请向分享者确认。" : (error?.message ?? "分享已过期或已失效，请联系分享者。")}
+          </p>
+        </Surface>
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center p-4">
+        <Surface className="w-80 rounded-panel p-6 text-center">
+          <h1 className="text-base font-semibold text-ink">打开分享失败</h1>
+          <p className="mt-2 text-sm leading-relaxed text-ink-2">{friendlyMessage(error)}</p>
+          <Button className="mt-4 w-full" onClick={() => void info.refetch()}>
+            重试
+          </Button>
+          <p className="mt-3 text-2xs text-ink-3">如果仍无法打开，请联系分享者重新生成链接。</p>
+        </Surface>
+      </div>
+    );
+  }
   if (!info.data) return null;
 
   // 文件夹分享：current 决定层级；单文件分享：仅展示自身（id 来自 ShareInfo，供拼 raw 下载）
@@ -85,8 +123,8 @@ export default function SharePage() {
 
   const download = (f: PublicNode) => {
     // 用「已提交」的提取码：用户解锁后又在输入框里改了值但未再次提交时，下载不能拿实时输入
-    downloadShared(token, f.id, f.name, usedPassword || undefined).catch((e: unknown) => {
-      toast(e instanceof Error ? e.message : "下载失败");
+    downloadShared(token, f.id, f.name, usedPassword || undefined).catch(() => {
+      toast("下载失败，请检查网络后重试", "error");
     });
   };
 

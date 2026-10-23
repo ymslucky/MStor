@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { CalendarClock, KeyRound, Link2 } from "lucide-react";
+import { CalendarClock, KeyRound, Link2, TriangleAlert } from "lucide-react";
 import { renderSVG } from "uqr";
 import { createShare } from "../api/shares";
 import type { Node } from "../api/types";
@@ -83,6 +83,10 @@ export default function ShareDialog({ node, onClose }: Props) {
         </>
       ) : (
         <>
+          <div role="note" className="mb-3 flex gap-2 rounded-btn border border-warn-soft bg-warn-soft px-2.5 py-2 text-xs leading-relaxed text-warn-text">
+            <TriangleAlert size={14} aria-hidden className="mt-0.5 shrink-0" />
+            <span>任何拿到链接的人都能访问，无需登录。建议设置有效期或提取码，不要分享敏感内容。</span>
+          </div>
           <label className="block text-xs text-ink-2">
             <span className="flex items-center gap-1">
               <CalendarClock size={14} aria-hidden className="text-ink-3" />

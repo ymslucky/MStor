@@ -6,7 +6,7 @@ import { pbkdf2Hash, pbkdf2Verify, randomToken } from "../lib/crypto";
 import { getNode, isDescendant, listChildren } from "../lib/nodes";
 import { parseIds } from "../data/trash";
 import { serveObject } from "../lib/serve";
-import { isDownloadIntent, releaseDownloadSlot, takeDownloadSlot } from "../data/shares";
+import { assertSharePasswordAllowed, clearSharePasswordFailures, isDownloadIntent, recordSharePasswordFailure, releaseDownloadSlot, takeDownloadSlot } from "../data/shares";
 import { auditStmt, recordAudit } from "../lib/audit";
 import type { NodeRow, ShareRow } from "../types";
 
@@ -122,10 +122,15 @@ async function loadShare(c: Context<AppEnv>, token: string): Promise<{ share: Sh
     .bind(share.node_id).first<NodeRow>();
   if (!node) throw errors.notFound();
   if (share.password_hash) {
+    await assertSharePasswordAllowed(c, token);
     const pw = c.req.header("x-share-password");
-    if (!pw || !(await pbkdf2Verify(pw, share.password_hash))) {
-      throw new HttpError(401, "SHARE_PASSWORD", "需要提取码");
+    if (!pw) throw new HttpError(401, "SHARE_PASSWORD", "需要提取码");
+    if (!(await pbkdf2Verify(pw, share.password_hash))) {
+      const blocked = await recordSharePasswordFailure(c, token);
+      if (blocked) throw new HttpError(429, "SHARE_RATE_LIMITED", "提取码尝试次数过多，请稍后再试");
+      throw new HttpError(401, "SHARE_PASSWORD", "提取码不正确，请重试");
     }
+    await clearSharePasswordFailures(c, token);
   }
   return { share, node };
 }

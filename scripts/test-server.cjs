@@ -649,6 +649,32 @@ async function main() {
     assertEqual(db.prepare("SELECT downloads d FROM shares WHERE token = ?").first(token).d, 1, "下载次数应恰好为 1");
   });
 
+  await check("HTTP：分享提取码连续错误后锁定（5 次/10 分钟）", async () => {
+    const db = makeD1(schema1x);
+    const env = makeEnv(db, makeR2());
+    const auth = { "x-dev-email": "a@example.com" };
+    const up = await call(env, "/api/files/upload?name=locked.bin&parentId=", {
+      method: "PUT",
+      headers: { ...auth, "content-type": "application/octet-stream" },
+      body: new Uint8Array([1, 2, 3]),
+    });
+    const created = await call(env, "/api/shares", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ nodeId: up.json.id, password: "1234" }),
+    });
+    const token = created.json.token;
+    const wrong = { "x-share-password": "0000" };
+    for (let i = 1; i <= 4; i++) {
+      const res = await call(env, "/api/s/" + token, { headers: wrong });
+      assertEqual(res.status, 401, "第 " + i + " 次错误提取码应 401，实际 " + res.status);
+    }
+    const locked = await call(env, "/api/s/" + token, { headers: wrong });
+    assertEqual(locked.status, 429, "第 5 次错误应锁定 429，实际 " + locked.status);
+    const stillLocked = await call(env, "/api/s/" + token, { headers: { "x-share-password": "1234" } });
+    assertEqual(stillLocked.status, 429, "锁定期间正确提取码也应 429");
+  });
+
   await check("HTTP：同来源 10 分钟内重复下载只计一次（dedupe），撤销后 404", async () => {
     const db = makeD1(schema1x);
     const env = makeEnv(db, makeR2());

@@ -22,6 +22,12 @@ app.notFound((c) => c.json({ error: { code: "NOT_FOUND", message: "资源不存�
 
 // health 与公开分享在认证中间件之前注册，保持免登录（登录入口由 Cloudflare Access 在边缘接管）
 app.get("/api/health", (c) => c.json({ ok: true }));
+// 公开分享：不参与搜索引擎索引，避免分享 token/文件名被外部收录
+app.use("/api/s/*", async (c, next) => {
+  c.header("referrer-policy", "no-referrer");
+  c.header("x-robots-tag", "noindex, nofollow");
+  await next();
+});
 app.route("/api/s", publicShares);
 
 app.use("/api/*", accessMiddleware);
@@ -45,6 +51,7 @@ export default {
       sweepOrphanObjects(env),
       abortStaleUploads(env),
       // v2 schema 的配额真相在 workspaces.used_bytes；旧 users.owner_id 查询已废弃
+      env.DB.prepare("DELETE FROM share_auth_attempts WHERE window_start < ?1").bind(Date.now() - 86_400_000).run(),
       env.DB.prepare(`UPDATE workspaces SET used_bytes = (
         SELECT COALESCE(SUM(size), 0) FROM nodes
         WHERE workspace_id = workspaces.id AND is_dir = 0 AND deleted_at IS NULL

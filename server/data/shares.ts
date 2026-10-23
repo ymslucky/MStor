@@ -10,6 +10,10 @@ import type { ShareRow } from "../types";
  * - 同来源 10 分钟内只计一次（dedupe_key 唯一索引），防下载管理器/重试重复计入。
  */
 const DEDUPE_WINDOW_MS = 10 * 60_000;
+// 分享提取码尝试限制：同 token+IP 10 分钟内最多 5 次失败，锁定 10 分钟
+const AUTH_WINDOW_MS = 10 * 60_000;
+const AUTH_BLOCK_MS = 10 * 60_000;
+const AUTH_MAX_FAILURES = 5;
 
 async function sha256Hex(input: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
@@ -21,6 +25,46 @@ async function sourceFingerprint(c: Context<AppEnv>): Promise<{ ipHash: string; 
   const ip = c.req.header("cf-connecting-ip") ?? c.req.header("x-forwarded-for") ?? "unknown";
   const ua = c.req.header("user-agent") ?? "unknown";
   return { ipHash: await sha256Hex(ip), uaHash: await sha256Hex(ua) };
+}
+
+async function authAttemptKey(c: Context<AppEnv>, token: string): Promise<string> {
+  const ip = c.req.header("cf-connecting-ip") ?? c.req.header("x-forwarded-for") ?? "unknown";
+  return sha256Hex(`share-auth|${token}|${ip}`);
+}
+
+/** 提取码校验前置：已锁定则直接 429，避免继续跑 PBKDF2。 */
+export async function assertSharePasswordAllowed(c: Context<AppEnv>, token: string): Promise<void> {
+  const key = await authAttemptKey(c, token);
+  const row = await c.env.DB.prepare(
+    "SELECT blocked_until FROM share_auth_attempts WHERE key = ?1",
+  ).bind(key).first<{ blocked_until: number | null }>();
+  if (row?.blocked_until && row.blocked_until > Date.now()) {
+    throw new HttpError(429, "SHARE_RATE_LIMITED", "提取码尝试次数过多，请稍后再试");
+  }
+}
+
+/** 记录一次错误提取码；达到阈值时返回 true（调用方应返回 429）。 */
+export async function recordSharePasswordFailure(c: Context<AppEnv>, token: string): Promise<boolean> {
+  const key = await authAttemptKey(c, token);
+  const now = Date.now();
+  const row = await c.env.DB.prepare(
+    "SELECT failures, window_start FROM share_auth_attempts WHERE key = ?1",
+  ).bind(key).first<{ failures: number; window_start: number }>();
+  const inWindow = row && now - row.window_start < AUTH_WINDOW_MS;
+  const failures = inWindow ? row.failures + 1 : 1;
+  const windowStart = inWindow ? row.window_start : now;
+  const blockedUntil = failures >= AUTH_MAX_FAILURES ? now + AUTH_BLOCK_MS : null;
+  await c.env.DB.prepare(
+    `INSERT INTO share_auth_attempts (key, failures, window_start, blocked_until)
+     VALUES (?1, ?2, ?3, ?4)
+     ON CONFLICT(key) DO UPDATE SET failures = excluded.failures, window_start = excluded.window_start, blocked_until = excluded.blocked_until`,
+  ).bind(key, failures, windowStart, blockedUntil).run();
+  return blockedUntil !== null;
+}
+
+export async function clearSharePasswordFailures(c: Context<AppEnv>, token: string): Promise<void> {
+  const key = await authAttemptKey(c, token);
+  await c.env.DB.prepare("DELETE FROM share_auth_attempts WHERE key = ?1").bind(key).run();
 }
 
 export type DownloadSlot = "counted" | "deduped";

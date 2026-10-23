@@ -106,6 +106,14 @@ CREATE TABLE IF NOT EXISTS shares (
 );
 CREATE INDEX IF NOT EXISTS idx_shares_node ON shares(node_id);
 CREATE INDEX IF NOT EXISTS idx_shares_active ON shares(workspace_id, created_at DESC) WHERE revoked_at IS NULL;
+-- 分享提取码失败尝试（按 token+IP 哈希，5 次/10 分钟，锁定 10 分钟）
+CREATE TABLE IF NOT EXISTS share_auth_attempts (
+  key TEXT PRIMARY KEY,
+  failures INTEGER NOT NULL,
+  window_start INTEGER NOT NULL,
+  blocked_until INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_share_auth_window ON share_auth_attempts(window_start);
 
 -- 分享下载明细：dedupe_key 防 Range/下载管理器重复计数
 CREATE TABLE IF NOT EXISTS share_downloads (

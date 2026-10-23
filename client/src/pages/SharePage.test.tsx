@@ -87,6 +87,13 @@ test("wrong password keeps gate open and can retry", async () => {
   expect(fetchShare).toHaveBeenLastCalledWith("tok123", "8888");
 });
 
+test("shows a dedicated state when password attempts are rate limited", async () => {
+  vi.mocked(fetchShare).mockRejectedValue(new ApiError(429, "SHARE_RATE_LIMITED", "提取码尝试次数过多"));
+  renderWith(<SharePage />);
+  expect(await screen.findByText("尝试次数过多")).toBeInTheDocument();
+  expect(screen.getByText(/稍后再试/)).toBeInTheDocument();
+});
+
 test("shows expired and revoked states", async () => {
   vi.mocked(fetchShare).mockRejectedValue(new ApiError(410, "SHARE_EXPIRED", "分享已过期"));
   renderWith(<SharePage />);
