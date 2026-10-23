@@ -4,7 +4,6 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
-import { toast } from "./components/Toaster";
 import { initAppearance } from "./lib/appearance";
 import "./index.css";
 
@@ -21,16 +20,8 @@ if (container) {
 }
 
 if (import.meta.env.PROD) {
-  // prompt 模式：新 SW 等待用户确认，不再静默跳过等待；提示带「刷新」动作
+  // autoUpdate：静默更新，不弹「发现新版本」；离线状态由 OfflineBar/StatusBar 承担
   void import("virtual:pwa-register").then(({ registerSW }) => {
-    const updateSW = registerSW({
-      immediate: true,
-      onNeedRefresh() {
-        toast("发现新版本，刷新即可更新", "info", { label: "刷新", onClick: () => void updateSW(true) });
-      },
-      onOfflineReady() {
-        toast("已可离线使用", "info");
-      },
-    });
+    registerSW({ immediate: true });
   });
 }

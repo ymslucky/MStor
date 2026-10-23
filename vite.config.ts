@@ -10,8 +10,8 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      // prompt：新版本就绪时由页面提示用户刷新（配合 main.tsx 的 onNeedRefresh）
-      registerType: "prompt",
+      // autoUpdate：新 SW 直接接管，不再用 toast 打断用户；页面下次刷新/导航即用新版本
+      registerType: "autoUpdate",
       manifest: {
         name: "MStor 家庭云盘",
         short_name: "MStor",
@@ -19,8 +19,8 @@ export default defineConfig({
         lang: "zh-CN",
         start_url: "/",
         display: "standalone",
-        background_color: "#f4f6f4",
-        theme_color: "#f4f6f4",
+        background_color: "#f5f6f8",
+        theme_color: "#f5f6f8",
         icons: [
           { src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
           { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
@@ -29,6 +29,7 @@ export default defineConfig({
       },
       workbox: {
         navigateFallbackDenylist,
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.origin === location.origin && url.pathname.startsWith("/assets/"),

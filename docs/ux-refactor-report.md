@@ -554,7 +554,14 @@
 - hover 不再覆盖选中色；表头全选增加 indeterminate；Esc 在列表/网格/行首 checkbox 焦点下均可清空选择。
 - 新增 list-selected / grid-selected 基线；补充 FileList/useKeyboardNav 用例。
 
-### 19.18 OpenDesign 校准（v8）
+### 19.18 PWA 静默更新
+
+- 根因：registerType 为 prompt 时，新 SW 会停在 waiting；只要用户没点刷新，每次加载都会再次触发 onNeedRefresh，于是反复出现「发现新版本」。这不是构建 diff，而是 prompt 模式的预期行为。
+- 改为 registerType: autoUpdate：新 SW 直接 skipWaiting/clientsClaim 接管，页面下次刷新或导航使用新版本；移除 onNeedRefresh / onOfflineReady toast，离线状态继续由 OfflineBar 表达。
+- manifest 的 background/theme color 同步到 v8 canvas (#f5f6f8)，并开启 cleanupOutdatedCaches。
+- 已安装的旧 prompt SW 最多再弹一次，点刷新后进入静默更新轨道。
+
+### 19.19 OpenDesign 校准（v8）
 
 - 调研 OpenDesign 的 9 段 DESIGN.md schema 与 150+ 品牌设计系统，重点分析 Stripe（克制编辑感）、Linear（工程极简）、Vercel（高对比排版）的 prose 约束与 anti-patterns。
 - 新增根目录 DESIGN.md，把 MStor 的颜色角色、字体、间距、布局、组件、动效、语气、品牌与反模式写成可维护的设计意图。
