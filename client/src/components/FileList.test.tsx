@@ -104,6 +104,23 @@ test("部分选中时表头全选框显示 indeterminate", () => {
   expect(all).toHaveAttribute("aria-checked", "mixed");
 });
 
+test("列表关键动作直接展示：下载/分享/更多，重命名折叠进菜单", () => {
+  const onShare = vi.fn();
+  renderWithProviders(
+    <FileList
+      nodes={[node()]}
+      onOpenDir={noop}
+      onOpenFile={noop}
+      onShare={onShare}
+      onMoreMenu={vi.fn()}
+    />,
+  );
+  expect(screen.getByRole("link", { name: "下载 hello.txt" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "分享 hello.txt" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "更多操作 hello.txt" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /重命名 hello.txt/ })).not.toBeInTheDocument();
+});
+
 test("框选：空白区域拖拽按矩形命中行并替换选择", () => {
   const onSetSelection = vi.fn();
   const { container } = renderWithProviders(

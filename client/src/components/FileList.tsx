@@ -9,7 +9,7 @@ import type {
   RefObject,
 } from "react";
 import type { FileTableRow } from "../hooks/useFileTable";
-import { Copy, Download, FolderOpen, MoreHorizontal } from "lucide-react";
+import { Copy, Download, FolderOpen, Link2, MoreHorizontal } from "lucide-react";
 import { contentUrl } from "../api/nodes";
 import { FileGrid } from "./FileGrid";
 import { FileRowCells } from "./FileRow";
@@ -79,6 +79,8 @@ interface Props {
   onDropMove?: (id: string, toDirId: string) => void;
   /** 空白区域框选：替换当前选择（ids 为命中的节点 id） */
   onSetSelection?: (ids: string[]) => void;
+  /** 关键操作：分享（列表桌面端直接展示，其余动作进「更多」） */
+  onShare?: (node: Node) => void;
   /** 移动端「更多」菜单：由页面提供菜单渲染（桌面仍显示完整行内操作） */
   onMoreMenu?: (node: Node, rect: DOMRect) => void;
 }
@@ -118,6 +120,7 @@ export default function FileList({
   onDropMove,
   onMoreMenu,
   onSetSelection,
+  onShare,
 }: Props) {
   // 拖拽移动状态：拖拽中禁用选择；文件夹行 dragover 高亮
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -374,17 +377,35 @@ export default function FileList({
         onDoubleClick={(e) => e.stopPropagation()}
       >
         {onMoreMenu ? (
-          // 所有视口都只保留一个「更多」入口，动作收进菜单；不再依赖 hover 才出现
-          <RowAction
-            label={`更多操作 ${n.name}`}
-            className="tap"
-            onClick={(e) => {
-              e.stopPropagation();
-              onMoreMenu(n, e.currentTarget.getBoundingClientRect());
-            }}
-          >
-            <MoreHorizontal size={16} aria-hidden />
-          </RowAction>
+          <>
+            {/* 关键动作直接展示：文件「下载 + 分享」，文件夹「分享」；移动端仅下载+更多，把宽度让给文件名 */}
+            {download}
+            {onShare && (
+              <span className="hidden md:contents">
+                <RowAction
+                  label={`分享 ${n.name}`}
+                  tone="violet"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onShare(n);
+                  }}
+                >
+                  <Link2 size={14} aria-hidden />
+                </RowAction>
+              </span>
+            )}
+            {/* 次要动作（收藏/重命名/移动/标签/删除…）全部收进更多 */}
+            <RowAction
+              label={`更多操作 ${n.name}`}
+              className="tap"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoreMenu(n, e.currentTarget.getBoundingClientRect());
+              }}
+            >
+              <MoreHorizontal size={16} aria-hidden />
+            </RowAction>
+          </>
         ) : (
           <>
             {download}

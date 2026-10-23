@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Download, MoreHorizontal, TriangleAlert } from "lucide-react";
+import { Download, Link2, MoreHorizontal, TriangleAlert } from "lucide-react";
 import type { Node } from "../api/types";
 import Breadcrumb from "../components/Breadcrumb";
 import ContextMenu from "../components/ContextMenu";
@@ -222,6 +222,18 @@ export default function Browser() {
           <Download size={14} aria-hidden />
         </a>
       )}
+      <span className="hidden md:contents">
+        <RowAction
+          label={`分享 ${n.name}`}
+          tone="violet"
+          onClick={(e) => {
+            e.stopPropagation();
+            setSharing(n);
+          }}
+        >
+          <Link2 size={14} aria-hidden />
+        </RowAction>
+      </span>
       <RowAction
         label={`更多操作 ${n.name}`}
         onClick={(e) => {
@@ -350,6 +362,7 @@ export default function Browser() {
             emptyActions={filtered ? undefined : emptyDirActions}
             gridActions={gridActionsFor}
             onMoreMenu={(node, rect) => setMenu({ node, x: rect.right, y: rect.bottom })}
+            onShare={setSharing}
             onSetSelection={selection.setSelection}
             actions={(n) => (
               <NodeRowActions
