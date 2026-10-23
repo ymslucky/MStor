@@ -80,8 +80,9 @@ async function makeVideoThumbnail(file: File): Promise<Blob | null> {
     document.body.appendChild(video);
     await metadata;
     const duration = Number.isFinite(video.duration) ? video.duration : 0;
-    // 取 10% 处，避免纯黑首帧；短视频退到 0.1s
-    const target = duration > 0.2 ? Math.min(duration * 0.1, duration - 0.1) : 0;
+    // 中间帧是行业默认（Mux 默认 middle / Cloudflare 可用 thumbnailTimestampPct）；
+    // 10% 容易抽到片头/黑帧，30 分钟视频的中段更能代表内容。短视频退到 0.1s。
+    const target = duration > 0.2 ? Math.min(duration * 0.5, duration - 0.1) : 0;
     if (target > 0) {
       const seeked = waitForVideo(video, "seeked");
       video.currentTime = target;

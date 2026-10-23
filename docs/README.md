@@ -12,6 +12,7 @@
 | [reports/2026-09-28-feature-upgrade-report.md](./reports/2026-09-28-feature-upgrade-report.md) | 功能地图（历史梳理，功能归属仍可参考） | 参考 |
 | [reports/2026-09-28-ux-optimization-report.md](./reports/2026-09-28-ux-optimization-report.md) | 上一轮 UX 优化记录 | 参考 |
 | [functional-audit.md](./functional-audit.md) | 2026-10-22 功能与操作体验验证：逐功能矩阵、已修缺陷、真机回归清单 | 记录 |
+| [video-pipeline-analysis.md](./video-pipeline-analysis.md) | 视频缩略图/预览：当前方案、Cloudflare Stream/Mux/MediaConvert/GCP 对比、分步演进建议 | 记录 |
 | [../DESIGN.md](../DESIGN.md) | OpenDesign 9 段 schema 的 MStor 设计意图（色/字/间距/组件/动效/语气/品牌/反模式） | 权威 |
 
 ## 阅读顺序（新人/接手）

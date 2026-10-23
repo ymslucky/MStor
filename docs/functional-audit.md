@@ -20,7 +20,7 @@
 |---|---|---|---|
 | 文件列表 / 面包屑 / 排序 / 列显隐 | Browser 测试 + 截图 | 通过 | 移动端隐藏表头、名称吃满宽度 |
 | 网格视图 / 选择 / 长按 / 键盘 | FileList 测试 + 桌面/移动截图 | 通过（已修） | 图标 tile + 类型角标 + 加载失败回退；视频有缩略图/首帧 poster；新增 grid-mobile 基线 |
-| 视频缩略图 / 预览 | FileList/PreviewModal 测试 + 截图 | 通过（已修） | 客户端 10% 帧抽缩略图，大小/秒传/分片上传均补；预览补 poster/metadata/playsInline/错误回退 |
+| 视频缩略图 / 预览 | FileList/PreviewModal 测试 + 截图 | 通过（已修） | 客户端中间帧抽缩略图，大小/秒传/分片上传均补；预览补 poster/metadata/playsInline/错误回退 |
 | 新建文件夹 / 重命名 / 移动 / 复制 | Browser 测试 + 走查 | 通过 | 弹窗、目录树、撤销路径有覆盖 |
 | 删除 / 回收站 / 批量删除 | Browser/Trash 测试 | 通过 | 软删与彻底删除分离 |
 | 收藏 / 最近 | Browser + Library 测试 | 通过 | query 失效路径覆盖 |

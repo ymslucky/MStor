@@ -23,7 +23,7 @@ v8 借鉴并落地：
 ### v8.3 视频缩略图与预览
 
 - 上传后统一在队列侧补缩略图：小文件、大文件分片、秒传三条路径都覆盖；图片与视频由客户端 Canvas 生成 WebP。
-- 视频抽帧：加载 metadata 后 seek 到 10% 处（短视频 0.1s），Canvas 输出 256px WebP；源文件上限 300MB、抽帧超时 8s，失败静默。
+- 视频抽帧：加载 metadata 后 seek 到中间帧（短视频 0.1s），Canvas 输出 256px WebP；源文件上限 300MB、抽帧超时 8s，失败静默。
 - 网格：有服务端缩略图用图；没有则用 muted/metadata 视频首帧并叠加播放角标；加载失败回退类型图标。
 - 预览：有缩略图作为 poster；preload=metadata、playsInline；加载态与「编码不支持，请下载」错误态。
 - 服务端无需转码：继续复用 /api/files/:id/thumb 的 image/* 上传与 R2 immutable 缓存。

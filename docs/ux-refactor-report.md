@@ -557,7 +557,7 @@
 ### 19.18 视频缩略图与预览
 
 - 根因：makeThumbnail 只处理图片；uploadSmall 才补缩略图，分片/秒传路径完全跳过；网格对无 thumb 的视频只显示类型图标；video 预览没有 poster/加载/错误态。
-- 修复：客户端视频抽帧（10% 处，300MB/8s 上限）；队列侧统一补缩略图覆盖三条上传路径；网格用首帧+播放角标；预览补 poster、preload=metadata、playsInline、加载与编码不支持提示。
+- 修复：客户端视频抽帧（中间帧，300MB/8s 上限）；队列侧统一补缩略图覆盖三条上传路径；网格用首帧+播放角标；预览补 poster、preload=metadata、playsInline、加载与编码不支持提示。
 - 新增视频卡片/预览用例；客户端 265 例、server 29、visual 22/22。
 
 ### 19.19 PWA 静默更新
