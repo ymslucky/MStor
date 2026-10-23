@@ -1,10 +1,26 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { ApiError, api, clearSessionFlag, friendlyMessage, handleSessionExpired, markSessionActive } from "./client";
+import { STORAGE_KEYS, removeItem, setString } from "../lib/storage";
 
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   clearSessionFlag();
+});
+
+test("act-as 时不带浏览器残留的 x-workspace", async () => {
+  setString(STORAGE_KEYS.actAs, "target-user");
+  setString(STORAGE_KEYS.workspace, "admin-workspace");
+  let sent: Headers | null = null;
+  vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
+    sent = new Headers(init?.headers);
+    return new Response("{}", { status: 200 });
+  }));
+  await api("/api/files");
+  expect(sent!.get("x-act-as")).toBe("target-user");
+  expect(sent!.get("x-workspace")).toBeNull();
+  removeItem(STORAGE_KEYS.actAs);
+  removeItem(STORAGE_KEYS.workspace);
 });
 
 test("已知错误码映射为友好文案（保留原始 code）", async () => {

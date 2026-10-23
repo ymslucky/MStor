@@ -6,7 +6,7 @@ import { toast } from "../Toaster";
 import type { AdminUser } from "../../api/types";
 import { formatBytes } from "../../lib/format";
 import { queryKeys } from "../../lib/queryKeys";
-import { STORAGE_KEYS, setString } from "../../lib/storage";
+import { STORAGE_KEYS, removeItem, setString } from "../../lib/storage";
 import { IconButton, Pill } from "../ui";
 import type { PatchBody } from "./shared";
 
@@ -32,6 +32,8 @@ export function UserRow({
   const enter = useMutation({
     mutationFn: () => startActAs(u.id),
     onSuccess: () => {
+      // 目标用户有自己的默认空间，不能让管理员的 x-workspace 残留污染解析
+      removeItem(STORAGE_KEYS.workspace);
       setString(STORAGE_KEYS.actAs, u.id);
       window.location.assign("/");
     },

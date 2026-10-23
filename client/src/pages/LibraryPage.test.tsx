@@ -9,20 +9,21 @@ vi.mock("../api/library", () => ({
   listTagged: vi.fn(),
   listFavorites: vi.fn(),
   listRecent: vi.fn(),
+  removeFavorite: vi.fn(),
   createTag: vi.fn(),
   updateTag: vi.fn(),
   deleteTag: vi.fn(),
 }));
 
-import { createTag, deleteTag, listTagged, listTags, updateTag } from "../api/library";
+import { createTag, deleteTag, listFavorites, listTagged, listTags, removeFavorite, updateTag } from "../api/library";
 import LibraryPage from "./LibraryPage";
 
-function renderPage() {
+function renderPage(kind: "tags" | "favorites" = "tags") {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   const utils = render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={["/tags"]}>
-        <LibraryPage kind="tags" />
+      <MemoryRouter initialEntries={[kind === "favorites" ? "/favorites" : "/tags"]}>
+        <LibraryPage kind={kind} />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -33,9 +34,24 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(listTags).mockResolvedValue({ tags: [{ id: "t1", name: "家庭", nodes: 2 }] });
   vi.mocked(listTagged).mockResolvedValue({ nodes: [] });
+  vi.mocked(listFavorites).mockResolvedValue({
+    nodes: [{
+      id: "f1", parent_id: "p1", name: "report.pdf", is_dir: 0, size: 10, mime: "application/pdf",
+      created_at: 1, updated_at: 1,
+    }],
+  });
+  vi.mocked(removeFavorite).mockResolvedValue({ ok: true });
   vi.mocked(createTag).mockResolvedValue({ id: "t2", name: "旅行" });
   vi.mocked(updateTag).mockResolvedValue({ id: "t1", name: "家庭", color: "#0f766e" });
   vi.mocked(deleteTag).mockResolvedValue({ ok: true });
+});
+
+test("收藏文件跳到父目录并定位，可直接取消收藏", async () => {
+  const { user } = renderPage("favorites");
+  const link = await screen.findByRole("link", { name: /report.pdf/ });
+  expect(link).toHaveAttribute("href", "/?dir=p1&focus=f1");
+  await user.click(screen.getByRole("button", { name: "取消收藏 report.pdf" }));
+  await waitFor(() => expect(removeFavorite).toHaveBeenCalledWith("f1"));
 });
 
 test("标签页可新建标签", async () => {

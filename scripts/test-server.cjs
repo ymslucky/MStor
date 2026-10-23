@@ -376,6 +376,11 @@ async function main() {
     const view = await call(env, "/api/me", { headers: { ...auth, "x-act-as": targetId } });
     assertEqual(view.status, 200, "x-act-as 请求应 200");
     assertEqual(db.prepare("SELECT COUNT(*) c FROM audit_events WHERE action = 'admin.act_as'").first().c, 1, "普通请求不得重复写审计");
+    // 回归：浏览器残留管理员 x-workspace 时，act-as 仍应解析目标用户空间而不是 404
+    const stale = await call(env, "/api/files", {
+      headers: { ...auth, "x-act-as": targetId, "x-workspace": me.json.workspace.id },
+    });
+    assertEqual(stale.status, 200, "act-as 带旧 x-workspace 仍应 200，实际 " + stale.status + " " + stale.text.slice(0, 120));
   });
 
   await check("HTTP：审计 v2 覆盖分享创建与文件删除", async () => {

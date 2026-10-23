@@ -148,6 +148,7 @@ function AppShellLayout() {
         onConfirm={() => {
           setExitActOpen(false);
           removeItem(STORAGE_KEYS.actAs);
+          removeItem(STORAGE_KEYS.workspace);
           window.location.reload();
         }}
         onCancel={() => setExitActOpen(false)}

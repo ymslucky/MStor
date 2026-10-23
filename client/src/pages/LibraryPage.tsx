@@ -1,9 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Clock, Star, Tag as TagIcon } from "lucide-react";
+import { Clock, Star, StarOff, Tag as TagIcon } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
-import { createTag, deleteTag, listFavorites, listRecent, listTags, listTagged, updateTag } from "../api/library";
-import { contentUrl } from "../api/nodes";
+import { createTag, deleteTag, listFavorites, listRecent, listTags, listTagged, removeFavorite, updateTag } from "../api/library";
 import type { Node } from "../api/types";
 import { AsyncState } from "../components/AsyncState";
 import { PageHeader } from "../components/layout/PageHeader";
@@ -22,18 +21,29 @@ const COPY: Record<Kind, { title: string; desc: string; icon: typeof Star; empty
   tags: { title: "标签", desc: "按标签归类查看", icon: TagIcon, empty: "还没有创建标签" },
 };
 
-function NodeRow({ node }: { node: Node }) {
-  const href = node.is_dir ? `/?dir=${node.id}` : contentUrl(node.id);
+function NodeRow({ node, onRemoveFavorite }: { node: Node; onRemoveFavorite?: (node: Node) => void }) {
+  // 文件跳到「所在目录」并定位选中，而不是直接打开原始内容；文件夹直接进入自身
+  const href = node.is_dir ? `/?dir=${node.id}` : `/?dir=${node.parent_id}&focus=${node.id}`;
   return (
-    <Link
-      to={href}
-      className="flex items-center gap-3 rounded-card px-3 py-2 transition-colors hover:bg-bg-sub"
-    >
-      <NodeIcon node={node} size={18} className="shrink-0" />
-      <span className="min-w-0 flex-1 truncate text-sm text-ink">{node.name}</span>
-      <span className="num shrink-0 text-xs text-ink-3">{node.is_dir ? "文件夹" : formatBytes(node.size)}</span>
-      <span className="num hidden shrink-0 text-xs text-ink-3 sm:block">{formatDate(node.updated_at)}</span>
-    </Link>
+    <div className="flex items-center rounded-card transition-colors hover:bg-bg-sub">
+      <Link to={href} className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2">
+        <NodeIcon node={node} size={18} className="shrink-0" />
+        <span className="min-w-0 flex-1 truncate text-sm text-ink">{node.name}</span>
+        <span className="num shrink-0 text-xs text-ink-3">{node.is_dir ? "文件夹" : formatBytes(node.size)}</span>
+        <span className="num hidden shrink-0 text-xs text-ink-3 sm:block">{formatDate(node.updated_at)}</span>
+      </Link>
+      {onRemoveFavorite && (
+        <button
+          type="button"
+          aria-label={`取消收藏 ${node.name}`}
+          title="取消收藏"
+          className="mr-2 rounded-btn p-1.5 text-amber-text transition-colors hover:bg-warn-soft"
+          onClick={() => onRemoveFavorite(node)}
+        >
+          <StarOff size={14} aria-hidden />
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -68,6 +78,14 @@ export default function LibraryPage({ kind }: { kind: Kind }) {
       void invalidateTags();
     },
     onError: (e) => toast(e instanceof Error ? e.message : "更新标签失败"),
+  });
+  const unfavorite = useMutation({
+    mutationFn: (id: string) => removeFavorite(id),
+    onSuccess: () => {
+      toast("已取消收藏", "info");
+      void queryClient.invalidateQueries({ queryKey: queryKeys.favorites });
+    },
+    onError: (e) => toast(e instanceof Error ? e.message : "取消收藏失败"),
   });
   const removeTag = useMutation({
     mutationFn: (id: string) => deleteTag(id),
@@ -225,7 +243,11 @@ export default function LibraryPage({ kind }: { kind: Kind }) {
             ) : (
               <div className="divide-y divide-line">
                 {nodes.map((n) => (
-                  <NodeRow key={n.id} node={n} />
+                  <NodeRow
+                    key={n.id}
+                    node={n}
+                    onRemoveFavorite={kind === "favorites" ? (node) => unfavorite.mutate(node.id) : undefined}
+                  />
                 ))}
               </div>
             )}

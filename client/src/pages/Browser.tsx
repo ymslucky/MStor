@@ -84,6 +84,25 @@ export default function Browser() {
   // 多选（受控 ids + Shift 范围锚点；换目录自动清空）
   const visibleIds = useMemo(() => nodes.map((n) => n.id), [nodes]);
   const selection = useFileSelection(visibleIds, dir);
+  // 从收藏/最近/标签跳转：?dir=<父目录>&focus=<文件 id>，进入父目录并选中该行
+  const focusId = params.get("focus") ?? "";
+  const focusApplied = useRef<string | null>(null);
+  useEffect(() => {
+    if (!focusId || focusApplied.current === focusId) return;
+    const index = nodes.findIndex((n) => n.id === focusId);
+    if (index < 0) return;
+    focusApplied.current = focusId;
+    selection.setSelection([focusId]);
+    // 不要 cancel 这个 rAF：setSelection/setParams 会触发重渲染并执行 effect cleanup，
+    // 若 cleanup 取消 rAF，滚动会在选中生效前被取消。
+    window.requestAnimationFrame(() => {
+      const row = document.querySelector<HTMLElement>(`[data-file-row="${index}"]`);
+      if (typeof row?.scrollIntoView === "function") row.scrollIntoView({ block: "center" });
+    });
+    const next = new URLSearchParams(params);
+    next.delete("focus");
+    setParams(next, { replace: true });
+  }, [focusId, nodes, params, selection, setParams]);
 
   // 键盘导航：↑↓（网格加 ←→）移动焦点，Enter 打开 / Delete 删除 / F2 重命名 / Space 预览 / Ctrl+A 全选
   const keyboard = useKeyboardNav({

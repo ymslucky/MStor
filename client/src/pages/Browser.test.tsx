@@ -101,6 +101,16 @@ test("lists files and navigates into folder", async () => {
   await waitFor(() => expect(screen.getByText(/该目录为空/)).toBeInTheDocument());
 });
 
+test("从收藏/最近跳转时定位并选中目标文件", async () => {
+  vi.mocked(listFiles).mockResolvedValue({
+    ...SUB_DIR_LIST,
+    nodes: [fileNode({ id: "c1", parent_id: "d1", name: "child.txt" })],
+  });
+  renderWith(<Browser />, { route: "/?dir=d1&focus=c1" });
+  const checkbox = await screen.findByLabelText("选择 child.txt");
+  expect(checkbox).toBeChecked();
+});
+
 test("entering a folder records a recent view", async () => {
   vi.mocked(listFiles).mockImplementation(async (parentId: string) => (parentId === "" ? ROOT_LIST : SUB_DIR_LIST));
   vi.mocked(recordView).mockClear();

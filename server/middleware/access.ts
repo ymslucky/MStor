@@ -113,8 +113,9 @@ export async function accessMiddleware(c: Context<AppEnv>, next: Next) {
     }
     throw new HttpError(403, "ACCOUNT_PENDING", "账号待管理员审核");
   }
-  // 租户解析：未指定 x-workspace 时用默认空间；首登无空间则就地建个人空间（幂等）
-  const requested = c.req.header("x-workspace") ?? null;
+  // 租户解析：act-as 必须解析目标用户默认空间，忽略浏览器残留的管理员 x-workspace；
+  // 未指定 x-workspace 时用默认空间；首登无空间则就地建个人空间（幂等）
+  const requested = c.req.header("x-act-as") ? null : (c.req.header("x-workspace") ?? null);
   let resolved;
   try {
     resolved = await resolveWorkspace(c.env.DB, user.id, requested);

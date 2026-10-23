@@ -80,13 +80,15 @@ export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
   if (rest.json !== undefined) headers.set("content-type", "application/json");
   // Access 会话过期时对带此头的 AJAX 回 401（而非 302 HTML），前端据此触发整页重登
   headers.set("x-requested-with", "XMLHttpRequest");
-  if (!skipActAs) {
-    const actAs = getString(STORAGE_KEYS.actAs);
-    if (actAs) headers.set("x-act-as", actAs);
-  }
+  // act-as 时必须由服务端解析目标用户的默认空间：浏览器里残留的 x-workspace
+  // 属于管理员自己的空间，会让目标用户的文件请求变成 404。
+  const actAs = skipActAs ? null : getString(STORAGE_KEYS.actAs);
+  if (actAs) headers.set("x-act-as", actAs);
   // 当前空间：切空间 = 带 x-workspace 头；未设置时由服务端回落到默认空间
-  const workspace = getString(STORAGE_KEYS.workspace);
-  if (workspace) headers.set("x-workspace", workspace);
+  if (!actAs) {
+    const workspace = getString(STORAGE_KEYS.workspace);
+    if (workspace) headers.set("x-workspace", workspace);
+  }
   const res = await fetch(path, {
     ...rest,
     headers,
