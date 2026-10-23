@@ -24,7 +24,12 @@ function renderWith(ui: JSX.Element) {
 
 beforeEach(() => {
   vi.clearAllMocks(); // 首个用例断言「未调用」，调用记录不能跨用例残留
-  vi.mocked(getAdminSettings).mockResolvedValue({ trash_retention_days: 30, audit_enabled: true });
+  vi.mocked(getAdminSettings).mockResolvedValue({
+    trash_retention_days: 30,
+    audit_enabled: true,
+    registration_enabled: true,
+    default_quota_bytes: 1024 ** 3,
+  });
 });
 
 test("account tab shows login account info", async () => {
@@ -47,7 +52,12 @@ test("upload tab saves concurrency to localStorage", async () => {
 
 // 保留期已归入「上传」分区（平台管理员可见），不再依赖设置页的管理标签
 test("admin saves trash retention days in upload tab", async () => {
-  vi.mocked(getAdminSettings).mockResolvedValue({ trash_retention_days: 30, audit_enabled: true });
+  vi.mocked(getAdminSettings).mockResolvedValue({
+    trash_retention_days: 30,
+    audit_enabled: true,
+    registration_enabled: true,
+    default_quota_bytes: 1024 ** 3,
+  });
   vi.mocked(patchAdminSettings).mockResolvedValue({ ok: true });
   const { user } = renderWith(<SettingsPage me={ME} />);
   await user.click(await screen.findByRole("link", { name: "上传" }));
@@ -60,8 +70,29 @@ test("admin saves trash retention days in upload tab", async () => {
   await waitFor(() => expect(patchAdminSettings).toHaveBeenCalledWith({ trash_retention_days: 7 }));
 });
 
+test("admin configures registration and default quota in access tab", async () => {
+  vi.mocked(patchAdminSettings).mockResolvedValue({ ok: true });
+  const { user } = renderWith(<SettingsPage me={ME} />);
+  await user.click(await screen.findByRole("link", { name: "访问" }));
+  const registration = await screen.findByRole("checkbox", { name: "允许注册" });
+  expect(registration).toBeChecked();
+  await user.click(registration);
+  await waitFor(() => expect(patchAdminSettings).toHaveBeenCalledWith({ registration_enabled: false }));
+  const quota = screen.getByLabelText(/额度（GB）/);
+  expect(quota).toHaveValue(1);
+  await user.clear(quota);
+  await user.type(quota, "2");
+  await user.click(screen.getByRole("button", { name: "保存默认额度" }));
+  await waitFor(() => expect(patchAdminSettings).toHaveBeenCalledWith({ default_quota_bytes: 2 * 1024 ** 3 }));
+});
+
 test("admin can turn the audit feature off from upload tab", async () => {
-  vi.mocked(getAdminSettings).mockResolvedValue({ trash_retention_days: 30, audit_enabled: true });
+  vi.mocked(getAdminSettings).mockResolvedValue({
+    trash_retention_days: 30,
+    audit_enabled: true,
+    registration_enabled: true,
+    default_quota_bytes: 1024 ** 3,
+  });
   vi.mocked(patchAdminSettings).mockResolvedValue({ ok: true });
   const { user } = renderWith(<SettingsPage me={ME} />);
   await user.click(await screen.findByRole("link", { name: "审计" }));

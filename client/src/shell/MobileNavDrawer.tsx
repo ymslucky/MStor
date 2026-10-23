@@ -28,8 +28,9 @@ export function MobileNavDrawer({
   onSwitchWorkspace: (id: string) => void;
   onLogout: () => void;
 }) {
-  const account = me.self ?? me;
-  const sections = sectionsFor(account.role === "admin");
+  const sessionAccount = me.self ?? me;
+  const actingAs = !!me.self && me.self.id !== me.id;
+  const sections = sectionsFor(sessionAccount.role === "admin");
   // Radix 打开时会锁 body 滚动；若此时跨过 md 断点，抽屉被 CSS 隐藏但锁仍在 → 自动关闭
   const desktop = useMediaQuery(DESKTOP_MEDIA_QUERY);
   useEffect(() => {
@@ -74,7 +75,7 @@ export function MobileNavDrawer({
           <div className="space-y-3 border-t border-line px-3 py-3">
             <WorkspaceSwitcher workspaces={me.workspaces ?? []} currentId={me.workspace?.id} onSwitch={onSwitchWorkspace} />
             <StorageMeter usedBytes={me.storage?.usedBytes ?? me.usedBytes} quotaBytes={me.storage?.quotaBytes ?? me.quotaBytes} />
-            <AccountMenu account={account} collapsed={false} onLogout={onLogout} />
+            <AccountMenu account={me} actingAs={actingAs} collapsed={false} onLogout={onLogout} />
           </div>
         </RadixDialog.Content>
       </RadixDialog.Portal>

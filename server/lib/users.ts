@@ -22,7 +22,11 @@ function structuredWarn(message: string, fields: Record<string, unknown>) {
  * → ③ ACCESS_PROVISION=on 时建号（首个用户 admin，其余 member）；off 时 403 并输出身份供回填。
  * 查询列均有索引，热路径与原会话中间件等价（每请求 1 次 SELECT）。
  */
-export async function bindOrProvision(env: Env, ident: AccessIdentity): Promise<UserRow> {
+export async function bindOrProvision(
+  env: Env,
+  ident: AccessIdentity,
+  opts?: { canProvision?: () => Promise<boolean> },
+): Promise<UserRow> {
   const db = env.DB;
   if (ident.email) {
     const byEmail = await db.prepare("SELECT * FROM users WHERE email = ?1").bind(ident.email).first<UserRow>();
@@ -65,8 +69,8 @@ export async function bindOrProvision(env: Env, ident: AccessIdentity): Promise<
     }
     return bySub;
   }
-  if (env.ACCESS_PROVISION !== "on") {
-    // 迁移窗口：未知身份不建号，日志输出 sub/email 供管理员回填 email 完成绑定
+  if (env.ACCESS_PROVISION !== "on" || (opts?.canProvision && !(await opts.canProvision()))) {
+    // 迁移窗口/管理员关闭注册：未知身份不建号，日志输出 sub/email 供管理员回填
     structuredWarn("access_unknown_identity", { sub: ident.sub, email: ident.email });
     throw new HttpError(403, "ACCOUNT_NOT_PROVISIONED", "账号未开通，请联系管理员");
   }

@@ -123,7 +123,7 @@ test("logout confirm clears session and redirects to Access logout", async () =>
   expect(assignMock).toHaveBeenCalledWith("/cdn-cgi/access/logout");
 });
 
-test("sidebar shows login account (self) while acting as another user", async () => {
+test("sidebar shows the target user's name and avatar while acting as another user", async () => {
   localStorage.setItem("mstor_act_as", "u2");
   // admin 进入 Bob 的空间：/api/me 返回当前空间用户 Bob + 登录账号 self=Alice
   vi.mocked(getMe).mockResolvedValueOnce({
@@ -131,9 +131,10 @@ test("sidebar shows login account (self) while acting as another user", async ()
     self: { id: "u1", name: "Alice", role: "admin" },
   });
   renderShell();
-  // 档案行显示登录账号 Alice，而非当前空间用户 Bob
-  expect(await screen.findByText("Alice")).toBeInTheDocument();
-  expect(screen.queryByText("Bob")).not.toBeInTheDocument();
+  // 档案行显示目标用户 Bob，而非管理员 Alice
+  expect(await screen.findByText("Bob")).toBeInTheDocument();
+  expect(screen.queryByText("Alice")).not.toBeInTheDocument();
+  expect(screen.getByText("管理员代管")).toBeInTheDocument();
   // act-as 横幅显示的是目标空间用户
   expect(screen.getByText(/查看「Bob」的空间/)).toBeInTheDocument();
   localStorage.removeItem("mstor_act_as");

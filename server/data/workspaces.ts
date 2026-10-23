@@ -22,7 +22,8 @@ export interface MembershipRow {
 }
 
 /** 个人空间默认名（首登自动建）：沿用用户显示名，避免出现"未命名空间" */
-const DEFAULT_QUOTA = 10_737_418_240;
+/** 新用户默认个人空间额度：1 GiB（可由 settings.default_quota_bytes 覆盖） */
+const DEFAULT_QUOTA = 1_073_741_824;
 
 /** 个人空间的确定性 slug：并发首登靠 UNIQUE(slug) 收敛，而不是靠先查后插的竞态窗口 */
 export function personalSlug(userId: string): string {

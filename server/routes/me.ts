@@ -62,24 +62,39 @@ me.get("/admin/users", requireAdmin, async (c) => {
 // 动态配置（admin 设置页）：白名单键 + 应用层校验；读取方（如回收站清理）env 回退
 const TRASH_RETENTION_MIN = 1;
 const TRASH_RETENTION_MAX = 365;
+const DEFAULT_USER_QUOTA = 1_073_741_824;
+const MIN_USER_QUOTA = 1_073_741_824; // 1 GiB
+const MAX_USER_QUOTA = 1_099_511_627_776; // 1 TiB
 
 me.get("/admin/settings", requireAdmin, async (c) => {
-  const [configured, audit] = await Promise.all([
+  const [configured, audit, registration, quota] = await Promise.all([
     getSetting(c.env, "trash_retention_days"),
     getSetting(c.env, "audit_enabled"),
+    getSetting(c.env, "registration_enabled"),
+    getSetting(c.env, "default_quota_bytes"),
   ]);
+  const parsedQuota = Number(quota);
   return c.json({
     trash_retention_days: Number(configured ?? c.env.TRASH_RETENTION_DAYS),
     // 未配置时默认开启；关闭后服务端 auditStmt 退化为 no-op，历史记录仍保留
     audit_enabled: audit === null ? true : audit !== "0",
+    registration_enabled: registration === null ? true : registration !== "0",
+    default_quota_bytes: Number.isFinite(parsedQuota) && parsedQuota >= MIN_USER_QUOTA ? parsedQuota : DEFAULT_USER_QUOTA,
   });
 });
 
 me.patch("/admin/settings", requireAdmin, async (c) => {
-  const body = await c.req.json<{ trash_retention_days?: unknown; audit_enabled?: unknown }>();
+  const body = await c.req.json<{
+    trash_retention_days?: unknown;
+    audit_enabled?: unknown;
+    registration_enabled?: unknown;
+    default_quota_bytes?: unknown;
+  }>();
   const hasTrash = body.trash_retention_days !== undefined;
   const hasAudit = body.audit_enabled !== undefined;
-  if (!hasTrash && !hasAudit) throw errors.badRequest("没有需要更新的设置");
+  const hasRegistration = body.registration_enabled !== undefined;
+  const hasQuota = body.default_quota_bytes !== undefined;
+  if (!hasTrash && !hasAudit && !hasRegistration && !hasQuota) throw errors.badRequest("没有需要更新的设置");
   if (
     hasTrash &&
     (!Number.isInteger(body.trash_retention_days) ||
@@ -89,6 +104,15 @@ me.patch("/admin/settings", requireAdmin, async (c) => {
     throw errors.badRequest(`保留天数须为 ${TRASH_RETENTION_MIN}-${TRASH_RETENTION_MAX} 的整数`);
   }
   if (hasAudit && typeof body.audit_enabled !== "boolean") throw errors.badRequest("audit_enabled 须为布尔值");
+  if (hasRegistration && typeof body.registration_enabled !== "boolean") throw errors.badRequest("registration_enabled 须为布尔值");
+  if (
+    hasQuota &&
+    (!Number.isInteger(body.default_quota_bytes) ||
+      (body.default_quota_bytes as number) < MIN_USER_QUOTA ||
+      (body.default_quota_bytes as number) > MAX_USER_QUOTA)
+  ) {
+    throw errors.badRequest(`默认空间额度须为 ${MIN_USER_QUOTA} - ${MAX_USER_QUOTA} 字节（1 GiB - 1 TiB）`);
+  }
   const nextAudit = hasAudit ? (body.audit_enabled as boolean) : undefined;
   const settings: D1PreparedStatement[] = [];
   if (hasTrash) {
@@ -105,6 +129,20 @@ me.patch("/admin/settings", requireAdmin, async (c) => {
       ).bind(nextAudit ? "1" : "0"),
     );
   }
+  if (hasRegistration) {
+    settings.push(
+      c.env.DB.prepare(
+        "INSERT INTO settings (scope, key, value) VALUES ('global', 'registration_enabled', ?1) ON CONFLICT(scope, key) DO UPDATE SET value = excluded.value",
+      ).bind(body.registration_enabled ? "1" : "0"),
+    );
+  }
+  if (hasQuota) {
+    settings.push(
+      c.env.DB.prepare(
+        "INSERT INTO settings (scope, key, value) VALUES ('global', 'default_quota_bytes', ?1) ON CONFLICT(scope, key) DO UPDATE SET value = excluded.value",
+      ).bind(String(body.default_quota_bytes)),
+    );
+  }
   // 开启动作先恢复缓存再写审计；关闭动作先写审计，成功后再关闭缓存（确保开关本身可追溯）
   if (nextAudit === true) setAuditEnabled(true);
   const auditEvent = auditStmt(c.env.DB, {
@@ -113,6 +151,8 @@ me.patch("/admin/settings", requireAdmin, async (c) => {
     meta: {
       ...(hasTrash ? { trash_retention_days: body.trash_retention_days } : {}),
       ...(hasAudit ? { audit_enabled: nextAudit } : {}),
+      ...(hasRegistration ? { registration_enabled: body.registration_enabled } : {}),
+      ...(hasQuota ? { default_quota_bytes: body.default_quota_bytes } : {}),
     },
     requestId: c.req.header("cf-ray") ?? null,
   });

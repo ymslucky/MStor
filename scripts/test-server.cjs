@@ -981,6 +981,33 @@ async function main() {
     assertEqual(forbidden.status, 403, "普通成员应 403，实际 " + forbidden.status);
   });
 
+  await check("HTTP：注册开关与默认空间额度（1GB）", async () => {
+    const db = makeD1(schema1x);
+    const env = makeEnv(db, makeR2());
+    const admin = { "x-dev-email": "a@example.com" };
+    await call(env, "/api/me", { headers: admin });
+    const off = await call(env, "/api/me/admin/settings", {
+      method: "PATCH",
+      headers: { ...admin, "content-type": "application/json" },
+      body: JSON.stringify({ registration_enabled: false }),
+    });
+    assertEqual(off.status, 200, "关闭注册应 200");
+    const blocked = await call(env, "/api/me", { headers: { "x-dev-email": "new@example.com" } });
+    assertEqual(blocked.status, 403, "关闭注册后未知身份应 403，实际 " + blocked.status);
+    const on = await call(env, "/api/me/admin/settings", {
+      method: "PATCH",
+      headers: { ...admin, "content-type": "application/json" },
+      body: JSON.stringify({ registration_enabled: true, default_quota_bytes: 1073741824 }),
+    });
+    assertEqual(on.status, 200, "开启注册并设置额度应 200");
+    const registered = await call(env, "/api/me", { headers: { "x-dev-email": "new@example.com" } });
+    assertEqual(registered.status, 200, "开启注册后新用户应 200，实际 " + registered.status + " " + registered.text.slice(0, 140));
+    const row = db.prepare(
+      "SELECT w.quota_bytes q FROM users u JOIN memberships m ON m.user_id = u.id JOIN workspaces w ON w.id = m.workspace_id WHERE u.email = 'new@example.com'",
+    ).first();
+    assertEqual(row.q, 1073741824, "新用户默认额度应为 1GB");
+  });
+
   // —— 通知中心（P2 B11 收尾）——
   await check("HTTP：邀请被接受 → 管理者收到通知；标已读后未读数归零", async () => {
     const db = makeD1(schema1x);

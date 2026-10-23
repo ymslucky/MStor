@@ -6,6 +6,7 @@ import { ensurePersonalWorkspace, resolveWorkspace } from "../data/workspaces";
 import { acceptPendingInvitations } from "../data/invitations";
 import { ensureRootDir } from "../lib/nodes";
 import { refreshAuditEnabled } from "../lib/audit";
+import { getSetting } from "../lib/settings";
 import { bindOrProvision, type AccessIdentity } from "../lib/users";
 import type { UserRow } from "../types";
 
@@ -85,7 +86,9 @@ export async function accessMiddleware(c: Context<AppEnv>, next: Next) {
   csrfGuard(c);
   // 只读一次设置（30s isolate 缓存）；关闭后 auditStmt 直接 no-op
   await refreshAuditEnabled(c.env.DB);
-  let user = await bindOrProvision(c.env, ident);
+  let user = await bindOrProvision(c.env, ident, {
+    canProvision: async () => (await getSetting(c.env, "registration_enabled")) !== "0",
+  });
   if (user.disabled_at) throw errors.forbidden("账号已被停用");
   // 记录会话原始用户：act-as 切换后 c.get("user") 是目标用户，self 类校验应以原始用户为准
   c.set("selfId", user.id);
@@ -114,7 +117,9 @@ export async function accessMiddleware(c: Context<AppEnv>, next: Next) {
     if (joined.length) {
       resolved = await resolveWorkspace(c.env.DB, user.id, null);
     } else {
-      const created = await ensurePersonalWorkspace(c.env.DB, user.id);
+      const rawQuota = Number(await getSetting(c.env, "default_quota_bytes"));
+      const quotaBytes = Number.isFinite(rawQuota) && rawQuota > 0 ? rawQuota : 1_073_741_824;
+      const created = await ensurePersonalWorkspace(c.env.DB, user.id, { quotaBytes });
       await ensureRootDir(c.env.DB, created.id);
       resolved = { workspace: created, role: "owner" as const };
     }

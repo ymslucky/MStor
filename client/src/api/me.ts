@@ -36,9 +36,16 @@ export const getAdminOverview = () => api<AdminOverview>("/api/me/admin/overview
 export interface AdminSettings {
   trash_retention_days: number;
   audit_enabled: boolean;
+  registration_enabled: boolean;
+  default_quota_bytes: number;
 }
 
 export const getAdminSettings = () => api<AdminSettings>("/api/me/admin/settings", { skipActAs: true });
 
-export const patchAdminSettings = (body: { trash_retention_days?: number; audit_enabled?: boolean }) =>
+export const patchAdminSettings = (body: {
+  trash_retention_days?: number;
+  audit_enabled?: boolean;
+  registration_enabled?: boolean;
+  default_quota_bytes?: number;
+}) =>
   api<{ ok: true }>("/api/me/admin/settings", { method: "PATCH", json: body, skipActAs: true });

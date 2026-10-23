@@ -3,7 +3,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { clearSessionFlag } from "../api/client";
 import { setUploadLimits } from "../api/uploads";
-import { STORAGE_KEYS, getString, removeItem, setString } from "../lib/storage";
+import { STORAGE_KEYS, removeItem, setString } from "../lib/storage";
 import { ConfirmDialog } from "../components/ui";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { UploadQueueProvider } from "../hooks/UploadQueueProvider";
@@ -50,9 +50,11 @@ function AppShellLayout() {
 
   if (!me) return <div className="p-8 text-center text-ink-dim">加载中…</div>;
 
-  const actAs = getString(STORAGE_KEYS.actAs);
-  // 档案行始终显示登录账号（self）：act-as 查看他人空间时当前空间用户会变化
-  const account = me.self ?? me;
+  // 以服务端返回的 self 判定 act-as，避免 localStorage 残留造成误判；
+  // 档案行显示当前身份（目标用户），并用「管理员代管」标明会话仍是管理员。
+  const sessionAccount = me.self ?? me;
+  const actingAs = !!me.self && me.self.id !== me.id;
+  const account = me;
 
   // 切空间：写本地偏好 → 清缓存 → 整页重载，确保所有在途/缓存查询都带上新的 x-workspace
   const switchWorkspace = (id: string) => {
@@ -76,7 +78,7 @@ function AppShellLayout() {
             collapsed ? "md:w-16" : "md:w-60"
           }`}
         >
-          <SidebarNav collapsed={collapsed} onToggle={toggle} isPlatformAdmin={account.role === "admin"} />
+          <SidebarNav collapsed={collapsed} onToggle={toggle} isPlatformAdmin={sessionAccount.role === "admin"} />
           <div className={`space-y-3 border-t border-line py-4 ${collapsed ? "px-2" : "px-3"}`}>
             {!collapsed && (
               <WorkspaceSwitcher
@@ -86,7 +88,7 @@ function AppShellLayout() {
               />
             )}
             <StorageMeter usedBytes={me.usedBytes} quotaBytes={me.quotaBytes} compact={collapsed} />
-            <AccountMenu account={account} collapsed={collapsed} onLogout={() => setLogoutOpen(true)} />
+            <AccountMenu account={account} actingAs={actingAs} collapsed={collapsed} onLogout={() => setLogoutOpen(true)} />
           </div>
         </aside>
 
@@ -101,7 +103,7 @@ function AppShellLayout() {
             id="main-content"
             className="min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6 sm:py-6 md:flex md:min-h-0 md:flex-col md:px-8 md:py-6"
           >
-            {actAs && (
+            {actingAs && (
               <div className="mb-4 flex flex-wrap items-center gap-x-2 rounded-xl bg-warn-soft px-4 py-2 text-xs text-warn-text">
                 正在以管理员身份查看「{me.name}」的空间
                 <button className="font-medium underline" onClick={() => setExitActOpen(true)}>
