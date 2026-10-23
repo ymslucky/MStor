@@ -30,7 +30,8 @@ v8 借鉴并落地：
 ### v8.6 长页面滚动与审计表
 
 - AppShell 主内容区统一 overflow-y-auto + overscroll-contain，StatusBar 始终是 flex 兄弟，不覆盖内容。
-- 审计页/审计表使用 md:flex + min-h-0 + flex-1 + overflow-auto；20 行时表格内部滚动，sticky 表头生效。
+- 审计页/审计表使用 md:flex + min-h-0 + flex-1 + overflow-auto；20 行时表格内部滚动。
+- sticky 表头必须写在 th 上（sticky + bg-bg-sub + z-sticky），表格用 border-separate；只在 thead 上放背景会在 border-collapse 下透出数据行。
 - 视觉 mock 审计数据从 3 行增至 20 行，覆盖“数据变多才溢出”的回归。
 - 补 invitation.create / revoke / accept 中文动作标签。
 

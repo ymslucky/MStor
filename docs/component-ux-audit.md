@@ -99,8 +99,9 @@ Trade-off：桌面端分享多一个图标；重命名/移动多一次点击。
 修复：
 
 - main 统一改为 overflow-y-auto + overscroll-contain：所有长页面（设置、成员、分享、用户管理、审计…）都在主内容区内滚动；
-- 审计页改为 md:flex md:min-h-0 md:flex-1 md:flex-col，AuditTable 的表格区 md:min-h-0 md:flex-1 md:overflow-auto，表头 sticky 真正生效；
-- 视觉 mock 的审计数据从 3 条增加到 20 条，基线可捕获此类“数据变多才出现”的问题；
+- 审计页改为 md:flex md:min-h-0 md:flex-1 md:flex-col，AuditTable 的表格区 md:min-h-0 md:flex-1 md:overflow-auto；
+- sticky 表头改为 **th 自身 sticky + bg-bg-sub + z-sticky + border-separate**；只给 thead 加背景在 border-collapse 下会透出数据行，导致“表头与数据行重叠”；用户管理表同步修复；
+- 视觉 mock 的审计数据从 3 条增加到 20 条，并把审计基线滚到中段，覆盖 sticky 表头与数据行叠字；
 - 顺带补齐 invitation.create / invitation.revoke / invitation.accept 的中文动作标签。
 
 ## 7. 验证

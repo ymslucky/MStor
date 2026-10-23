@@ -1,7 +1,7 @@
 # MStor 功能与操作体验验证（2026-10-22）
 
 > 范围：客户端主要页面 + 服务端关键接口。方法：既有自动化用例、服务端本地 shim、headless Chrome 视觉/交互检查、代码走查；对发现的缺陷补回归用例。
-> 结论：本轮定位并修复 24 个真实问题；核心页面在 1440/390 视口无横向溢出，自动化闸门全绿。真实 R2 上传、Cloudflare Access 登录、PWA 离线与跨浏览器下载仍需真机回归（见 §5）。
+> 结论：本轮定位并修复 25 个真实问题；核心页面在 1440/390 视口无横向溢出，自动化闸门全绿。真实 R2 上传、Cloudflare Access 登录、PWA 离线与跨浏览器下载仍需真机回归（见 §5）。
 
 ## 1. 验证结果
 
@@ -68,6 +68,7 @@
 | 22 | P1 | 视频没有缩略图；大文件/秒传上传不生成缩略图；视频预览无 poster/错误提示/playsInline | makeThumbnail 增加视频抽帧（中间帧、300MB/8s 上限）；缩略图统一在队列侧覆盖秒传/分片/小文件；网格用视频首帧+播放角标；预览补 poster/preload/playsInline/加载与不支持编码提示 |
 | 23 | P1 | 审计页 20 行时主内容溢出到 StatusBar 下方；长表格无内部滚动 | main 统一 overflow-y-auto；审计页 flex + 表格区 overflow-auto；20 行视觉 fixture；补邀请动作中文标签 |
 | 24 | P1 | admin.act_as 在 x-act-as 中间件按请求写审计，一次进入产生多条重复日志（且允许 self） | 新增显式 POST /admin/act-as 记录一次；中间件只解析上下文；self 禁止；补 admin user/settings 审计 |
+| 25 | P1 | 审计表滚动后数据行透出 sticky 表头（border-collapse + thead 背景不遮行） | sticky/背景/z 移到 th，表格改 border-separate；用户管理表同步；审计视觉 fixture 滚到中段 |
 
 ## 4. 操作体验复核
 

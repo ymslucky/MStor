@@ -59,14 +59,14 @@ export function AuditTable({ events }: { events: AuditEvent[] }) {
       {rows.length === 0 ? (
         <p className="px-3 py-8 text-center text-sm text-ink-3">{events.length === 0 ? "暂无审计事件" : "没有匹配的事件"}</p>
       ) : (
-        <div className="md:min-h-0 md:flex-1 md:overflow-auto">
-        <table className="w-full border-collapse text-sm">
-          <thead className="sticky top-0 bg-bg-sub">
+        <div data-testid="audit-scroll" className="md:min-h-0 md:flex-1 md:overflow-auto">
+        <table className="w-full border-separate border-spacing-0 text-sm">
+          <thead>
             <tr className="text-left text-2xs tracking-wide text-ink-3 uppercase">
-              <th scope="col" className="px-3 py-2 font-medium">动作</th>
-              <th scope="col" className="hidden px-3 py-2 font-medium sm:table-cell">操作者</th>
-              <th scope="col" className="hidden px-3 py-2 font-medium md:table-cell">对象</th>
-              <th scope="col" className="px-3 py-2 text-right font-medium">时间</th>
+              <th scope="col" className="sticky top-0 z-sticky border-b border-line bg-bg-sub px-3 py-2 font-medium">动作</th>
+              <th scope="col" className="sticky top-0 z-sticky hidden border-b border-line bg-bg-sub px-3 py-2 font-medium sm:table-cell">操作者</th>
+              <th scope="col" className="sticky top-0 z-sticky hidden border-b border-line bg-bg-sub px-3 py-2 font-medium md:table-cell">对象</th>
+              <th scope="col" className="sticky top-0 z-sticky border-b border-line bg-bg-sub px-3 py-2 text-right font-medium">时间</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">

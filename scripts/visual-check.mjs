@@ -323,7 +323,11 @@ const CASES = [
   { name: "settings-desktop", path: "/settings/account", width: 1440, height: 900, marker: "账户信息" },
   { name: "tags-desktop", path: "/tags?tag=t1", width: 1440, height: 900, marker: "重要" },
   { name: "platform-users", path: "/platform/users", width: 1440, height: 900, marker: "用户管理" },
-  { name: "platform-audit", path: "/platform/audit", width: 1440, height: 900, marker: "日志审计" },
+  {
+    name: "platform-audit", path: "/platform/audit", width: 1440, height: 900, marker: "日志审计",
+    // 滚到中段，验证 sticky 表头背景确实遮住数据行（旧基线 never scrolled）
+    action: "(() => { const el = document.querySelector('[data-testid=\"audit-scroll\"]'); if (el) el.scrollTop = 180; return true; })()",
+  },
   { name: "trash-desktop", path: "/trash", width: 1440, height: 900, marker: "回收站" },
   {
     name: "shares-desktop", path: "/shares", width: 1440, height: 900, marker: "我的分享",

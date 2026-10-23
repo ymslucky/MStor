@@ -571,7 +571,7 @@
 
 - 现象：20 条审计记录时表格最后几行被 StatusBar 遮住，表头在滚动时不可用。
 - 根因：AppShell main 只有 min-h-0 没有 overflow；AuditTable 没有自己的滚动区；视觉 mock 只有 3 行，基线没有暴露。
-- 修复：main 统一 overflow-y-auto + overscroll-contain；审计页 flex 填满、表格区 md:overflow-auto；20 行 fixture 入视觉基线；补邀请动作标签。
+- 修复：main 统一 overflow-y-auto + overscroll-contain；审计页 flex 填满、表格区 md:overflow-auto；sticky 改用 th + bg + z + border-separate（修复滚动时数据行透出表头）；20 行且滚到中段的 fixture 入视觉基线；补邀请动作标签。
 - 客户端 269 例、server 30、visual 22/22。
 
 ### 19.21 视频缩略图与预览
