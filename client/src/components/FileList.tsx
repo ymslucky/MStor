@@ -381,18 +381,16 @@ export default function FileList({
             {/* 关键动作直接展示：文件「下载 + 分享」，文件夹「分享」；移动端仅下载+更多，把宽度让给文件名 */}
             {download}
             {onShare && (
-              <span className="hidden md:contents">
-                <RowAction
-                  label={`分享 ${n.name}`}
-                  tone="violet"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onShare(n);
-                  }}
-                >
-                  <Link2 size={14} aria-hidden />
-                </RowAction>
-              </span>
+              <RowAction
+                label={`分享 ${n.name}`}
+                tone="violet"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onShare(n);
+                }}
+              >
+                <Link2 size={14} aria-hidden />
+              </RowAction>
             )}
             {/* 次要动作（收藏/重命名/移动/标签/删除…）全部收进更多 */}
             <RowAction

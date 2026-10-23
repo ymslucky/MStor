@@ -222,18 +222,16 @@ export default function Browser() {
           <Download size={14} aria-hidden />
         </a>
       )}
-      <span className="hidden md:contents">
-        <RowAction
-          label={`分享 ${n.name}`}
-          tone="violet"
-          onClick={(e) => {
-            e.stopPropagation();
-            setSharing(n);
-          }}
-        >
-          <Link2 size={14} aria-hidden />
-        </RowAction>
-      </span>
+      <RowAction
+        label={`分享 ${n.name}`}
+        tone="violet"
+        onClick={(e) => {
+          e.stopPropagation();
+          setSharing(n);
+        }}
+      >
+        <Link2 size={14} aria-hidden />
+      </RowAction>
       <RowAction
         label={`更多操作 ${n.name}`}
         onClick={(e) => {
