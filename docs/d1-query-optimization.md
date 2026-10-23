@@ -3,6 +3,7 @@
 > 生产库：mstor（D1 7d08a95a-6f35-4e8a-850f-682ec77d4f84，APAC/HKG）
 > 数据来源：wrangler d1 insights mstor --time-period 7d，以及生产 EXPLAIN QUERY PLAN + 查询 meta.rows_read。
 > 当前数据规模：1 workspace / 1 user / 325 nodes / 24 audit / 25 node_views / 7 shares。
+> 说明：30d insights 里仍有旧版 owner_id/迁移 DDL 查询，属于历史 SQL，不作为本轮现网代码优化对象；以 7d 当前查询为准。
 
 ## 1. 结论
 
@@ -114,7 +115,7 @@ planner 选 idx_nodes_sha(workspace_id) 全扫 workspace。
 
 ## 5. 验证
 
-- 生产迁移：0017 已执行，6 条索引创建成功；
+- 生产迁移：0017 已执行，6 条索引创建成功；Worker 已部署（版本 3e52c7d0-c52c-457f-941f-c6d24069b84d）；
 - EXPLAIN 复核：audit 走 idx_audit_created；tree 走 idx_nodes_dirs_tree；ancestor 走 PK；membership 走覆盖索引且无 TEMP B-TREE；
 - 本地：tsc / eslint / test:server:local 29 项 / check:migrations 17 文件 / check:schema 通过。
 
