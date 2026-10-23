@@ -18,6 +18,7 @@
 | [audit-system-analysis.md](./audit-system-analysis.md) | 审计体系评估：act-as 重复日志根因、Cloudflare/AWS/GCP/NIST 对比、分步重构 | 记录 |
 | [workspace-sharing-analysis.md](./workspace-sharing-analysis.md) | 空间共享决策记录：收敛为个人云盘，仅保留外链分享；成员 UI 已移除 | 记录 |
 | [share-security.md](./share-security.md) | 公开分享安全：提取码限流、匿名页体验、noindex/referrer、WAF 待配置 | 记录 |
+| [regression-2026-10-23.md](./regression-2026-10-23.md) | 2026-10-23 回归验证：自动化、生产烟测、功能矩阵、待确认配置 | 记录 |
 | [../DESIGN.md](../DESIGN.md) | OpenDesign 9 段 schema 的 MStor 设计意图（色/字/间距/组件/动效/语气/品牌/反模式） | 权威 |
 
 ## 阅读顺序（新人/接手）
