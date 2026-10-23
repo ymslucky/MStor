@@ -9,6 +9,7 @@ export const STORAGE_KEYS = {
   filesTable: "mstor_files_table",
   uploadConcurrency: "mstor_upload_concurrency",
   resume: "mstor_resume",
+  uploadQueue: "mstor_upload_queue",
   uploadConflict: "mstor_upload_conflict",
   skin: "mstor_skin",
   density: "mstor_density",

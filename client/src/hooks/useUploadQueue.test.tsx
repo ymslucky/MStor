@@ -3,6 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { expect, test, vi, beforeEach } from "vitest";
 import { useUploadQueue } from "./useUploadQueue";
+import { saveQueueSnapshot } from "../lib/uploadQueue";
 
 vi.mock("../api/uploads", () => ({
   uploadSmall: vi.fn(),
@@ -40,6 +41,32 @@ function makeFile(name: string, size: number): File {
   Object.defineProperty(f, "size", { value: size });
   return f;
 }
+
+test("刷新后把未完成项恢复为待选文件，匹配原文件后继续上传", async () => {
+  saveQueueSnapshot([
+    {
+      key: 7,
+      name: "resume.bin",
+      size: 5,
+      parentId: "",
+      lastModified: 123,
+      status: "uploading",
+      progress: 0.2,
+    },
+  ]);
+  vi.mocked(uploadSmall).mockResolvedValue({ id: "n1", name: "resume.bin", size: 5 });
+  const { result } = renderHook(() => useUploadQueue(), { wrapper });
+  expect(result.current.items[0].status).toBe("needs-file");
+  expect(result.current.items[0].lastModified).toBe(123);
+
+  const file = makeFile("resume.bin", 5);
+  Object.defineProperty(file, "lastModified", { value: 123 });
+  act(() => {
+    expect(result.current.restoreFiles([file])).toBe(1);
+  });
+  await waitFor(() => expect(result.current.items[0].status).toBe("done"));
+  saveQueueSnapshot([]);
+});
 
 function wrapper({ children }: { children: ReactNode }) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });

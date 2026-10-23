@@ -4,12 +4,14 @@ import { ensureDir } from "../api/nodes";
 import { abortUpload, attachThumbnail, getSmallFileLimit, instantUpload, sha256Hex, uploadLarge, uploadSmall } from "../api/uploads";
 import type { Part } from "../api/uploads";
 import type { PendingUpload } from "../lib/dirscan";
+import { loadQueueSnapshot, saveQueueSnapshot } from "../lib/uploadQueue";
+import type { PersistedQueueItem } from "../lib/uploadQueue";
 import { clearResume, fingerprint, loadResume, saveResume } from "../lib/resume";
 import { queryKeys } from "../lib/queryKeys";
 import { MAX_PART_CONCURRENCY, getUploadConcurrency } from "../lib/settings";
 import { SpeedTracker } from "../lib/speed";
 
-export type QueueStatus = "pending" | "uploading" | "paused" | "done" | "error";
+export type QueueStatus = "pending" | "uploading" | "paused" | "done" | "error" | "needs-file";
 
 export interface QueueItem {
   key: number;
@@ -18,7 +20,10 @@ export interface QueueItem {
   path?: string;
   size: number;
   parentId: string;
-  file: File;
+  /** 刷新恢复的条目在用户重新选择文件前没有 File */
+  file?: File;
+  /** 文件最后修改时间；用于刷新后匹配同一文件 */
+  lastModified: number;
   status: QueueStatus;
   progress: number;
   /** 估计上传速度（bytes/s），uploading 态有效 */
@@ -30,11 +35,38 @@ export interface QueueItem {
   fingerprint?: string;
 }
 
+function toSnapshot(items: QueueItem[]): PersistedQueueItem[] {
+  return items
+    .filter((it) => it.status !== "done")
+    .map((it) => ({
+      key: it.key,
+      name: it.name,
+      path: it.path,
+      size: it.size,
+      parentId: it.parentId,
+      lastModified: it.lastModified,
+      fingerprint: it.fingerprint,
+      status: it.status === "done" ? "pending" : it.status,
+      progress: it.progress,
+      uploadId: it.uploadId,
+      error: it.error,
+    }));
+}
+
+function restoredItems(): QueueItem[] {
+  return loadQueueSnapshot().map((p: PersistedQueueItem) => ({
+    ...p,
+    file: undefined,
+    status: "needs-file" as const,
+    error: "页面刷新后需要重新选择文件继续",
+  }));
+}
+
 export function useUploadQueue() {
   const queryClient = useQueryClient();
-  const [items, setItems] = useState<QueueItem[]>([]);
-  const itemsRef = useRef<QueueItem[]>([]);
-  const seq = useRef(0);
+  const [items, setItems] = useState<QueueItem[]>(restoredItems);
+  const itemsRef = useRef<QueueItem[]>(items);
+  const seq = useRef(items.reduce((max, it) => Math.max(max, it.key), 0));
   const running = useRef(false);
   // 取消/暂停：在途分片请求 AbortController + 已取消标记（结果落地时保持「已取消」态）
   const controllers = useRef(new Map<number, AbortController>());
@@ -66,6 +98,13 @@ export function useUploadQueue() {
     itemsRef.current = itemsRef.current.map((it) => (it.key === key ? { ...it, ...patch } : it));
     setItems([...itemsRef.current]);
   }, []);
+
+  // 队列快照：上传中进度会持续触发，800ms debounce 避免频繁写 localStorage；
+  // pagehide 再同步落一次，保证刷新/切后台后仍显示待恢复条目。
+  useEffect(() => {
+    const timer = window.setTimeout(() => saveQueueSnapshot(toSnapshot(items)), 800);
+    return () => window.clearTimeout(timer);
+  }, [items]);
 
   // 速度采样收尾：完成/失败/取消后丢弃采样器，重试从零起算
   const resetSampling = useCallback((key: number) => {
@@ -120,6 +159,15 @@ export function useUploadQueue() {
     saveResume(item.fingerprint, acc);
   }, []);
 
+  useEffect(() => {
+    const onPageHide = () => {
+      saveQueueSnapshot(toSnapshot(itemsRef.current));
+      for (const it of itemsRef.current) stashResume(it.key);
+    };
+    window.addEventListener("pagehide", onPageHide);
+    return () => window.removeEventListener("pagehide", onPageHide);
+  }, [stashResume]);
+
   const drain = useCallback(async () => {
     if (running.current) return;
     running.current = true;
@@ -128,6 +176,11 @@ export function useUploadQueue() {
       for (;;) {
         const next = itemsRef.current.find((it) => it.status === "pending");
         if (!next) break;
+        const file = next.file;
+        if (!file) {
+          update(next.key, { status: "needs-file", error: "页面刷新后需要重新选择文件继续" });
+          continue;
+        }
         // 上传前才被取消的项：直接落「已取消」，不再发起
         if (cancelled.current.has(next.key)) {
           cancelled.current.delete(next.key);
@@ -140,18 +193,18 @@ export function useUploadQueue() {
         try {
           // 嵌套上传：先逐级 ensure 中间目录，得到最终父目录
           const parentId = next.path ? await ensureDirs(next.parentId, next.path) : next.parentId;
-          const isLarge = next.file.size > getSmallFileLimit();
+          const isLarge = file.size > getSmallFileLimit();
           // 大文件才维护续传记录（fingerprint）；有续传记录说明此前已查过秒传未命中，跳过避免重复 hash
           const resume = isLarge && next.fingerprint ? loadResume(next.fingerprint) : null;
           // 秒传（先查后传）：流式算 SHA-256（大文件安全）后查询，命中直接建 node 零文件体传输
-          const sha = resume ? null : await sha256Hex(next.file).catch(() => null);
-          const instant = sha ? await instantUpload(next.file, parentId, sha) : null;
+          const sha = resume ? null : await sha256Hex(file).catch(() => null);
+          const instant = sha ? await instantUpload(file, parentId, sha) : null;
           let uploadedNodeId: string | null = null;
           if (instant) {
             uploadedNodeId = instant.id;
             onProgress(next.key, 1);
           } else if (isLarge) {
-            const fp = next.fingerprint ?? fingerprint(next.file, next.parentId);
+            const fp = next.fingerprint ?? fingerprint(file, next.parentId);
             if (!next.fingerprint) update(next.key, { fingerprint: fp });
             const acc = { uploadId: resume?.uploadId ?? "", partSize: 0, parts: [] as Part[], done: 0 };
             if (resume) {
@@ -161,7 +214,7 @@ export function useUploadQueue() {
               acc.done = resume.done;
             }
             partAcc.current.set(next.key, acc);
-            const created = await uploadLarge(next.file, parentId, (p) => onProgress(next.key, p), 1000, {
+            const created = await uploadLarge(file, parentId, (p) => onProgress(next.key, p), 1000, {
               signal: controller.signal,
               onUploadId: (uploadId) => {
                 update(next.key, { uploadId });
@@ -179,7 +232,7 @@ export function useUploadQueue() {
             });
             uploadedNodeId = created.nodeId;
           } else {
-            const created = await uploadSmall(next.file, parentId, {
+            const created = await uploadSmall(file, parentId, {
               signal: controller.signal,
               onProgress: (r) => onProgress(next.key, r),
               sha256: sha ?? undefined,
@@ -195,7 +248,7 @@ export function useUploadQueue() {
             scheduleFilesRefresh();
             // 图片/视频缩略图统一在队列侧生成：秒传/大文件/小文件都能覆盖；晚到后刷新一次列表
             if (uploadedNodeId) {
-              void attachThumbnail(next.file, uploadedNodeId).then(() => scheduleFilesRefresh());
+              void attachThumbnail(file, uploadedNodeId).then(() => scheduleFilesRefresh());
             }
           }
         } catch (e) {
@@ -228,7 +281,7 @@ export function useUploadQueue() {
         const [file, path] = it instanceof File ? [it, undefined] : [it.file, it.path];
         return {
           key: ++seq.current, name: file.name, path, size: file.size,
-          parentId, file, status: "pending" as QueueStatus, progress: 0,
+          parentId, file, lastModified: file.lastModified, status: "pending" as QueueStatus, progress: 0,
           // 大文件才计算指纹（续传只对 multipart 有意义）
           fingerprint: file.size > getSmallFileLimit() ? fingerprint(file, parentId) : undefined,
         };
@@ -236,6 +289,39 @@ export function useUploadQueue() {
       itemsRef.current = [...itemsRef.current, ...normalized];
       setItems([...itemsRef.current]);
       void drain();
+    },
+    [drain],
+  );
+
+  /** 刷新后用户重新选择原文件：按 name+size+lastModified 匹配 needs-file 条目，恢复为 pending。 */
+  const restoreFiles = useCallback(
+    (files: File[]): number => {
+      const pool = [...files];
+      let matched = 0;
+      const next = itemsRef.current.map((it) => {
+        if (it.status !== "needs-file") return it;
+        const idx = pool.findIndex(
+          (f) => f.name === it.name && f.size === it.size && f.lastModified === it.lastModified,
+        );
+        if (idx < 0) return it;
+        const file = pool.splice(idx, 1)[0];
+        matched += 1;
+        return {
+          ...it,
+          file,
+          status: "pending" as QueueStatus,
+          error: undefined,
+          fingerprint:
+            it.fingerprint ??
+            (file.size > getSmallFileLimit() ? fingerprint(file, it.parentId) : undefined),
+        };
+      });
+      if (matched > 0) {
+        itemsRef.current = next;
+        setItems([...next]);
+        void drain();
+      }
+      return matched;
     },
     [drain],
   );
@@ -285,5 +371,5 @@ export function useUploadQueue() {
     [resetSampling],
   );
 
-  return { items, add, retry, cancel, purge };
+  return { items, add, retry, cancel, purge, restoreFiles };
 }

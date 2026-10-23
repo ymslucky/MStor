@@ -1,5 +1,7 @@
+import { useRef } from "react";
 import { CircleAlert, CircleCheck, CloudUpload, Pause, Play, RotateCcw, Trash2, X } from "lucide-react";
 import { useUploadQueueActions, useUploadQueueState } from "../hooks/UploadQueueProvider";
+import { toast } from "./Toaster";
 import { formatBytes } from "../lib/format";
 import { Surface } from "./ui";
 
@@ -12,10 +14,12 @@ const itemPercent = (progress: number) => Math.max(0, Math.min(100, Math.round(p
  */
 export function GlobalUploadDock() {
   const { items } = useUploadQueueState();
-  const { retry, cancel, purge } = useUploadQueueActions();
-  // 已完成项不再占用浮层（否则「上传（空闲）」常驻角落）；失败/暂停项保留，便于重试或彻底取消
+  const { retry, cancel, purge, restoreFiles } = useUploadQueueActions();
+  const restoreInput = useRef<HTMLInputElement>(null);
+  // 已完成项不再占用浮层（否则「上传（空闲）」常驻角落）；失败/暂停/待恢复项保留
   const visible = items.filter((i) => i.status !== "done");
   if (visible.length === 0) return null;
+  const needsFile = visible.filter((i) => i.status === "needs-file");
 
   const active = visible.filter((i) => i.status === "pending" || i.status === "uploading" || i.status === "paused");
   // 完成字节 = Σ(size × progress)；progress 是 0..1，不能再去掉 100
@@ -37,6 +41,33 @@ export function GlobalUploadDock() {
             </span>
           </span>
         </div>
+
+        {needsFile.length > 0 && (
+          <div className="flex items-center justify-between gap-2 border-t border-line bg-warn-soft/60 px-3 py-2 text-2xs text-warn-text">
+            <span className="min-w-0">有 {needsFile.length} 个上传等待重新选择文件</span>
+            <button
+              type="button"
+              className="shrink-0 underline"
+              onClick={() => restoreInput.current?.click()}
+            >
+              选择文件继续
+            </button>
+            <input
+              ref={restoreInput}
+              type="file"
+              multiple
+              className="sr-only"
+              aria-label="选择文件继续上传"
+              onChange={(e) => {
+                const files = [...(e.target.files ?? [])];
+                e.currentTarget.value = "";
+                if (!files.length) return;
+                const matched = restoreFiles(files);
+                if (!matched) toast("未找到匹配文件，请选择原文件", "error");
+              }}
+            />
+          </div>
+        )}
 
         <div className="h-1 w-full bg-primary-soft" aria-hidden>
           <div className="h-full bg-primary transition-[width] duration-200 ease-out" style={{ width: `${percent}%` }} />
@@ -106,6 +137,26 @@ export function GlobalUploadDock() {
                       <Trash2 size={11} aria-hidden />
                     </button>
                   </span>
+                </div>
+              )}
+
+              {it.status === "needs-file" && (
+                <div className="mt-1 flex items-center justify-between gap-1 text-warn-text">
+                  <span className="flex min-w-0 items-center gap-1">
+                    <CircleAlert size={12} aria-hidden className="shrink-0" />
+                    <span className="truncate" title={it.error}>
+                      等待重新选择文件
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`放弃恢复 ${it.name}`}
+                    title="放弃恢复（清理续传记录）"
+                    className="text-ink-3 transition-colors hover:text-danger-text"
+                    onClick={() => purge(it.key)}
+                  >
+                    <Trash2 size={11} aria-hidden />
+                  </button>
                 </div>
               )}
 
