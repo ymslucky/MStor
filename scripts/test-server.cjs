@@ -381,6 +381,14 @@ async function main() {
       headers: { ...auth, "x-act-as": targetId, "x-workspace": me.json.workspace.id },
     });
     assertEqual(stale.status, 200, "act-as 带旧 x-workspace 仍应 200，实际 " + stale.status + " " + stale.text.slice(0, 120));
+    // 浏览器原生 <img>/<video>/<a> 无法带 x-act-as 头：content 必须支持 act_as 查询参数
+    const uploaded = await call(env, "/api/files/upload?name=act-as.bin&parentId=", {
+      method: "PUT",
+      headers: { ...auth, "x-act-as": targetId, "content-type": "application/octet-stream" },
+      body: new Uint8Array([8, 9]),
+    });
+    const direct = await call(env, "/api/files/" + uploaded.json.id + "/content?act_as=" + targetId, { headers: auth });
+    assertEqual(direct.status, 200, "act_as 查询参数直读内容应 200，实际 " + direct.status + " " + direct.text.slice(0, 120));
   });
 
   await check("HTTP：审计 v2 覆盖分享创建与文件删除", async () => {

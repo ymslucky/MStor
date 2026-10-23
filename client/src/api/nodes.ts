@@ -1,4 +1,5 @@
 import { api } from "./client";
+import { STORAGE_KEYS, getString } from "../lib/storage";
 import { purgeNode } from "./trash";
 import type { ListFilesResult, Node } from "./types";
 
@@ -56,4 +57,12 @@ export const batchMoveNodes = (ids: string[], parentId: string) =>
     json: { ids, parentId },
   });
 
-export const contentUrl = (id: string, dl = false) => `/api/files/${id}/content${dl ? "?dl=1" : ""}`;
+export const contentUrl = (id: string, dl = false) => {
+  // 图片/视频/下载走浏览器原生 URL，无法带 x-act-as 头；act-as 时用查询参数
+  const params = new URLSearchParams();
+  if (dl) params.set("dl", "1");
+  const actAs = getString(STORAGE_KEYS.actAs);
+  if (actAs) params.set("act_as", actAs);
+  const qs = params.toString();
+  return `/api/files/${id}/content${qs ? `?${qs}` : ""}`;
+};

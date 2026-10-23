@@ -1,8 +1,16 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { deleteNodePermanently } from "./nodes";
+import { contentUrl, deleteNodePermanently } from "./nodes";
+import { STORAGE_KEYS, removeItem, setString } from "../lib/storage";
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  removeItem(STORAGE_KEYS.actAs);
+});
+
+test("contentUrl 在 act-as 时带 act_as 查询参数", () => {
+  expect(contentUrl("f1")).toBe("/api/files/f1/content");
+  setString(STORAGE_KEYS.actAs, "target id");
+  expect(contentUrl("f1", true)).toBe("/api/files/f1/content?dl=1&act_as=target+id");
 });
 
 function okRes(body: unknown = { ok: true }) {

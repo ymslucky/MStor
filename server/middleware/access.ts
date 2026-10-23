@@ -94,8 +94,13 @@ export async function accessMiddleware(c: Context<AppEnv>, next: Next) {
   c.set("selfId", user.id);
   // 原始用户行（act-as 替换前）：供 /api/me 返回登录账号展示
   c.set("selfUser", user);
-  // admin 切换空间：x-act-as 指向目标用户；非 admin 忽略该头（物理隔离不被绕过）
-  const actAs = c.req.header("x-act-as");
+  // admin 切换空间：x-act-as 指向目标用户；非 admin 忽略该头（物理隔离不被绕过）。
+  // 浏览器原生 <img>/<video>/<a> 无法带自定义头，所以 content/thumb 额外接受 act_as 查询参数。
+  const directActAs =
+    (c.req.method === "GET" || c.req.method === "HEAD") && /^\/api\/files\/[^/]+\/(content|thumb)$/.test(c.req.path)
+      ? c.req.query("act_as")
+      : undefined;
+  const actAs = c.req.header("x-act-as") ?? directActAs;
   if (actAs && user.platform_admin === 1) {
     const target = await c.env.DB.prepare("SELECT * FROM users WHERE id = ?1").bind(actAs).first<UserRow>();
     if (!target) throw errors.notFound();
@@ -115,7 +120,7 @@ export async function accessMiddleware(c: Context<AppEnv>, next: Next) {
   }
   // 租户解析：act-as 必须解析目标用户默认空间，忽略浏览器残留的管理员 x-workspace；
   // 未指定 x-workspace 时用默认空间；首登无空间则就地建个人空间（幂等）
-  const requested = c.req.header("x-act-as") ? null : (c.req.header("x-workspace") ?? null);
+  const requested = actAs ? null : (c.req.header("x-workspace") ?? null);
   let resolved;
   try {
     resolved = await resolveWorkspace(c.env.DB, user.id, requested);
