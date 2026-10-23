@@ -49,6 +49,8 @@ function renderShell(initial = "/") {
 test("shows user name, quota and nav links", async () => {
   renderShell();
   expect(await screen.findByText("Alice")).toBeInTheDocument();
+  // 长页面统一在主内容区滚动，StatusBar/上传队列不会盖住最后一行
+  expect(document.getElementById("main-content")?.className).toContain("overflow-y-auto");
   // 桌面侧栏导航以 role="navigation" 语义断言；移动端底部 Tab 为另一导航不干扰
   const nav = screen.getByRole("navigation", { name: "主导航" });
   expect(within(nav).getByRole("link", { name: "文件" })).toBeInTheDocument();

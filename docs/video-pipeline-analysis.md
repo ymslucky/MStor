@@ -81,7 +81,7 @@ Transcoder API 支持生成 sprite sheet（雪碧图）用于时间轴预览，�
 | 维度 | MStor 当前 | Cloudflare Stream | Mux | MediaConvert | GCP Transcoder |
 |---|---|---|---|---|---|
 | 缩略图生成 | 浏览器抽帧 | 服务端转码 + 按需 URL | 服务端转码 + 按需 URL | 批量 job 输出 JPEG | 转码 job + sprite |
-| 按时间取帧 | 仅 10%/默认帧 | 任意 time | 任意 time + smartcrop | 由 job 配置 | job 配置 |
+| 按时间取帧 | 中间帧（不可配置） | 任意 time | 任意 time + smartcrop | 由 job 配置 | job 配置 |
 | 已有视频补图 | 无（仅首帧兜底） | 是 | 是 | 是 | 是 |
 | 编码兼容 | 依赖浏览器 | 服务端转码/HLS | 服务端转码/HLS | 服务端转码 | 服务端转码 |
 | 预览协议 | 原文件 + Range | HLS/自适应 | HLS/自适应 | HLS/MP4 | HLS/DASH |
@@ -120,7 +120,7 @@ Transcoder API 支持生成 sprite sheet（雪碧图）用于时间轴预览，�
 ### Step 2（近期）
 
 - 对已有视频：打开预览时抽帧并异步 POST thumb，成功后失效文件列表；或提供“批量补图”后台任务。
-- 多候选帧（10% / 50% / 80%）取非纯黑/最高信息量帧；短于 1s 的视频取首帧。
+- 多候选帧（20% / 50% / 80%）取非纯黑/最高信息量帧；短于 1s 的视频取首帧。
 - 缩略图尺寸/质量可配置，增加 640px 版本用于预览 poster。
 - 记录缩略图失败原因/重试次数，提供手动“重新生成缩略图”。
 

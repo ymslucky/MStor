@@ -88,8 +88,23 @@ Trade-off：桌面端分享多一个图标；重命名/移动多一次点击。
 5. **移动端排序/列显隐**（P3）：当前只有桌面列菜单。
 6. **操作菜单键盘可达性**（P3）：菜单已支持 ↑↓/Esc；补「Shift+F10」打开菜单的入口。
 
-## 6. 验证
+## 6. 布局与滚动系统性修复
 
-- 客户端 265 例、server 29 项、visual 22/22 全绿；
+审计页 20 行时，表格内容会画到 StatusBar 下方；根因不是单个表格，而是 **主内容区缺少受控滚动容器**：
+
+- AppShell 的 main 是 md:flex-1 md:min-h-0，但没有 overflow-y-auto；
+- 页面内容高于 main 时直接溢出绘制，StatusBar 是 flex 兄弟而不是覆盖层，看起来像“盖住”；
+- AuditTable 的 Surface/table 也没有自己的滚动区，20 行会把卡片撑到视口之外。
+
+修复：
+
+- main 统一改为 overflow-y-auto + overscroll-contain：所有长页面（设置、成员、分享、用户管理、审计…）都在主内容区内滚动；
+- 审计页改为 md:flex md:min-h-0 md:flex-1 md:flex-col，AuditTable 的表格区 md:min-h-0 md:flex-1 md:overflow-auto，表头 sticky 真正生效；
+- 视觉 mock 的审计数据从 3 条增加到 20 条，基线可捕获此类“数据变多才出现”的问题；
+- 顺带补齐 invitation.create / invitation.revoke / invitation.accept 的中文动作标签。
+
+## 7. 验证
+
+- 客户端 268 例、server 29 项、visual 22/22 全绿；
 - 操作入口变化已更新 files/grid/preview 等视觉基线；
 - 操作测试从直接点击行内按钮改为「更多 → 菜单项」，与真实用户路径一致。

@@ -27,12 +27,19 @@ v8 借鉴并落地：
 - 右键菜单与「更多」共用 useNodeActions，行为不分叉；更多按钮 coarse 指针 44px。
 - 工具条/命令面板/侧栏评分与改进项见 docs/component-ux-audit.md。
 
+### v8.6 长页面滚动与审计表
+
+- AppShell 主内容区统一 overflow-y-auto + overscroll-contain，StatusBar 始终是 flex 兄弟，不覆盖内容。
+- 审计页/审计表使用 md:flex + min-h-0 + flex-1 + overflow-auto；20 行时表格内部滚动，sticky 表头生效。
+- 视觉 mock 审计数据从 3 行增至 20 行，覆盖“数据变多才溢出”的回归。
+- 补 invitation.create / revoke / accept 中文动作标签。
+
 ### v8.5 框选选择
 
 - FileList 支持空白区域鼠标框选：固定定位矩形、命中 data-node-id 行/卡片、替换选择；Shift/Ctrl/Cmd 追加。
 - 只在粗指针为 false 且起点不在行/按钮/输入框/表头时启动，避免与行拖拽移动、触屏滚动冲突。
 - 单击空白（未拖动）清空选择；框选覆盖列表、虚拟列表与网格三种渲染路径。
-- 新增 FileList 框选用例；客户端 267 例。
+- 新增 FileList 框选用例；客户端 268 例。
 
 ### v8.3 视频缩略图与预览
 

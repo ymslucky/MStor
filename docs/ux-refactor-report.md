@@ -527,7 +527,7 @@
 
 ### 19.14 功能与操作体验验证
 
-- 逐功能走查 + 自动化复核发现并修复 22 个问题：邀请撤销 404、审计操作者空白、分享子目录 loading、分享下载 objectURL、提取码空提交不重试、命令面板空态文案、预览层语义/焦点、成员加载错误、入群通知链接、平台兜底 header、重复 title、选中态弱/不稳定、视频缩略图/预览缺失。
+- 逐功能走查 + 自动化复核发现并修复 23 个问题：邀请撤销 404、审计操作者空白、分享子目录 loading、分享下载 objectURL、提取码空提交不重试、命令面板空态文案、预览层语义/焦点、成员加载错误、入群通知链接、平台兜底 header、重复 title、选中态弱/不稳定、视频缩略图/预览缺失、审计长列表溢出。
 - 详见 [functional-audit.md](functional-audit.md)；闸门：客户端 265 例、server 本地 29 项、visual 22/22（像素 0.00%）。
 
 ### 19.16 命令面板重构
@@ -559,9 +559,16 @@
 - 逐组件评估文件选择、列表布局、操作入口、工具栏、侧栏/顶栏、命令面板、弹窗、批量条、空态/加载态。
 - 操作入口：关键动作直接展示（桌面下载+分享+更多，移动下载+更多），次要动作折叠进菜单；菜单补收藏，统一 useNodeActions。
 - 选择能力：批量勾选、Shift 范围、Ctrl/Cmd+A、长按、Esc、空白区域鼠标框选均已具备；框选支持 Shift/Ctrl 追加。
-- 评分与优先级见 docs/component-ux-audit.md；客户端 267 例、server 29、visual 22/22。
+- 评分与优先级见 docs/component-ux-audit.md；客户端 268 例、server 29、visual 22/22。
 
-### 19.19 视频缩略图与预览
+### 19.19 日志审计长列表布局
+
+- 现象：20 条审计记录时表格最后几行被 StatusBar 遮住，表头在滚动时不可用。
+- 根因：AppShell main 只有 min-h-0 没有 overflow；AuditTable 没有自己的滚动区；视觉 mock 只有 3 行，基线没有暴露。
+- 修复：main 统一 overflow-y-auto + overscroll-contain；审计页 flex 填满、表格区 md:overflow-auto；20 行 fixture 入视觉基线；补邀请动作标签。
+- 客户端 268 例、server 29、visual 22/22。
+
+### 19.20 视频缩略图与预览
 
 - 根因：makeThumbnail 只处理图片；uploadSmall 才补缩略图，分片/秒传路径完全跳过；网格对无 thumb 的视频只显示类型图标；video 预览没有 poster/加载/错误态。
 - 修复：客户端视频抽帧（中间帧，300MB/8s 上限）；队列侧统一补缩略图覆盖三条上传路径；网格用首帧+播放角标；预览补 poster、preload=metadata、playsInline、加载与编码不支持提示。

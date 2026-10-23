@@ -99,7 +99,7 @@ function AppShellLayout() {
           />
           <main
             id="main-content"
-            className="min-w-0 flex-1 px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6 sm:py-6 md:flex md:min-h-0 md:flex-col md:px-8 md:py-6"
+            className="min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6 sm:py-6 md:flex md:min-h-0 md:flex-col md:px-8 md:py-6"
           >
             {actAs && (
               <div className="mb-4 flex flex-wrap items-center gap-x-2 rounded-xl bg-warn-soft px-4 py-2 text-xs text-warn-text">

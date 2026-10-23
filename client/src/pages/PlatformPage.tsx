@@ -42,7 +42,7 @@ export default function PlatformPage({ kind, me: injected }: { kind: Kind; me?: 
   }
 
   return (
-    <div className="md:pb-4">
+    <div className={kind === "audit" ? "md:flex md:min-h-0 md:flex-1 md:flex-col md:pb-4" : "md:pb-4"}>
       <PageHeader
         title={
           <span className="flex items-center gap-2">

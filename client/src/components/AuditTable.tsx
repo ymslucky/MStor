@@ -18,6 +18,9 @@ const ACTION_LABEL: Record<string, string> = {
   "share.create": "创建分享",
   "auth.login": "登录",
   "admin.act_as": "以管理员身份进入空间",
+  "invitation.create": "创建邀请",
+  "invitation.revoke": "撤销邀请",
+  "invitation.accept": "接受邀请",
   "admin.user_patch": "修改用户",
   "admin.settings_patch": "修改全局设置",
   "member.invite": "邀请成员",
@@ -47,8 +50,8 @@ export function AuditTable({ events }: { events: AuditEvent[] }) {
   }, [events, q]);
 
   return (
-    <Surface className="overflow-hidden">
-      <div className="flex items-center justify-between gap-2 border-b border-line px-3 py-2">
+    <Surface className="overflow-hidden md:flex md:min-h-0 md:flex-1 md:flex-col">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-line px-3 py-2">
         <SearchInput label="筛选审计事件" placeholder="筛选动作或操作者…" value={q} onChange={setQ} className="w-56" />
         <span className="num shrink-0 text-2xs text-ink-3">{rows.length} 条</span>
       </div>
@@ -56,6 +59,7 @@ export function AuditTable({ events }: { events: AuditEvent[] }) {
       {rows.length === 0 ? (
         <p className="px-3 py-8 text-center text-sm text-ink-3">{events.length === 0 ? "暂无审计事件" : "没有匹配的事件"}</p>
       ) : (
+        <div className="md:min-h-0 md:flex-1 md:overflow-auto">
         <table className="w-full border-collapse text-sm">
           <thead className="sticky top-0 bg-bg-sub">
             <tr className="text-left text-2xs tracking-wide text-ink-3 uppercase">
@@ -80,6 +84,7 @@ export function AuditTable({ events }: { events: AuditEvent[] }) {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </Surface>
   );

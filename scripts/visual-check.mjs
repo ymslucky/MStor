@@ -119,11 +119,13 @@ const apiResponse = (url) => {
       users: { total: 3, active: 2, disabled: 1, platformAdmins: 1 },
       workspaces: { total: 2, members: 3 },
       storage: { usedBytes: ME.usedBytes, quotaBytes: ME.quotaBytes, trashBytes: ME.storage.trashBytes },
-      recentAudit: [
-        { action: "upload", actorName: "Alice", targetId: "f1", createdAt: NOW - 60000 },
-        { action: "share.create", actorName: "Alice", targetId: "s1", createdAt: NOW - 3600000 },
-        { action: "member.invite", actorName: "Bob", targetId: "b@example.com", createdAt: NOW - 7200000 },
-      ],
+      // 20 条：覆盖日志页在 20 行时主内容区必须内部滚动、不能被 StatusBar 遮住
+      recentAudit: Array.from({ length: 20 }, (_, i) => ({
+        action: ["invitation.create", "invitation.revoke", "admin.act_as", "upload", "share.create"][i % 5],
+        actorName: i % 3 === 0 ? "Bob" : "Alice",
+        targetId: i % 2 === 0 ? "f1" : "b@example.com",
+        createdAt: NOW - i * 3600000,
+      })),
       topWorkspaces: [],
     };
   }
