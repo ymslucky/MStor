@@ -304,22 +304,8 @@ body {
 
 @media (pointer: coarse) {
   .tap { min-height: 44px; min-width: 44px; }
-  /* 触屏设备始终显示行内操作/网格操作（不依赖 hover 媒体查询的准确性） */
-  .row-actions, .grid-card-actions { opacity: 1 !important; }
 }
-
-/* 无 hover 能力（触屏/iPad）：网格卡片操作组常显 */
-@media (hover: none) {
-  .grid-card-actions { opacity: 1; }
-  .row-actions { opacity: 1 !important; }
-}
-/* 桌面宽度 + 鼠标设备：行内操作默认淡出，hover/focus 再出现，降低列表噪声。
-   窄屏（手机/分屏）始终显示，避免依赖 hover 媒体查询在触屏模拟下失效。 */
-@media (min-width: 768px) and (hover: hover) {
-  .row-actions { opacity: 0; transition: opacity var(--duration-fast) var(--ease-out-soft); }
-  .group:hover .row-actions,
-  .group:focus-within .row-actions { opacity: 1; }
-}
+/* v8.4：操作入口常显（列表单个「更多」、网格固定下载+更多），不再依赖 hover */
 
 /* ============================================================
    皮肤：只覆盖 L1 颜色，不改结构（html[data-skin]）

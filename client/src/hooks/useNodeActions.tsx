@@ -1,4 +1,4 @@
-import { Copy, Download, ExternalLink, FolderInput, Info, Pencil, Share2, Tag, Trash2 } from "lucide-react";
+import { Copy, Download, ExternalLink, FolderInput, Info, Pencil, Share2, Star, Tag, Trash2 } from "lucide-react";
 import type { Node } from "../api/types";
 import { contentUrl } from "../api/nodes";
 import type { ContextMenuItem } from "../components/ContextMenu";
@@ -17,6 +17,8 @@ interface Handlers {
   onDelete: (node: Node) => void;
   onDetail: (node: Node) => void;
   onTag: (node: Node) => void;
+  isFavorited?: (node: Node) => boolean;
+  onToggleFavorite?: (node: Node) => void;
 }
 
 /**
@@ -35,6 +37,18 @@ export function useNodeActions(h: Handlers) {
         else h.onPreview(n);
       },
     },
+    ...(h.onToggleFavorite
+      ? [
+          {
+            label: h.isFavorited?.(n) ? "取消收藏" : "收藏",
+            icon: <Star size={14} aria-hidden fill={h.isFavorited?.(n) ? "currentColor" : "none"} />,
+            onClick: () => {
+              h.closeMenu();
+              h.onToggleFavorite?.(n);
+            },
+          },
+        ]
+      : []),
     ...(n.is_dir
       ? []
       : [

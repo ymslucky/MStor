@@ -296,28 +296,22 @@ export default function FileList({
       );
     return (
       <span
-        className="row-actions flex shrink-0 items-center justify-center gap-0.5 px-1"
+        className="flex shrink-0 items-center justify-end gap-0.5 px-1"
         onClick={(e) => e.stopPropagation()}
         onDoubleClick={(e) => e.stopPropagation()}
       >
         {onMoreMenu ? (
-          <>
-            {/* 桌面：完整操作组；移动：收进「更多」菜单，把宽度让给文件名 */}
-            <span className="hidden items-center gap-0.5 md:flex">
-              {download}
-              {actions?.(n)}
-            </span>
-            <RowAction
-              label={`更多操作 ${n.name}`}
-              className="md:hidden"
-              onClick={(e) => {
-                e.stopPropagation();
-                onMoreMenu(n, e.currentTarget.getBoundingClientRect());
-              }}
-            >
-              <MoreHorizontal size={14} aria-hidden />
-            </RowAction>
-          </>
+          // 所有视口都只保留一个「更多」入口，动作收进菜单；不再依赖 hover 才出现
+          <RowAction
+            label={`更多操作 ${n.name}`}
+            className="tap"
+            onClick={(e) => {
+              e.stopPropagation();
+              onMoreMenu(n, e.currentTarget.getBoundingClientRect());
+            }}
+          >
+            <MoreHorizontal size={16} aria-hidden />
+          </RowAction>
         ) : (
           <>
             {download}

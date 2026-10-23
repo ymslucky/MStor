@@ -144,7 +144,8 @@ test("rename via dialog calls renameNode", async () => {
   vi.mocked(renameNode).mockResolvedValue({ ok: true });
   const { user } = renderWith(<Browser />);
   await screen.findByText("hello.txt");
-  await user.click(screen.getByRole("button", { name: /重命名 hello.txt/ }));
+  await user.click(screen.getByRole("button", { name: /更多操作 hello.txt/ }));
+  await user.click(screen.getByRole("menuitem", { name: "重命名" }));
   const input = screen.getByLabelText("名称");
   await user.clear(input);
   await user.type(input, "world.txt");
@@ -157,7 +158,8 @@ test("delete asks confirm dialog then calls deleteNode", async () => {
   vi.mocked(deleteNode).mockResolvedValue({ ok: true });
   const { user } = renderWith(<Browser />);
   await screen.findByText("hello.txt");
-  await user.click(screen.getByRole("button", { name: /删除 hello.txt/ }));
+  await user.click(screen.getByRole("button", { name: /更多操作 hello.txt/ }));
+  await user.click(screen.getByRole("menuitem", { name: "删除" }));
   // 弹窗出现且未确认前不调用删除
   expect(await screen.findByText("确定删除「hello.txt」？可在回收站恢复。")).toBeInTheDocument();
   expect(deleteNode).not.toHaveBeenCalled();
@@ -166,7 +168,8 @@ test("delete asks confirm dialog then calls deleteNode", async () => {
   expect(screen.queryByText("确定删除「hello.txt」？可在回收站恢复。")).not.toBeInTheDocument();
   expect(deleteNode).not.toHaveBeenCalled();
   // 再次打开并在弹窗内确认
-  await user.click(screen.getByRole("button", { name: /删除 hello.txt/ }));
+  await user.click(screen.getByRole("button", { name: /更多操作 hello.txt/ }));
+  await user.click(screen.getByRole("menuitem", { name: "删除" }));
   await user.click(await screen.findByRole("button", { name: "删除" }));
   await waitFor(() => expect(deleteNode).toHaveBeenCalledWith("f1"));
 });
@@ -325,7 +328,8 @@ test("move via dialog calls moveNode with target dir", async () => {
   vi.mocked(moveNode).mockResolvedValue({ ok: true });
   const { user } = renderWith(<Browser />);
   await screen.findByText("hello.txt");
-  await user.click(screen.getByRole("button", { name: /移动 hello.txt/ }));
+  await user.click(screen.getByRole("button", { name: /更多操作 hello.txt/ }));
+  await user.click(screen.getByRole("menuitem", { name: "移动" }));
   await user.click(screen.getByRole("button", { name: "根目录" }));
   await user.click(screen.getByRole("button", { name: "确定" }));
   await waitFor(() => expect(moveNode).toHaveBeenCalledWith("f1", ""));

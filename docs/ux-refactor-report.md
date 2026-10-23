@@ -554,7 +554,14 @@
 - hover 不再覆盖选中色；表头全选增加 indeterminate；Esc 在列表/网格/行首 checkbox 焦点下均可清空选择。
 - 新增 list-selected / grid-selected 基线；补充 FileList/useKeyboardNav 用例。
 
-### 19.18 视频缩略图与预览
+### 19.18 组件 UX 评估与操作入口常显
+
+- 逐组件评估文件选择、列表布局、操作入口、工具栏、侧栏/顶栏、命令面板、弹窗、批量条、空态/加载态。
+- 操作入口：列表由 hover 显示 6 个图标改为常显「更多」菜单；网格常显「下载 + 更多」；菜单补收藏动作，统一 useNodeActions。
+- 选择能力：批量勾选、Shift 范围、Ctrl/Cmd+A、长按、Esc 均已有；框选仍缺失，列为下一步 P1。
+- 评分与优先级见 docs/component-ux-audit.md；客户端 265 例、server 29、visual 22/22。
+
+### 19.19 视频缩略图与预览
 
 - 根因：makeThumbnail 只处理图片；uploadSmall 才补缩略图，分片/秒传路径完全跳过；网格对无 thumb 的视频只显示类型图标；video 预览没有 poster/加载/错误态。
 - 修复：客户端视频抽帧（中间帧，300MB/8s 上限）；队列侧统一补缩略图覆盖三条上传路径；网格用首帧+播放角标；预览补 poster、preload=metadata、playsInline、加载与编码不支持提示。

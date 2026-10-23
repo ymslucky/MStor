@@ -345,7 +345,7 @@ const CASES = [
   },
   {
     name: "share-dialog", path: "/", width: 1440, height: 900, marker: "全部文件",
-    action: "document.querySelector('[aria-label^=\"分享 \"]')?.click(); true",
+    action: "(async () => { document.querySelector('[aria-label^=\"更多操作 \"]')?.click(); await new Promise(r => setTimeout(r, 150)); [...document.querySelectorAll('[role=\"menuitem\"]')].find(el => el.textContent.includes('分享'))?.click(); return true; })()",
     check: "document.body.innerText.includes('有效天数')",
   },
   {

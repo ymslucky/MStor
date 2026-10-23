@@ -182,6 +182,8 @@ export default function Browser() {
     onDelete: setDeleting,
     onDetail: setDetail,
     onTag: setTagging,
+    isFavorited: (n) => favIds.has(n.id),
+    onToggleFavorite: toggleFavorite,
   });
   // 行/卡片右键：打开于指针处（组件内越界翻转）
   const onNodeContextMenu = (e: ReactMouseEvent<HTMLElement>, node: Node) => {

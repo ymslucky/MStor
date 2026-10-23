@@ -85,7 +85,7 @@ export function FileCard({ node, thumbSrc, badge, actions }: Props) {
       {actions && (
         <div
           // md 是宽度断点而非 hover 能力：iPad/触屏笔记本同样 ≥md，必须用 (hover:none) 兜底常显
-          className="grid-card-actions absolute top-1.5 right-1.5 z-content flex items-center gap-0.5 rounded-lg border border-line bg-surface-1/95 px-1 py-0.5 shadow-soft transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+          className="grid-card-actions absolute top-1.5 right-1.5 z-content flex items-center gap-0.5 rounded-lg border border-line bg-surface-1/95 px-1 py-0.5 shadow-soft"
           onClick={(e) => e.stopPropagation()}
           onDoubleClick={(e) => e.stopPropagation()}
           onTouchStart={(e) => e.stopPropagation()}
