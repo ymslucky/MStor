@@ -114,7 +114,7 @@ async function main() {
   const now = Date.now();
   const seed = (db) => {
     // 测试夹具约定：workspace id 与 user id 相同（u1），让旧的 owner 维度用例可直接迁移
-    db.prepare("INSERT INTO users (id, access_sub, name, created_at) VALUES ('u1','sub1','A',?)").run(now);
+    db.prepare("INSERT INTO users (id, access_sub, name, created_at, approved_at) VALUES ('u1','sub1','A',?,?)").run(now, now);
     db.prepare("INSERT INTO workspaces (id, name, slug, quota_bytes, created_at) VALUES ('u1','ws','u1',100000,?)").run(now);
     db.prepare("INSERT INTO memberships (workspace_id, user_id, role, created_at) VALUES ('u1','u1','owner',?)").run(now);
     db.prepare("INSERT INTO storage_stats (workspace_id, updated_at) VALUES ('u1',?)").run(now);
@@ -207,7 +207,7 @@ async function main() {
     const schema2 = readFileSync(join(root, "sql/v2/schema.sql"), "utf8");
     const workspaces = require(join(outDir, "server/data/workspaces.js"));
     const seedUser2 = (db, id, sub, email) => {
-      db.prepare("INSERT INTO users (id, access_sub, email, name, created_at) VALUES (?,?,?,?,?)").run(id, sub, email ?? null, id, now);
+      db.prepare("INSERT INTO users (id, access_sub, email, name, created_at, approved_at) VALUES (?,?,?,?,?,?)").run(id, sub, email ?? null, id, now, now);
     };
   
     await check("ensurePersonalWorkspace：幂等（同一空间、单条 owner 成员、storage_stats 就位）", async () => {
@@ -285,6 +285,9 @@ async function main() {
   const worker = require(join(outDir, "server/index.js")).default;
   const ctx = { waitUntil() {}, passThroughOnException() {} };
   function makeEnv(db, bucket) {
+    // 测试默认关闭注册审核，保持既有用例的“第二用户可立即使用”前提；
+    // 审核专项用例会显式打开该设置。
+    db.prepare("INSERT OR REPLACE INTO settings (scope, key, value) VALUES ('global', 'registration_requires_approval', '0')").run();
     return {
       DB: db,
       BUCKET: bucket,
@@ -357,8 +360,8 @@ async function main() {
     assertEqual(me.status, 200, "admin 首登应 200");
     const targetId = "u-target";
     db.prepare(
-      "INSERT INTO users (id, access_sub, email, access_bound_at, name, platform_admin, disabled_at, created_at) VALUES (?1,?2,?3,?4,?5,0,NULL,?6)",
-    ).run(targetId, "sub-target", "target@example.com", Date.now(), "Target", Date.now());
+      "INSERT INTO users (id, access_sub, email, access_bound_at, approved_at, name, platform_admin, disabled_at, created_at) VALUES (?1,?2,?3,?4,?5,?6,0,NULL,?7)",
+    ).run(targetId, "sub-target", "target@example.com", Date.now(), Date.now(), "Target", Date.now());
     const enter = await call(env, "/api/me/admin/act-as", {
       method: "POST",
       headers: { ...auth, "content-type": "application/json" },
@@ -997,11 +1000,21 @@ async function main() {
     const on = await call(env, "/api/me/admin/settings", {
       method: "PATCH",
       headers: { ...admin, "content-type": "application/json" },
-      body: JSON.stringify({ registration_enabled: true, default_quota_bytes: 1073741824 }),
+      body: JSON.stringify({ registration_enabled: true, registration_requires_approval: true, default_quota_bytes: 1073741824 }),
     });
     assertEqual(on.status, 200, "开启注册并设置额度应 200");
     const registered = await call(env, "/api/me", { headers: { "x-dev-email": "new@example.com" } });
-    assertEqual(registered.status, 200, "开启注册后新用户应 200，实际 " + registered.status + " " + registered.text.slice(0, 140));
+    assertEqual(registered.status, 200, "待审核新用户 /api/me 应 200，实际 " + registered.status + " " + registered.text.slice(0, 140));
+    assertEqual(registered.json.pending, true, "默认应进入待审核状态");
+    const pendingId = db.prepare("SELECT id FROM users WHERE email = 'new@example.com'").first().id;
+    const approved = await call(env, "/api/me/admin/users/" + pendingId, {
+      method: "PATCH",
+      headers: { ...admin, "content-type": "application/json" },
+      body: JSON.stringify({ approved: true }),
+    });
+    assertEqual(approved.status, 200, "审核通过应 200");
+    const after = await call(env, "/api/me", { headers: { "x-dev-email": "new@example.com" } });
+    assertEqual(after.status, 200, "审核通过后应可进入，实际 " + after.status);
     const row = db.prepare(
       "SELECT w.quota_bytes q FROM users u JOIN memberships m ON m.user_id = u.id JOIN workspaces w ON w.id = m.workspace_id WHERE u.email = 'new@example.com'",
     ).first();
@@ -1015,6 +1028,12 @@ async function main() {
     const alice = { "x-dev-email": "a@example.com" };
     const bob = { "x-dev-email": "b@example.com" };
     await call(env, "/api/me", { headers: alice });
+    // 该用例验证邀请认领，不测审核；显式关闭审核让 Bob 首登自动通过
+    await call(env, "/api/me/admin/settings", {
+      method: "PATCH",
+      headers: { ...alice, "content-type": "application/json" },
+      body: JSON.stringify({ registration_requires_approval: false }),
+    });
     await call(env, "/api/workspaces/invitations", {
       method: "POST",
       headers: { ...alice, "content-type": "application/json" },

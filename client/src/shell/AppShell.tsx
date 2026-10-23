@@ -3,14 +3,13 @@ import { Outlet, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { clearSessionFlag } from "../api/client";
 import { setUploadLimits } from "../api/uploads";
-import { STORAGE_KEYS, removeItem, setString } from "../lib/storage";
+import { STORAGE_KEYS, removeItem } from "../lib/storage";
 import { ConfirmDialog } from "../components/ui";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { UploadQueueProvider } from "../hooks/UploadQueueProvider";
 import { GlobalUploadDock } from "../components/GlobalUploadDock";
 import { StatusBar } from "../components/StatusBar";
 import { SidebarNav } from "./SidebarNav";
-import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { AccountMenu } from "./AccountMenu";
 import { AppHeader } from "./AppHeader";
 import { PAGE_TITLES } from "./nav";
@@ -18,10 +17,11 @@ import { useMe, useSidebarCollapsed } from "./hooks";
 import StorageMeter from "../components/StorageMeter";
 import OfflineBar from "../components/OfflineBar";
 import { MobileNavDrawer } from "./MobileNavDrawer";
+import { PendingApproval } from "./PendingApproval";
 
 /**
  * 外壳只负责「布局 + 会话级动作」：
- * 侧栏 = SidebarNav + WorkspaceSwitcher + StorageMeter + AccountMenu；
+ * 侧栏 = SidebarNav + StorageMeter + AccountMenu；
  * 顶栏 = AppHeader（桌面/移动共用）；内容 = Outlet；底部 = StatusBar（桌面）。
  * 队列与浮层在导出层包住，切换路由不丢队列。
  */
@@ -49,20 +49,13 @@ function AppShellLayout() {
   }, [pathname, title]);
 
   if (!me) return <div className="p-8 text-center text-ink-dim">加载中…</div>;
+  if (me.pending) return <PendingApproval me={me} />;
 
   // 以服务端返回的 self 判定 act-as，避免 localStorage 残留造成误判；
   // 档案行显示当前身份（目标用户），并用「管理员代管」标明会话仍是管理员。
   const sessionAccount = me.self ?? me;
   const actingAs = !!me.self && me.self.id !== me.id;
   const account = me;
-
-  // 切空间：写本地偏好 → 清缓存 → 整页重载，确保所有在途/缓存查询都带上新的 x-workspace
-  const switchWorkspace = (id: string) => {
-    if (!id || id === me.workspace?.id) return;
-    setString(STORAGE_KEYS.workspace, id);
-    queryClient.clear();
-    window.location.reload();
-  };
 
   return (
     <div className="relative min-h-dvh">
@@ -80,13 +73,6 @@ function AppShellLayout() {
         >
           <SidebarNav collapsed={collapsed} onToggle={toggle} isPlatformAdmin={sessionAccount.role === "admin"} />
           <div className={`space-y-3 border-t border-line py-4 ${collapsed ? "px-2" : "px-3"}`}>
-            {!collapsed && (
-              <WorkspaceSwitcher
-                workspaces={me.workspaces ?? []}
-                currentId={me.workspace?.id}
-                onSwitch={switchWorkspace}
-              />
-            )}
             <StorageMeter usedBytes={me.usedBytes} quotaBytes={me.quotaBytes} compact={collapsed} />
             <AccountMenu account={account} actingAs={actingAs} collapsed={collapsed} onLogout={() => setLogoutOpen(true)} />
           </div>
@@ -134,7 +120,6 @@ function AppShellLayout() {
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
         me={me}
-        onSwitchWorkspace={switchWorkspace}
         onLogout={() => {
           setMenuOpen(false);
           setLogoutOpen(true);

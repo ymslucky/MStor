@@ -559,7 +559,7 @@
 - 逐组件评估文件选择、列表布局、操作入口、工具栏、侧栏/顶栏、命令面板、弹窗、批量条、空态/加载态。
 - 操作入口：关键动作直接展示（桌面下载+分享+更多，移动下载+更多），次要动作折叠进菜单；菜单补收藏，统一 useNodeActions。
 - 选择能力：批量勾选、Shift 范围、Ctrl/Cmd+A、长按、Esc、空白区域鼠标框选均已具备；框选支持 Shift/Ctrl 追加。
-- 评分与优先级见 docs/component-ux-audit.md；客户端 271 例、server 32、visual 22/22。
+- 评分与优先级见 docs/component-ux-audit.md；客户端 273 例、server 32、visual 22/22。
 
 ### 19.19 act-as 重复审计修复
 
@@ -572,7 +572,7 @@
 - 现象：20 条审计记录时表格最后几行被 StatusBar 遮住，表头在滚动时不可用。
 - 根因：AppShell main 只有 min-h-0 没有 overflow；AuditTable 没有自己的滚动区；视觉 mock 只有 3 行，基线没有暴露。
 - 修复：main 统一 overflow-y-auto + overscroll-contain；审计页 flex 填满、表格区 md:overflow-auto；sticky 改用 th + bg + z + border-separate（修复滚动时数据行透出表头）；20 行且滚到中段的 fixture 入视觉基线；补邀请动作标签。
-- 客户端 271 例、server 32、visual 22/22。
+- 客户端 273 例、server 32、visual 22/22。
 
 ### 19.21 视频缩略图与预览
 
@@ -587,14 +587,23 @@
 - 覆盖：act-as、管理员用户/设置、邀请、分享创建/撤销、文件删除/恢复/彻底删除/移动/复制、成员角色/移除。
 - 仍未覆盖登录/下载/查看审计本身；查询分页与保留完整性为下一步。
 - 设置页增加平台管理员可见的「审计日志」开关（settings.audit_enabled，默认开启）；关闭后服务端 auditStmt no-op，历史保留，30s isolate 缓存收敛；开关变更本身仍留痕。
-- 服务端测试 32 项、客户端 271 例、visual 22/22；详见 docs/audit-system-analysis.md。
+- 服务端测试 32 项、客户端 273 例、visual 22/22；详见 docs/audit-system-analysis.md。
 
-### 19.25 身份、注册与空间共享评估
+### 19.25 个人云盘收敛与注册审核
+
+- 按确认裁剪空间成员：设置移除「成员」入口，侧栏/移动抽屉移除空间切换；只保留每个用户一个私有空间与外链分享。
+- 注册审核：migration 0019 增加 users.approved_at；默认需要审核，待审核用户只看到等待页；管理员在用户管理按「待审核」筛选并通过。
+- 注册设置：允许注册、注册后需要审核、默认额度 1GB 均可配置；关闭审核则注册即用。
+- 修复每日 cron 里旧 v1 schema 的 users.used_bytes/owner_id 查询，改为校准 workspaces.used_bytes；生产已校准 4 个 workspace。
+- R2 总预算维持 10GB（global quota），新用户个人空间默认 1GB，后期可扩展。
+- 客户端 273 例、server 32、visual 22/22。
+
+### 19.26 身份、注册与空间共享评估
 
 - act-as 时侧栏/移动抽屉改用目标用户姓名与头像，并显示「管理员代管」；管理员导航仍保留，避免丢失退出入口。
 - 设置新增「访问」分区（平台管理员）：允许新用户注册、新用户默认空间额度（默认 1GB，1GB-1TB）；注册关闭时未知 Access 身份 403，已有账号不受影响。
 - 空间共享评估：不建议直接删除共享；建议默认个人隔离 + 显式共享空间 + 独立外链分享。详见 docs/workspace-sharing-analysis.md。
-- 客户端 271 例、server 32、visual 22/22。
+- 客户端 273 例、server 32、visual 22/22。
 
 ### 19.23 PWA 静默更新
 

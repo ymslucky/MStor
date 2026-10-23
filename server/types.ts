@@ -3,6 +3,7 @@ export interface UserRow {
   access_sub: string; // Cloudflare Access JWT sub（GitHub 身份下同样稳定）
   email: string | null; // 展示与邀请匹配；GitHub 私有邮箱时可为 NULL
   access_bound_at: number | null; // 首次完成 Access 身份绑定时间
+  approved_at: number | null; // 注册审核通过时间；NULL = 待审核
   name: string;
   platform_admin: 0 | 1; // 与 workspace 角色正交：只用于跨空间管理与排障
   created_at: number;

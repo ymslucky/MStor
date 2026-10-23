@@ -5,7 +5,6 @@ import type { Me } from "../api/types";
 import { IconButton, NavItem } from "../components/ui";
 import StorageMeter from "../components/StorageMeter";
 import { AccountMenu } from "./AccountMenu";
-import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { sectionsFor } from "./nav";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { DESKTOP_MEDIA_QUERY } from "../lib/constants";
@@ -19,13 +18,11 @@ export function MobileNavDrawer({
   open,
   onClose,
   me,
-  onSwitchWorkspace,
   onLogout,
 }: {
   open: boolean;
   onClose: () => void;
   me: Me;
-  onSwitchWorkspace: (id: string) => void;
   onLogout: () => void;
 }) {
   const sessionAccount = me.self ?? me;
@@ -73,7 +70,6 @@ export function MobileNavDrawer({
           </nav>
 
           <div className="space-y-3 border-t border-line px-3 py-3">
-            <WorkspaceSwitcher workspaces={me.workspaces ?? []} currentId={me.workspace?.id} onSwitch={onSwitchWorkspace} />
             <StorageMeter usedBytes={me.storage?.usedBytes ?? me.usedBytes} quotaBytes={me.storage?.quotaBytes ?? me.quotaBytes} />
             <AccountMenu account={me} actingAs={actingAs} collapsed={false} onLogout={onLogout} />
           </div>

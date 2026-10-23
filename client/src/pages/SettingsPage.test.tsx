@@ -28,6 +28,7 @@ beforeEach(() => {
     trash_retention_days: 30,
     audit_enabled: true,
     registration_enabled: true,
+    registration_requires_approval: true,
     default_quota_bytes: 1024 ** 3,
   });
 });
@@ -56,6 +57,7 @@ test("admin saves trash retention days in upload tab", async () => {
     trash_retention_days: 30,
     audit_enabled: true,
     registration_enabled: true,
+    registration_requires_approval: true,
     default_quota_bytes: 1024 ** 3,
   });
   vi.mocked(patchAdminSettings).mockResolvedValue({ ok: true });
@@ -78,6 +80,10 @@ test("admin configures registration and default quota in access tab", async () =
   expect(registration).toBeChecked();
   await user.click(registration);
   await waitFor(() => expect(patchAdminSettings).toHaveBeenCalledWith({ registration_enabled: false }));
+  const approval = screen.getByRole("checkbox", { name: "需要审核" });
+  expect(approval).toBeChecked();
+  await user.click(approval);
+  await waitFor(() => expect(patchAdminSettings).toHaveBeenCalledWith({ registration_requires_approval: false }));
   const quota = screen.getByLabelText(/额度（GB）/);
   expect(quota).toHaveValue(1);
   await user.clear(quota);
@@ -91,6 +97,7 @@ test("admin can turn the audit feature off from upload tab", async () => {
     trash_retention_days: 30,
     audit_enabled: true,
     registration_enabled: true,
+    registration_requires_approval: true,
     default_quota_bytes: 1024 ** 3,
   });
   vi.mocked(patchAdminSettings).mockResolvedValue({ ok: true });

@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Ban, CircleCheck, LogIn, Mail, Pencil } from "lucide-react";
+import { Ban, CircleCheck, LogIn, Mail, Pencil, UserCheck } from "lucide-react";
 import { patchAdminUser, startActAs } from "../../api/me";
 import { friendlyMessage } from "../../api/client";
 import { toast } from "../Toaster";
@@ -38,6 +38,7 @@ export function UserRow({
     onError: (e) => toast(friendlyMessage(e), "error"),
   });
   const disabled = u.disabled_at !== null;
+  const pending = u.approved_at === null;
   return (
     <tr className="state-layer border-b border-line last:border-b-0">
       <td className="px-3 py-2.5">
@@ -54,14 +55,23 @@ export function UserRow({
         {u.quota_bytes == null ? "未绑定空间" : formatBytes(u.quota_bytes)}
       </td>
       <td className="px-3 py-2.5">
-        <Pill tone={disabled ? "danger" : "success"}>{disabled ? "已停用" : "正常"}</Pill>
+        <Pill tone={disabled ? "danger" : pending ? "warn" : "success"}>{disabled ? "已停用" : pending ? "待审核" : "正常"}</Pill>
       </td>
       <td className="px-3 py-2.5">
         <div className="flex items-center justify-end gap-1">
+          {pending && (
+            <IconButton
+              label={`通过审核（${u.name}）`}
+              disabled={patch.isPending}
+              onClick={() => patch.mutate({ approved: true })}
+            >
+              <UserCheck size={15} aria-hidden />
+            </IconButton>
+          )}
           <IconButton
             label={`编辑配额（${u.name}）`}
-            disabled={u.quota_bytes == null}
-            title={u.quota_bytes == null ? "该用户尚未首次登录，暂无个人空间可配置" : undefined}
+            disabled={pending || u.quota_bytes == null}
+            title={pending ? "审核通过并首次登录后才能配置额度" : u.quota_bytes == null ? "该用户尚未首次登录，暂无个人空间可配置" : undefined}
             onClick={onQuota}
           >
             <Pencil size={15} aria-hidden />
@@ -82,7 +92,7 @@ export function UserRow({
               <Ban size={15} aria-hidden />
             </IconButton>
           )}
-          {u.id !== selfId && (
+          {u.id !== selfId && !pending && (
             <IconButton
               label={`进入空间（${u.name}）`}
               disabled={enter.isPending}

@@ -12,6 +12,7 @@ export async function seedUser(overrides: Partial<UserRow> & { quota_bytes?: num
     access_sub: `sub-${randomId()}`,
     email: null,
     access_bound_at: null,
+    approved_at: Date.now(),
     name: "tester",
     platform_admin: 0,
     created_at: Date.now(),
@@ -19,9 +20,9 @@ export async function seedUser(overrides: Partial<UserRow> & { quota_bytes?: num
     ...rest,
   };
   await env.DB.prepare(
-    "INSERT INTO users (id, access_sub, email, access_bound_at, name, platform_admin, created_at, disabled_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8)",
+    "INSERT INTO users (id, access_sub, email, access_bound_at, approved_at, name, platform_admin, created_at, disabled_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)",
   )
-    .bind(user.id, user.access_sub, user.email, user.access_bound_at, user.name, user.platform_admin, user.created_at, user.disabled_at)
+    .bind(user.id, user.access_sub, user.email, user.access_bound_at, user.approved_at, user.name, user.platform_admin, user.created_at, user.disabled_at)
     .run();
   // 2.0：每个用户配一个个人空间（路由按 workspace 解析，缺空间会 404）
   // 测试夹具约定：workspace id 与 user id 相同，数据层用例可直接用 u.id 当隔离维度

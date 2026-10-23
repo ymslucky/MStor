@@ -88,6 +88,7 @@ export async function accessMiddleware(c: Context<AppEnv>, next: Next) {
   await refreshAuditEnabled(c.env.DB);
   let user = await bindOrProvision(c.env, ident, {
     canProvision: async () => (await getSetting(c.env, "registration_enabled")) !== "0",
+    approvalRequired: async () => (await getSetting(c.env, "registration_requires_approval")) !== "0",
   });
   if (user.disabled_at) throw errors.forbidden("账号已被停用");
   // 记录会话原始用户：act-as 切换后 c.get("user") 是目标用户，self 类校验应以原始用户为准
@@ -105,6 +106,14 @@ export async function accessMiddleware(c: Context<AppEnv>, next: Next) {
     // 进入动作由 POST /api/me/admin/act-as 显式记录一次（见 routes/me.ts）。
   }
   c.set("user", user);
+  // 待审核用户：只允许读取 /api/me 查看待审状态；其余 API 一律拒绝，避免提前建空间
+  if (user.approved_at === null) {
+    if (c.req.path === "/api/me" && c.req.method === "GET") {
+      await next();
+      return;
+    }
+    throw new HttpError(403, "ACCOUNT_PENDING", "账号待管理员审核");
+  }
   // 租户解析：未指定 x-workspace 时用默认空间；首登无空间则就地建个人空间（幂等）
   const requested = c.req.header("x-workspace") ?? null;
   let resolved;

@@ -12,7 +12,7 @@ export const startActAs = (userId: string) =>
 
 export const patchAdminUser = (
   id: string,
-  body: { quota_bytes?: number; role?: "admin" | "member"; disabled?: boolean; name?: string; email?: string | null },
+  body: { quota_bytes?: number; role?: "admin" | "member"; disabled?: boolean; approved?: boolean; name?: string; email?: string | null },
 ) => api<{ ok: true }>(`/api/me/admin/users/${id}`, { method: "PATCH", json: body, skipActAs: true });
 
 /** 管理台一屏聚合：人/空间/存储/审计（服务端 5 条语句一次返回） */
@@ -37,6 +37,7 @@ export interface AdminSettings {
   trash_retention_days: number;
   audit_enabled: boolean;
   registration_enabled: boolean;
+  registration_requires_approval: boolean;
   default_quota_bytes: number;
 }
 
@@ -46,6 +47,7 @@ export const patchAdminSettings = (body: {
   trash_retention_days?: number;
   audit_enabled?: boolean;
   registration_enabled?: boolean;
+  registration_requires_approval?: boolean;
   default_quota_bytes?: number;
 }) =>
   api<{ ok: true }>("/api/me/admin/settings", { method: "PATCH", json: body, skipActAs: true });

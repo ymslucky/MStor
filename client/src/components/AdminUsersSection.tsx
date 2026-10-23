@@ -35,7 +35,13 @@ export function AdminUsersSection({ selfId }: { selfId: string }) {
     const kw = q.trim().toLowerCase();
     return (users.data?.users ?? []).filter((u) => {
       const matchQ = !kw || u.name.toLowerCase().includes(kw) || (u.email ?? "").toLowerCase().includes(kw);
-      const matchStatus = status === "all" || (status === "disabled" ? u.disabled_at !== null : u.disabled_at === null);
+      const matchStatus =
+        status === "all" ||
+        (status === "disabled"
+          ? u.disabled_at !== null
+          : status === "pending"
+            ? u.approved_at === null
+            : u.disabled_at === null && u.approved_at !== null);
       return matchQ && matchStatus;
     });
   }, [users.data, status, q]);
@@ -52,6 +58,7 @@ export function AdminUsersSection({ selfId }: { selfId: string }) {
             className="h-8 rounded-btn border border-line bg-surface-1 px-2 text-xs text-ink"
           >
             <option value="all">全部</option>
+            <option value="pending">待审核</option>
             <option value="active">正常</option>
             <option value="disabled">已停用</option>
           </select>
@@ -60,7 +67,7 @@ export function AdminUsersSection({ selfId }: { selfId: string }) {
       </div>
 
       <p className="border-b border-line px-3 py-1.5 text-2xs text-ink-3">
-        Cloudflare Access 首登按「绑定邮箱」锚定存量账号；关闭自动建号期间，未绑定的新身份会被拒绝。
+        Cloudflare Access 首登按「绑定邮箱」锚定存量账号；开启审核时，新账号需在此通过审核后才能使用。
       </p>
 
       <AsyncState query={users} skeletonRows={4} skeletonClassName="p-3">

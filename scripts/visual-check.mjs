@@ -61,7 +61,7 @@ const ME = {
 };
 const USER = (id, name, admin, disabled = false, quota = 53687091200) => ({
   id, name, platform_admin: admin ? 1 : 0, quota_bytes: quota, created_at: NOW - 86400000,
-  disabled_at: disabled ? NOW - 3600000 : null, email: `${id}@example.com`,
+  disabled_at: disabled ? NOW - 3600000 : null, approved_at: NOW - 86400000, email: `${id}@example.com`,
 });
 
 const apiResponse = (url) => {
@@ -114,6 +114,15 @@ const apiResponse = (url) => {
     };
   }
   if (p === "/api/search") return { nodes: [], paths: {} };
+  if (p === "/api/me/admin/settings") {
+    return {
+      trash_retention_days: 30,
+      audit_enabled: true,
+      registration_enabled: true,
+      registration_requires_approval: true,
+      default_quota_bytes: 1073741824,
+    };
+  }
   if (p === "/api/me/admin/overview") {
     return {
       users: { total: 3, active: 2, disabled: 1, platformAdmins: 1 },
@@ -370,8 +379,8 @@ const CASES = [
     check: "!!document.querySelector('[role=\"dialog\"][aria-label^=\"预览\"]')",
   },
   {
-    name: "settings-members", path: "/settings/members", width: 1440, height: 900, marker: "空间成员",
-    check: "document.body.innerText.includes('carol@example.com')",
+    name: "settings-access", path: "/settings/access", width: 1440, height: 900, marker: "访问与注册",
+    check: "document.body.innerText.includes('注册后需要审核')",
   },
   {
     name: "create-mobile", path: "/", width: 390, height: 844, marker: "全部文件",

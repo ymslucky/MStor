@@ -13,12 +13,14 @@ CREATE TABLE IF NOT EXISTS users (
   access_sub TEXT NOT NULL UNIQUE,
   email TEXT,
   access_bound_at INTEGER,
+  approved_at INTEGER,
   name TEXT NOT NULL,
   platform_admin INTEGER NOT NULL DEFAULT 0 CHECK (platform_admin IN (0,1)),
   disabled_at INTEGER,
   created_at INTEGER NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE email IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_users_pending ON users(approved_at) WHERE approved_at IS NULL;
 
 -- 租户：workspaces.used_bytes 是配额真相（单条原子 UPDATE 校验），storage_stats 是解释性四分项
 CREATE TABLE IF NOT EXISTS workspaces (

@@ -3,7 +3,7 @@
 > **令牌唯一来源**：`client/src/index.css` 的 `@theme`（含暗色覆盖）。
 > **原语唯一来源**：`client/src/components/ui/*`；页面骨架 `components/layout/PageHeader` + `shell/AppHeader`。
 > **可视化验收**：应用内 `/design` 页（`pages/DesignPage.tsx`）——新增令牌/原语**必须先在此登记**。
-> **v7 实机基线**：`docs/design/v7/` 下 `files-desktop` / `files-mobile`（1440×900 / 390×844）、`grid-desktop`、`dark-desktop`、`tags-desktop`、`platform-users`、`platform-audit`、`shares-desktop`、`settings-desktop`、`trash-desktop`、`grid-mobile`、`palette`、`palette-mobile`、`notifications`、`share-dialog`、`create-dialog`、`batch-bar`、`preview`、`settings-members`、`create-mobile`、`list-selected`、`grid-selected`（共 22 张）。
+> **v7 实机基线**：`docs/design/v7/` 下 `files-desktop` / `files-mobile`（1440×900 / 390×844）、`grid-desktop`、`dark-desktop`、`tags-desktop`、`platform-users`、`platform-audit`、`shares-desktop`、`settings-desktop`、`trash-desktop`、`grid-mobile`、`palette`、`palette-mobile`、`notifications`、`share-dialog`、`create-dialog`、`batch-bar`、`preview`、`settings-access`、`create-mobile`、`list-selected`、`grid-selected`（共 22 张）。
 > **设计意图来源**：根目录 DESIGN.md（OpenDesign 9 段 schema 的 MStor 版本）。
 > 类名合并统一走 `client/src/lib/cn.ts`（clsx + tailwind-merge）。
 
@@ -40,7 +40,7 @@ v8 借鉴并落地：
 - FileList 支持空白区域鼠标框选：固定定位矩形、命中 data-node-id 行/卡片、替换选择；Shift/Ctrl/Cmd 追加。
 - 只在粗指针为 false 且起点不在行/按钮/输入框/表头时启动，避免与行拖拽移动、触屏滚动冲突。
 - 单击空白（未拖动）清空选择；框选覆盖列表、虚拟列表与网格三种渲染路径。
-- 新增 FileList 框选用例；客户端 271 例。
+- 新增 FileList 框选用例；客户端 273 例。
 
 ### v8.3 视频缩略图与预览
 

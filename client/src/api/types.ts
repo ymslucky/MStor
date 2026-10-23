@@ -44,6 +44,8 @@ export interface Me {
   workspace?: WorkspaceSummary;
   /** 我加入的全部空间 */
   workspaces?: WorkspaceSummary[];
+  /** 注册待审核：只允许看到待审页，不加载文件/空间数据 */
+  pending?: boolean;
 }
 
 export type WorkspaceRole = "owner" | "admin" | "member";
@@ -63,6 +65,8 @@ export interface AdminUser {
   quota_bytes: number | null;
   created_at: number;
   disabled_at: number | null;
+  /** 审核通过时间；null 表示待管理员审核 */
+  approved_at: number | null;
   /** Access 身份绑定锚点：首登按 email 锚定存量账号 */
   email: string | null;
 }

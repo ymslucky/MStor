@@ -123,6 +123,17 @@ test("logout confirm clears session and redirects to Access logout", async () =>
   expect(assignMock).toHaveBeenCalledWith("/cdn-cgi/access/logout");
 });
 
+test("pending user sees approval page instead of the app shell", async () => {
+  vi.mocked(getMe).mockResolvedValueOnce({
+    id: "u-pending", name: "Pending", role: "member", quotaBytes: 0, usedBytes: 0, trashRetentionDays: 30,
+    self: { id: "u-pending", name: "Pending", role: "member" }, pending: true,
+  });
+  renderShell();
+  expect(await screen.findByText("账号等待审核")).toBeInTheDocument();
+  expect(screen.queryByRole("navigation", { name: "主导航" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "刷新状态" })).toBeInTheDocument();
+});
+
 test("sidebar shows the target user's name and avatar while acting as another user", async () => {
   localStorage.setItem("mstor_act_as", "u2");
   // admin 进入 Bob 的空间：/api/me 返回当前空间用户 Bob + 登录账号 self=Alice

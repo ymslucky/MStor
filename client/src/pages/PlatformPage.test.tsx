@@ -19,7 +19,7 @@ import { listAdminUsers, patchAdminUser, startActAs } from "../api/me";
 const ME: Me = { id: "u-admin", name: "Alice", role: "admin", quotaBytes: 100, usedBytes: 10, trashRetentionDays: 30, self: { id: "u-admin", name: "Alice", role: "admin" } };
 
 function mkUser(over: Partial<AdminUser> = {}): AdminUser {
-  return { id: "u1", name: "Bob", platform_admin: 0, quota_bytes: 10737418240, created_at: 1, disabled_at: null, email: null, ...over };
+  return { id: "u1", name: "Bob", platform_admin: 0, quota_bytes: 10737418240, created_at: 1, disabled_at: null, approved_at: 1, email: null, ...over };
 }
 
 const TWO_USERS = { users: [mkUser(), mkUser({ id: "u2", name: "Carol", email: "carol@example.com", platform_admin: 1, disabled_at: 5 })] };
@@ -75,6 +75,15 @@ test("self row does not offer entering your own space", async () => {
   renderWith(<PlatformPage me={ME} kind="users" />);
   await screen.findByText("Alice");
   expect(screen.queryByRole("button", { name: "进入空间（Alice）" })).not.toBeInTheDocument();
+});
+
+test("admin approves a pending registration", async () => {
+  vi.mocked(listAdminUsers).mockResolvedValue({ users: [mkUser({ approved_at: null })] });
+  vi.mocked(patchAdminUser).mockResolvedValue({ ok: true });
+  const { user } = renderWith(<PlatformPage me={ME} kind="users" />);
+  const approve = await screen.findByRole("button", { name: "通过审核（Bob）" });
+  await user.click(approve);
+  await waitFor(() => expect(patchAdminUser).toHaveBeenCalledWith("u1", { approved: true }));
 });
 
 test("admin binds an email through the dialog with validation", async () => {

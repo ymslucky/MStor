@@ -25,7 +25,7 @@ function structuredWarn(message: string, fields: Record<string, unknown>) {
 export async function bindOrProvision(
   env: Env,
   ident: AccessIdentity,
-  opts?: { canProvision?: () => Promise<boolean> },
+  opts?: { canProvision?: () => Promise<boolean>; approvalRequired?: () => Promise<boolean> },
 ): Promise<UserRow> {
   const db = env.DB;
   if (ident.email) {
@@ -80,12 +80,15 @@ export async function bindOrProvision(
   const name = ident.email ? ident.email.split("@")[0] : "user";
   const createdAt = Date.now();
   const boundAt = Date.now();
+  // 首任管理员必须直接可用；其他新用户按平台设置进入待审核状态
+  const requiresApproval = !isFirstUser && opts?.approvalRequired ? await opts.approvalRequired() : false;
+  const approvedAt = requiresApproval ? null : Date.now();
   try {
     await db
       .prepare(
-        "INSERT INTO users (id, access_sub, email, access_bound_at, name, platform_admin, created_at) VALUES (?1,?2,?3,?4,?5,?6,?7)",
+        "INSERT INTO users (id, access_sub, email, access_bound_at, approved_at, name, platform_admin, created_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8)",
       )
-      .bind(id, ident.sub, ident.email, boundAt, name, isFirstUser ? 1 : 0, createdAt)
+      .bind(id, ident.sub, ident.email, boundAt, approvedAt, name, isFirstUser ? 1 : 0, createdAt)
       .run();
   } catch (e) {
     if (isUniqueViolation(e)) {
@@ -108,6 +111,7 @@ export async function bindOrProvision(
     access_sub: ident.sub,
     email: ident.email,
     access_bound_at: boundAt,
+    approved_at: approvedAt,
     name,
     platform_admin: isFirstUser ? 1 : 0,
     created_at: createdAt,

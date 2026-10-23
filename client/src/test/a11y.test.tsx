@@ -175,7 +175,7 @@ describe("无障碍闸门", () => {
 
   test("移动端导航抽屉（Radix Dialog 承载焦点与 Esc）", async () => {
     const { baseElement } = wrap(
-      <MobileNavDrawer open onClose={() => {}} me={ME} onSwitchWorkspace={() => {}} onLogout={() => {}} />,
+      <MobileNavDrawer open onClose={() => {}} me={ME} onLogout={() => {}} />,
     );
     expect(await screen.findByTestId("mobile-drawer")).toBeInTheDocument();
     expect(await axe(baseElement)).toHaveNoViolations();

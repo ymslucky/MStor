@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { CloudUpload, Globe, ShieldCheck, UserPlus, UserRound } from "lucide-react";
+import { CloudUpload, Globe, ShieldCheck, UserRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getAdminSettings, patchAdminSettings } from "../api/me";
 import { friendlyMessage } from "../api/client";
@@ -11,16 +11,14 @@ import { formatBytes } from "../lib/format";
 import { queryKeys } from "../lib/queryKeys";
 import { toast } from "../components/Toaster";
 import { PageHeader } from "../components/layout/PageHeader";
-import { MemberPanel } from "../components/MemberPanel";
 import { Button, Field, Input, Pill, SettingRow, Surface } from "../components/ui";
 
-/** 设置只剩三个分区：平台管理能力已迁到 /platform/users、/platform/audit */
-type TabKey = "account" | "upload" | "members" | "access" | "audit";
+/** 设置只有个人账户/上传/平台访问/审计；每个用户一个私有空间，不提供成员共享 UI */
+type TabKey = "account" | "upload" | "access" | "audit";
 
-const TABS: { key: TabKey; label: string; icon: LucideIcon; workspaceOnly?: boolean; platformOnly?: boolean }[] = [
+const TABS: { key: TabKey; label: string; icon: LucideIcon; platformOnly?: boolean }[] = [
   { key: "account", label: "账户", icon: UserRound },
   { key: "upload", label: "上传", icon: CloudUpload },
-  { key: "members", label: "成员", icon: UserPlus, workspaceOnly: true },
   { key: "access", label: "访问", icon: Globe, platformOnly: true },
   { key: "audit", label: "审计", icon: ShieldCheck, platformOnly: true },
 ];
@@ -210,6 +208,34 @@ function RegistrationRow() {
   );
 }
 
+function RegistrationApprovalRow() {
+  const query = useQuery({ queryKey: queryKeys.adminSettings, queryFn: getAdminSettings });
+  const queryClient = useQueryClient();
+  const enabled = query.data?.registration_requires_approval ?? true;
+  const save = useMutation({
+    mutationFn: (next: boolean) => patchAdminSettings({ registration_requires_approval: next }),
+    onSuccess: (_data, next) => {
+      toast(next ? "新注册账号需要管理员审核" : "新注册账号将自动通过", "info");
+      void queryClient.invalidateQueries({ queryKey: queryKeys.adminSettings });
+    },
+    onError: (e) => toast(friendlyMessage(e), "error"),
+  });
+  return (
+    <SettingRow title="注册后需要审核" hint="开启后新账号先进入待审核状态，管理员在「用户管理」通过后才能使用；关闭则注册即用。">
+      <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 text-sm text-ink">
+        <input
+          type="checkbox"
+          className="h-4 w-4 accent-ink"
+          checked={enabled}
+          disabled={query.isPending || save.isPending}
+          onChange={(e) => save.mutate(e.target.checked)}
+        />
+        <span>{enabled ? "需要审核" : "自动通过"}</span>
+      </label>
+    </SettingRow>
+  );
+}
+
 function DefaultQuotaRow() {
   const query = useQuery({ queryKey: queryKeys.adminSettings, queryFn: getAdminSettings });
   const queryClient = useQueryClient();
@@ -247,6 +273,7 @@ function AccessSection() {
         访问与注册
       </h2>
       <RegistrationRow />
+      <RegistrationApprovalRow />
       <DefaultQuotaRow />
     </Surface>
   );
@@ -267,25 +294,20 @@ function AuditSection() {
 export default function SettingsPage({ me }: { me: Me }) {
   // 管理面板看登录账号角色（self）：act-as 查看他人空间时 admin 身份不变
   const account = me.self ?? me;
-  // 成员管理按「当前空间角色」放行（owner/admin）
-  const workspaceRole = me.workspace?.role ?? "member";
-  const tabs = TABS.filter(
-    (t) => (!t.workspaceOnly || workspaceRole !== "member") && (!t.platformOnly || account.role === "admin"),
-  );
+  const tabs = TABS.filter((t) => !t.platformOnly || account.role === "admin");
   // 设置分区由子路由决定（可深链、可后退）；非法路径或无权路径回落到账户页
   const { pathname } = useLocation();
   const seg = pathname.split("/")[2] ?? "account";
-  const known = (["account", "upload", "members", "access", "audit"] as const).includes(seg as TabKey);
+  const known = (["account", "upload", "access", "audit"] as const).includes(seg as TabKey);
   const platformOnly = seg === "access" || seg === "audit";
   const tab: TabKey = known && (!platformOnly || account.role === "admin") ? (seg as TabKey) : "account";
   return (
     <div className="mx-auto w-full max-w-3xl md:pb-4">
-      <PageHeader title="设置" description="账户、上传、成员与审计" />
+      <PageHeader title="设置" description="账户、上传、访问与审计" />
       <TabBar tabs={tabs} active={tab} />
       <div className="space-y-4">
         {tab === "account" && <AccountSection me={me} />}
         {tab === "upload" && <UploadSection isPlatformAdmin={account.role === "admin"} />}
-        {tab === "members" && workspaceRole !== "member" && <MemberPanel />}
         {tab === "access" && account.role === "admin" && <AccessSection />}
         {tab === "audit" && account.role === "admin" && <AuditSection />}
       </div>

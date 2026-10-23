@@ -44,9 +44,10 @@ export default {
       purgeExpiredTrash(env),
       sweepOrphanObjects(env),
       abortStaleUploads(env),
-      env.DB.prepare(`UPDATE users SET used_bytes = (
+      // v2 schema 的配额真相在 workspaces.used_bytes；旧 users.owner_id 查询已废弃
+      env.DB.prepare(`UPDATE workspaces SET used_bytes = (
         SELECT COALESCE(SUM(size), 0) FROM nodes
-        WHERE nodes.owner_id = users.id AND deleted_at IS NULL
+        WHERE workspace_id = workspaces.id AND is_dir = 0 AND deleted_at IS NULL
       )`).run(),
     ]));
   },

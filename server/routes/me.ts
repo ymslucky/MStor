@@ -19,6 +19,18 @@ me.get("/", async (c) => {
   const u = c.get("user");
   // self = 会话原始用户（登录账号）：act-as 查看他人空间时，前端据此区分「登录账号」与「当前空间」
   const s = c.get("selfUser");
+  if (u.approved_at === null) {
+    return c.json({
+      id: u.id,
+      name: u.name,
+      role: "member" as const,
+      quotaBytes: 0,
+      usedBytes: 0,
+      trashRetentionDays: Number(c.env.TRASH_RETENTION_DAYS),
+      self: { id: s.id, name: s.name, role: s.platform_admin === 1 ? "admin" : "member" },
+      pending: true,
+    });
+  }
   // used_bytes 与保留天数配置相互独立，并行降低 D1 串行往返（p99 优化）
   const [used, configuredDays, stats, unread] = await Promise.all([
     usedBytes(c.env.DB, c.get("workspace").id),
@@ -54,7 +66,7 @@ me.get("/", async (c) => {
 
 me.get("/admin/users", requireAdmin, async (c) => {
   const { results } = await c.env.DB.prepare(
-    "SELECT u.id, u.name, u.email, u.created_at, u.disabled_at, u.platform_admin, w.id AS workspace_id, w.quota_bytes, w.used_bytes FROM users u LEFT JOIN memberships m ON m.user_id = u.id AND m.role = 'owner' LEFT JOIN workspaces w ON w.id = m.workspace_id ORDER BY u.created_at",
+    "SELECT u.id, u.name, u.email, u.created_at, u.disabled_at, u.platform_admin, u.approved_at, w.id AS workspace_id, w.quota_bytes, w.used_bytes FROM users u LEFT JOIN memberships m ON m.user_id = u.id AND m.role = 'owner' LEFT JOIN workspaces w ON w.id = m.workspace_id ORDER BY u.created_at",
   ).all();
   return c.json({ users: results });
 });
@@ -67,10 +79,11 @@ const MIN_USER_QUOTA = 1_073_741_824; // 1 GiB
 const MAX_USER_QUOTA = 1_099_511_627_776; // 1 TiB
 
 me.get("/admin/settings", requireAdmin, async (c) => {
-  const [configured, audit, registration, quota] = await Promise.all([
+  const [configured, audit, registration, approval, quota] = await Promise.all([
     getSetting(c.env, "trash_retention_days"),
     getSetting(c.env, "audit_enabled"),
     getSetting(c.env, "registration_enabled"),
+    getSetting(c.env, "registration_requires_approval"),
     getSetting(c.env, "default_quota_bytes"),
   ]);
   const parsedQuota = Number(quota);
@@ -79,6 +92,7 @@ me.get("/admin/settings", requireAdmin, async (c) => {
     // 未配置时默认开启；关闭后服务端 auditStmt 退化为 no-op，历史记录仍保留
     audit_enabled: audit === null ? true : audit !== "0",
     registration_enabled: registration === null ? true : registration !== "0",
+    registration_requires_approval: approval === null ? true : approval !== "0",
     default_quota_bytes: Number.isFinite(parsedQuota) && parsedQuota >= MIN_USER_QUOTA ? parsedQuota : DEFAULT_USER_QUOTA,
   });
 });
@@ -88,13 +102,15 @@ me.patch("/admin/settings", requireAdmin, async (c) => {
     trash_retention_days?: unknown;
     audit_enabled?: unknown;
     registration_enabled?: unknown;
+    registration_requires_approval?: unknown;
     default_quota_bytes?: unknown;
   }>();
   const hasTrash = body.trash_retention_days !== undefined;
   const hasAudit = body.audit_enabled !== undefined;
   const hasRegistration = body.registration_enabled !== undefined;
+  const hasApproval = body.registration_requires_approval !== undefined;
   const hasQuota = body.default_quota_bytes !== undefined;
-  if (!hasTrash && !hasAudit && !hasRegistration && !hasQuota) throw errors.badRequest("没有需要更新的设置");
+  if (!hasTrash && !hasAudit && !hasRegistration && !hasApproval && !hasQuota) throw errors.badRequest("没有需要更新的设置");
   if (
     hasTrash &&
     (!Number.isInteger(body.trash_retention_days) ||
@@ -105,6 +121,7 @@ me.patch("/admin/settings", requireAdmin, async (c) => {
   }
   if (hasAudit && typeof body.audit_enabled !== "boolean") throw errors.badRequest("audit_enabled 须为布尔值");
   if (hasRegistration && typeof body.registration_enabled !== "boolean") throw errors.badRequest("registration_enabled 须为布尔值");
+  if (hasApproval && typeof body.registration_requires_approval !== "boolean") throw errors.badRequest("registration_requires_approval 须为布尔值");
   if (
     hasQuota &&
     (!Number.isInteger(body.default_quota_bytes) ||
@@ -136,6 +153,13 @@ me.patch("/admin/settings", requireAdmin, async (c) => {
       ).bind(body.registration_enabled ? "1" : "0"),
     );
   }
+  if (hasApproval) {
+    settings.push(
+      c.env.DB.prepare(
+        "INSERT INTO settings (scope, key, value) VALUES ('global', 'registration_requires_approval', ?1) ON CONFLICT(scope, key) DO UPDATE SET value = excluded.value",
+      ).bind(body.registration_requires_approval ? "1" : "0"),
+    );
+  }
   if (hasQuota) {
     settings.push(
       c.env.DB.prepare(
@@ -152,6 +176,7 @@ me.patch("/admin/settings", requireAdmin, async (c) => {
       ...(hasTrash ? { trash_retention_days: body.trash_retention_days } : {}),
       ...(hasAudit ? { audit_enabled: nextAudit } : {}),
       ...(hasRegistration ? { registration_enabled: body.registration_enabled } : {}),
+      ...(hasApproval ? { registration_requires_approval: body.registration_requires_approval } : {}),
       ...(hasQuota ? { default_quota_bytes: body.default_quota_bytes } : {}),
     },
     requestId: c.req.header("cf-ray") ?? null,
@@ -201,17 +226,19 @@ me.get("/admin/unbound", requireAdmin, async (c) => {
 });
 
 me.patch("/admin/users/:id", requireAdmin, async (c) => {
-  const { quota_bytes, role, disabled, name, email } = await c.req.json<{
+  const { quota_bytes, role, disabled, name, email, approved } = await c.req.json<{
     quota_bytes?: number;
     role?: "admin" | "member";
     disabled?: boolean;
     name?: string;
     email?: string | null;
+    approved?: boolean;
   }>();
   if (role && !["admin", "member"].includes(role)) throw errors.badRequest("角色不合法");
   if (quota_bytes !== undefined && (!Number.isFinite(quota_bytes) || quota_bytes < 0))
     throw errors.badRequest("配额不合法");
   if (disabled !== undefined && typeof disabled !== "boolean") throw errors.badRequest("disabled 不合法");
+  if (approved !== undefined && typeof approved !== "boolean") throw errors.badRequest("approved 不合法");
   // 名称：trim 后 1-64 字符
   if (name !== undefined && (typeof name !== "string" || name.trim().length < 1 || name.trim().length > 64)) {
     throw errors.badRequest("名称须为 1-64 字符");
@@ -222,12 +249,12 @@ me.patch("/admin/users/:id", requireAdmin, async (c) => {
   }
   // 兜底：不允许停用/降级自己（否则无其他 admin 时永久无法恢复）。
   // selfId 是会话原始用户：act-as 切换空间后 c.get("user") 是目标用户，以原始用户判定才能封住借 act-as 绕过的口子。
-  if (c.req.param("id") === c.get("selfId") && (disabled === true || role === "member")) {
-    throw errors.badRequest("不能停用或降级自己");
+  if (c.req.param("id") === c.get("selfId") && (disabled === true || role === "member" || approved === false)) {
+    throw errors.badRequest("不能停用、降级或取消审核自己");
   }
   // 兜底：不允许停用/降级自己（否则无其他 admin 时永久无法恢复）
-  if (c.req.param("id") === c.get("selfId") && (disabled === true || role === "member")) {
-    throw errors.badRequest("不能停用或降级自己");
+  if (c.req.param("id") === c.get("selfId") && (disabled === true || role === "member" || approved === false)) {
+    throw errors.badRequest("不能停用、降级或取消审核自己");
   }
   const targetId = c.req.param("id");
   const target = await c.env.DB.prepare("SELECT platform_admin, disabled_at FROM users WHERE id = ?1")
@@ -253,6 +280,10 @@ me.patch("/admin/users/:id", requireAdmin, async (c) => {
   if (disabled !== undefined) {
     userSets.push("disabled_at = ?");
     userVals.push(disabled ? Date.now() : null);
+  }
+  if (approved !== undefined) {
+    userSets.push("approved_at = ?");
+    userVals.push(approved ? Date.now() : null);
   }
   if (name !== undefined) {
     userSets.push("name = ?");
