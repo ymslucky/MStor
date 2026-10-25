@@ -15,6 +15,8 @@ export default tseslint.config(
       ".tmp-build/**",
       ".tmp-preview/**",
       ".npm-cache/**",
+      ".agents/**",
+      ".codex/**",
     ],
   },
   js.configs.recommended,
