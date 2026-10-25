@@ -5,7 +5,7 @@ import { HttpError } from "../lib/errors";
 import type { ShareRow } from "../types";
 
 /**
- * 分享下载计数（方案 P2 B3）：
+ * 分享下载计数：
  * - 只有「下载意图」（dl=1 且非 Range）才计数——拖动视频进度条不该耗尽次数；
  * - 计数是**原子扣减**：一条 UPDATE 带全部前置条件，靠 meta.changes 判定成功与否，天然防并发超额；
  * - 同来源 10 分钟内只计一次（dedupe_key 唯一索引），防下载管理器/重试重复计入。

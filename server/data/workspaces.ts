@@ -115,7 +115,7 @@ export async function listMemberships(
   return results.map((row) => ({ workspace: rowToWorkspace(row), role: row.role as WorkspaceRole }));
 }
 
-/** 写操作权限：1.0 三角色都能写，admin 额外管成员/设置；保留单点便于后续细化 */
+/** 写操作权限：当前所有 workspace 角色可写，平台能力由 platform_admin 控制；保留单点便于后续细化 */
 export function canWrite(role: WorkspaceRole): boolean {
   return WORKSPACE_ROLES.includes(role);
 }

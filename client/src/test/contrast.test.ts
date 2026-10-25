@@ -18,7 +18,7 @@ function loadCss(): string {
 const css = loadCss();
 
 /**
- * 设计令牌对比度闸门：把 docs/design-system.md 的 ≥4.5:1 承诺变成 CI 断言。
+ * 设计令牌对比度闸门：把 DESIGN.md 的 ≥4.5:1 承诺变成 CI 断言。
  * 覆盖默认亮色、暗色、slate / ink / brutal 皮肤；半透明浅底先与其所在表面合成。
  */
 

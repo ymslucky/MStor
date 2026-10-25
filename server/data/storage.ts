@@ -3,7 +3,7 @@ import { getSetting } from "../lib/settings";
 import { notifyManagers } from "./notifications";
 
 /**
- * 存储治理（方案 P2 B1）：workspaces.used_bytes 是配额真相，storage_stats 是解释性四分项。
+ * 存储治理：workspaces.used_bytes 是配额真相，storage_stats 是解释性四分项。
  *
  * 写入策略（刻意的取舍）：
  * - 上传等热路径用「增量」：一条 upsert 语句，避免全空间扫描；

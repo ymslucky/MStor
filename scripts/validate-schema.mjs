@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Schema 2.0 本地校验：用 node:sqlite 内存库执行 sql/v2/schema.sql，并断言不变量。
+ * Schema 本地校验：用 node:sqlite 内存库执行 sql/schema.sql，并断言不变量。
  * 目的：在没有 wrangler/workerd 的环境里也能验证 DDL 与关键约束（D1 是 SQLite，语义一致）。
  * 用法：npm run check:schema
  */
@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 
-const schemaPath = fileURLToPath(new URL("../sql/v2/schema.sql", import.meta.url));
+const schemaPath = fileURLToPath(new URL("../sql/schema.sql", import.meta.url));
 const sql = readFileSync(schemaPath, "utf8");
 
 let passed = 0;

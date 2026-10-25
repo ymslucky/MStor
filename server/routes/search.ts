@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "../env";
 import { NODES_PK_INDEX, jsonList, jsonSet } from "../lib/sql";
 
-/** 文件名检索 2.0（方案 P2 B8）：只索引文件名，服务端过滤/排序/分页，不做正文检索 */
+/** 文件名检索：只索引文件名，服务端过滤/排序/分页，不做正文检索 */
 export const search = new Hono<AppEnv>();
 
 const MAX_LIMIT = 100;

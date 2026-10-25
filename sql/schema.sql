@@ -1,13 +1,13 @@
 -- ============================================================
--- MStor Schema 2.0（多租户 + Access 身份 + 物化路径）
--- 清库重建用：npx wrangler d1 execute mstor --remote --file=sql/v2/schema.sql
--- 与 sql/schema.sql（1.x 单租户）并存，切换在 P1.2–P1.5 代码改造的同一提交里完成，
--- 在此之前 master 仍以 1.x schema 为准（保持可部署）。
+-- MStor 当前 Schema（个人云盘 + Access 身份 + 物化路径）
+-- 新环境一次性建库：npx wrangler d1 execute mstor --remote --file=sql/schema.sql
+-- 既有环境必须使用 migrations/；迁移链与本文件保持等价。
 -- 校验：npm run check:schema（node:sqlite 内存库执行全量 DDL + 不变量断言）
+
 -- ============================================================
 
 -- 身份：认证由 Cloudflare Access（GitHub IdP）在边缘承担，access_sub = JWT sub 为唯一锚点；
--- 不自建密码与会话。email 仅作展示与邀请匹配（GitHub 私有邮箱时可为 NULL）。
+-- 不自建密码与会话。email 仅作展示（GitHub 私有邮箱时可为 NULL）。
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   access_sub TEXT NOT NULL UNIQUE,
@@ -251,7 +251,7 @@ CREATE TABLE IF NOT EXISTS node_tags (
 );
 CREATE INDEX IF NOT EXISTS idx_node_tags_node ON node_tags(node_id);
 
--- 站内通知（收件人维度；不做邮件投递，方案 §0.1 假设）
+-- 站内通知（收件人维度；不做邮件投递）
 CREATE TABLE IF NOT EXISTS notifications (
   id TEXT PRIMARY KEY,
   workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,

@@ -16,9 +16,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # 生产运行时依赖不允许存在未豁免的 moderate 及以上漏洞。
+      - run: npm audit --omit=dev --audit-level=moderate
       - run: npm run test:ci
       - run: npm run check
-      # 服务端 SQL 行为测试（node:sqlite 垫片直接调用生产函数，覆盖删除/移动/配额/孤儿清扫）
+      # 服务端本地集成测试：node:sqlite 垫片直接调用生产函数，覆盖删除/移动/配额/孤儿清扫。
       - run: npm run test:server:local
-      # 未纳入 prettier --check：仓库现混有 CRLF/LF，129 个文件会被判为不通过（真实原因是行尾，
-      # 不是排版）。见 .gitattributes 注释；待一次 renormalize + format 提交后再加门禁。
+      # Prettier 门禁待一次独立的行尾归一化提交后启用，避免本 PR 混入无关全量格式化 diff。

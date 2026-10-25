@@ -28,7 +28,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    // 渲染错误留在浏览器控制台：SaaS 版审计只记业务 mutation，不上报前端栈
+    // 渲染错误留在浏览器控制台：当前只审计服务端业务 mutation，不上报前端栈
     console.error("render error:", error, info.componentStack);
   }
 

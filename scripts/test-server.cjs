@@ -8,7 +8,7 @@
  * 为什么需要它：本环境 vitest 起不来（esbuild 配置打包 spawn EPERM，Miniflare 的 workerd 也起不来），
  * 而删除/移动/配额这些路径恰恰是最不能靠"看代码觉得对"的地方。SQLite 语义与 D1 一致，够用。
  *
- * 用法：npm run test:sql
+ * 用法：npm run test:server:local
  */
 const { execSync } = require("node:child_process");
 const { readFileSync, writeFileSync, mkdirSync } = require("node:fs");
@@ -107,7 +107,7 @@ function assertEqual(actual, expected, msg) {
 
 async function main() {
   build();
-  const schema1x = readFileSync(join(root, "sql/schema.sql"), "utf8");
+  const baseSchema = readFileSync(join(root, "sql/schema.sql"), "utf8");
   const trash = require(join(outDir, "server/data/trash.js"));
   const nodes = require(join(outDir, "server/lib/nodes.js"));
 
@@ -121,7 +121,7 @@ async function main() {
   };
   // —— 软删 / 彻底删除 / 移动 / 还原 / 孤儿清扫 ——
   await check("softDeleteMany：文件夹子树整棵软删，配额按文件大小精确扣减", async () => {
-    const db = makeD1(schema1x);
+    const db = makeD1(baseSchema);
     seed(db);
     const rootId = (await nodes.ensureRootDir(db, "u1")).id;
     const dirRow = await nodes.createDir(db, "u1", rootId, "docs");
@@ -137,7 +137,7 @@ async function main() {
   });
 
   await check("permanentDeleteMany：子树行删除、shares 清理、R2 key 全部登记待清扫", async () => {
-    const db = makeD1(schema1x);
+    const db = makeD1(baseSchema);
     const bucket = makeBucket();
     seed(db);
     const rootId = (await nodes.ensureRootDir(db, "u1")).id;
@@ -158,7 +158,7 @@ async function main() {
   });
 
   await check("moveMany：改名 + 子树路径前缀平移", async () => {
-    const db = makeD1(schema1x);
+    const db = makeD1(baseSchema);
     seed(db);
     const rootId = (await nodes.ensureRootDir(db, "u1")).id;
     const a = (await nodes.createDir(db, "u1", rootId, "A")).id;
@@ -176,7 +176,7 @@ async function main() {
   });
 
   await check("restoreTrashNode：还原加回配额，父已删则回根", async () => {
-    const db = makeD1(schema1x);
+    const db = makeD1(baseSchema);
     seed(db);
     const rootId = (await nodes.ensureRootDir(db, "u1")).id;
     const dirRow = await nodes.createDir(db, "u1", rootId, "keep");
@@ -191,7 +191,7 @@ async function main() {
   });
 
   await check("sweepOrphanObjects：宽限期后仅删无引用对象，有引用只出队", async () => {
-    const db = makeD1(schema1x);
+    const db = makeD1(baseSchema);
     const bucket = makeBucket();
     seed(db);
     const rootId = (await nodes.ensureRootDir(db, "u1")).id;
@@ -203,15 +203,14 @@ async function main() {
     assertEqual(db.prepare("SELECT COUNT(*) c FROM orphan_objects").first().c, 0, "全部出队（有引用的不再跟踪）");
   });
 
-  // —— 租户层（schema 2.0）：P1.2 的地基，先测再用 ——
-    const schema2 = readFileSync(join(root, "sql/v2/schema.sql"), "utf8");
-    const workspaces = require(join(outDir, "server/data/workspaces.js"));
+  // —— 租户与个人空间 ——
+      const workspaces = require(join(outDir, "server/data/workspaces.js"));
     const seedUser2 = (db, id, sub, email) => {
       db.prepare("INSERT INTO users (id, access_sub, email, name, created_at, approved_at) VALUES (?,?,?,?,?,?)").run(id, sub, email ?? null, id, now, now);
     };
   
     await check("ensurePersonalWorkspace：幂等（同一空间、单条 owner 成员、storage_stats 就位）", async () => {
-      const db = makeD1(schema2);
+      const db = makeD1(baseSchema);
       seedUser2(db, "u1", "sub1", "a@example.com");
       const w1 = await workspaces.ensurePersonalWorkspace(db, "u1");
       const w2 = await workspaces.ensurePersonalWorkspace(db, "u1");
@@ -226,7 +225,7 @@ async function main() {
     });
   
     await check("resolveWorkspace：默认空间 / 他人空间 403 / 不存在 404", async () => {
-      const db = makeD1(schema2);
+      const db = makeD1(baseSchema);
       seedUser2(db, "u1", "sub1");
       seedUser2(db, "u2", "sub2");
       const mine = await workspaces.ensurePersonalWorkspace(db, "u1");
@@ -245,7 +244,7 @@ async function main() {
     });
   
     await check("listMemberships：多空间按加入顺序，role 正确", async () => {
-      const db = makeD1(schema2);
+      const db = makeD1(baseSchema);
       seedUser2(db, "u1", "sub1");
       seedUser2(db, "u2", "sub2");
       const personal = await workspaces.ensurePersonalWorkspace(db, "u1");
@@ -258,7 +257,7 @@ async function main() {
     });
   
     await check("租户隔离：不同 workspace 同名文件互不冲突且互不可见", async () => {
-      const db = makeD1(schema2);
+      const db = makeD1(baseSchema);
       seedUser2(db, "u1", "sub1");
       seedUser2(db, "u2", "sub2");
       const w1 = await workspaces.ensurePersonalWorkspace(db, "u1");
@@ -342,7 +341,7 @@ async function main() {
   }
 
   await check("HTTP：health 免认证 + /api/me 首登自动建号（首个用户 admin）", async () => {
-    const db = makeD1(schema1x);
+    const db = makeD1(baseSchema);
     const env = makeEnv(db, makeR2());
     const health = await call(env, "/api/health");
     assertEqual(health.status, 200, "health 应 200");
@@ -353,7 +352,7 @@ async function main() {
   });
 
   await check("HTTP：act-as 只在进入端点写一次审计，x-act-as 普通请求不再重复留痕", async () => {
-    const db = makeD1(schema1x);
+    const db = makeD1(baseSchema);
     const env = makeEnv(db, makeR2());
     const auth = { "x-dev-email": "a@example.com" };
     const me = await call(env, "/api/me", { headers: auth });
@@ -392,7 +391,7 @@ async function main() {
   });
 
   await check("HTTP：审计 v2 覆盖分享创建与文件删除", async () => {
-    const db = makeD1(schema1x);
+    const db = makeD1(baseSchema);
     const env = makeEnv(db, makeR2());
     const auth = { "x-dev-email": "a@example.com" };
     await call(env, "/api/me", { headers: auth });
@@ -419,7 +418,7 @@ async function main() {
   });
 
   await check("HTTP：建目录 → 列表 → 上传 → 下载 → Range 206", async () => {
-    const db = makeD1(schema1x);
+    const db = makeD1(baseSchema);
     const bucket = makeR2();
     const env = makeEnv(db, bucket);
     const auth = { "x-dev-email": "a@example.com" };
@@ -463,7 +462,7 @@ async function main() {
   });
 
   await check("HTTP：批量删除 → 回收站 → 批量还原", async () => {
-    const db = makeD1(schema1x);
+    const db = makeD1(baseSchema);
     const env = makeEnv(db, makeR2());
     const auth = { "x-dev-email": "a@example.com" };
     const ids = [];
@@ -494,7 +493,7 @@ async function main() {
   });
 
   await check("HTTP：跨用户隔离（他人节点一律 404，列表互不可见）", async () => {
-    const db = makeD1(schema1x);
+    const db = makeD1(baseSchema);
     const env = makeEnv(db, makeR2());
     const alice = { "x-dev-email": "a@example.com" };
     const bob = { "x-dev-email": "b@example.com" };
@@ -513,9 +512,9 @@ async function main() {
     assertEqual(db.prepare("SELECT deleted_at FROM nodes WHERE id = ?").first(nodeId).deleted_at, null, "Alice 的文件不应被删");
   });
 
-  // —— 存储治理（P2 B1）：四分项 + 全局预算 + 507 ——
+  // —— 存储治理：四分项 + 全局预算 + 507 ——
   await check("HTTP：四分项随上传/软删/还原/彻底删除变化，且与 used_bytes 一致", async () => {
-    const db = makeD1(schema1x);
+    const db = makeD1(baseSchema);
     const env = makeEnv(db, makeR2());
     const auth = { "x-dev-email": "a@example.com" };
     const up = await call(env, "/api/files/upload?name=s.bin&parentId=", {
@@ -554,7 +553,7 @@ async function main() {
   });
 
   await check("HTTP：全局预算超限返回 507 STORAGE_FULL（与个人配额 403 区分）", async () => {
-    const db = makeD1(schema1x);
+    const db = makeD1(baseSchema);
     const env = makeEnv(db, makeR2());
     const auth = { "x-dev-email": "a@example.com" };
     await call(env, "/api/me", { headers: auth }); // 建号 + 个人空间
@@ -569,9 +568,9 @@ async function main() {
     assertEqual(db.prepare("SELECT COUNT(*) c FROM nodes WHERE name = 'big.bin'").first().c, 0, "被拒上传不应留下节点");
   });
 
-  // —— 分享 2.0（P2 B3）：原子名额 + Range/预览不计数 + 去重 ——
+  // —— 分享：原子名额 + Range/预览不计数 + 去重 ——
   await check("HTTP：分享下载上限原子扣减（max=1 第二次 410）且 Range/预览不计数", async () => {
-    const db = makeD1(schema1x);
+    const db = makeD1(baseSchema);
     const bucket = makeR2();
     const env = makeEnv(db, bucket);
     const auth = { "x-dev-email": "a@example.com" };
@@ -608,7 +607,7 @@ async function main() {
   });
 
   await check("HTTP：密码分享解锁后签发会话，匿名直链可下载", async () => {
-    const db = makeD1(schema1x);
+    const db = makeD1(baseSchema);
     const env = makeEnv(db, makeR2());
     const auth = { "x-dev-email": "a@example.com" };
     const up = await call(env, "/api/files/upload?name=direct.bin&parentId=", {
@@ -633,7 +632,7 @@ async function main() {
   });
 
   await check("HTTP：分享提取码连续错误后锁定（5 次/10 分钟）", async () => {
-    const db = makeD1(schema1x);
+    const db = makeD1(baseSchema);
     const env = makeEnv(db, makeR2());
     const auth = { "x-dev-email": "a@example.com" };
     const up = await call(env, "/api/files/upload?name=locked.bin&parentId=", {
@@ -659,7 +658,7 @@ async function main() {
   });
 
   await check("HTTP：同来源 10 分钟内重复下载只计一次（dedupe），撤销后 404", async () => {
-    const db = makeD1(schema1x);
+    const db = makeD1(baseSchema);
     const env = makeEnv(db, makeR2());
     const auth = { "x-dev-email": "a@example.com" };
     const up = await call(env, "/api/files/upload?name=dedupe.bin&parentId=", {
@@ -690,9 +689,9 @@ async function main() {
     assertEqual(afterRevoke.status, 404, "撤销后应 404，实际 " + afterRevoke.status);
   });
 
-  // —— 文件名检索 2.0（P2 B8）：服务端过滤 + 排序 + 分页 ——
+  // —— 文件名检索：服务端过滤 + 排序 + 分页 ——
   await check("HTTP：检索支持类型/大小过滤、按大小排序与游标分页", async () => {
-    const db = makeD1(schema1x);
+    const db = makeD1(baseSchema);
     const env = makeEnv(db, makeR2());
     const auth = { "x-dev-email": "a@example.com" };
     const upload = async (name, bytes) => {
@@ -737,9 +736,9 @@ async function main() {
     assertEqual(firstIds.length + secondIds.length, 4, "两页合计应覆盖全部 4 项");
   });
 
-  // —— 管理台聚合（P2 B10）——
+  // —— 管理台聚合 ——
   await check("HTTP：/api/me/admin/overview 聚合人/空间/审计，且非平台管理员 403", async () => {
-    const db = makeD1(schema1x);
+    const db = makeD1(baseSchema);
     const env = makeEnv(db, makeR2());
     const alice = { "x-dev-email": "a@example.com" };
     const bob = { "x-dev-email": "b@example.com" };
@@ -755,9 +754,9 @@ async function main() {
     assertEqual(forbidden.status, 403, "普通成员访问应 403，实际 " + forbidden.status);
   });
 
-  // —— 复制与撤销（P2 B9）——
+  // —— 复制与撤销 ——
   await check("HTTP：复制文件/目录（共享 R2 对象、配额按逻辑字节翻倍）", async () => {
-    const db = makeD1(schema1x);
+    const db = makeD1(baseSchema);
     const env = makeEnv(db, makeR2());
     const auth = { "x-dev-email": "a@example.com" };
     const up = await call(env, "/api/files/upload?name=x.bin&parentId=", {
@@ -798,7 +797,7 @@ async function main() {
   });
 
   await check("HTTP：移动后 30 秒内可撤销（过期 410、重复撤销 409）", async () => {
-    const db = makeD1(schema1x);
+    const db = makeD1(baseSchema);
     const env = makeEnv(db, makeR2());
     const auth = { "x-dev-email": "a@example.com" };
     const up = await call(env, "/api/files/upload?name=move-me.bin&parentId=", {
@@ -838,9 +837,9 @@ async function main() {
     assertEqual(expired.status, 410, "过期撤销应 410，实际 " + expired.status);
   });
 
-  // —— 收藏与最近访问（P2 B7）——
+  // —— 收藏与最近访问 ——
   await check("HTTP：收藏增删 + 最近访问 5 分钟节流 + 跨租户 404", async () => {
-    const db = makeD1(schema1x);
+    const db = makeD1(baseSchema);
     const env = makeEnv(db, makeR2());
     const alice = { "x-dev-email": "a@example.com" };
     const bob = { "x-dev-email": "b@example.com" };
@@ -875,9 +874,9 @@ async function main() {
     assertEqual(after.json.nodes.length, 0, "取消收藏后列表应为空");
   });
 
-  // —— 标签（P2 B7 收尾）——
+  // —— 标签 ——
   await check("HTTP：标签创建/重名 409/打标签/按标签列节点/解绑/跨租户 404", async () => {
-    const db = makeD1(schema1x);
+    const db = makeD1(baseSchema);
     const env = makeEnv(db, makeR2());
     const alice = { "x-dev-email": "a@example.com" };
     const bob = { "x-dev-email": "b@example.com" };
@@ -947,7 +946,7 @@ async function main() {
 
   // —— 动态设置（settings 主键为 scope+key）——
   await check("HTTP：admin settings 默认值 / PATCH 生效 / 非管理员 403", async () => {
-    const db = makeD1(schema1x);
+    const db = makeD1(baseSchema);
     const env = makeEnv(db, makeR2());
     const admin = { "x-dev-email": "a@example.com" };
     await call(env, "/api/me", { headers: admin });
@@ -986,7 +985,7 @@ async function main() {
   });
 
   await check("HTTP：注册开关与默认空间额度（1GB）", async () => {
-    const db = makeD1(schema1x);
+    const db = makeD1(baseSchema);
     const env = makeEnv(db, makeR2());
     const admin = { "x-dev-email": "a@example.com" };
     await call(env, "/api/me", { headers: admin });
@@ -1023,7 +1022,7 @@ async function main() {
   });
 
   await check("HTTP：存储水位越线通知管理者，且 24h 内不重复", async () => {
-    const db = makeD1(schema1x);
+    const db = makeD1(baseSchema);
     const env = makeEnv(db, makeR2());
     const alice = { "x-dev-email": "a@example.com" };
     const me = await call(env, "/api/me", { headers: alice });
@@ -1048,9 +1047,9 @@ async function main() {
     assertEqual(n2, 1, "24h 内不应重复通知，实际 " + n2);
   });
 
-  // —— 缩略图（P2 B 媒体）——
+  // —— 缩略图 ——
   await check("HTTP：缩略图上传/读取、512KB 上限、计入 thumb_bytes、跨租户 404", async () => {
-    const db = makeD1(schema1x);
+    const db = makeD1(baseSchema);
     const bucket = makeR2();
     const env = makeEnv(db, bucket);
     const alice = { "x-dev-email": "a@example.com" };
@@ -1100,7 +1099,7 @@ async function main() {
 
   // —— 语句数预算（§4.6）：大批量下语句数必须与批次无关 ——
   await check("200 项批量：软删 ≤4 条语句、彻底删除 ≤5 条语句", async () => {
-    const db = makeD1(schema1x);
+    const db = makeD1(baseSchema);
     seed(db);
     const rootId = (await nodes.ensureRootDir(db, "u1")).id;
     const ids = [];
@@ -1118,7 +1117,7 @@ async function main() {
     const permSql = db._sql;
     assert(softSql <= 4, "软删 200 项语句数应 ≤4，实际 " + softSql);
     assert(permSql <= 5, "彻底删除 200 项语句数应 ≤5，实际 " + permSql);
-    console.log("        实测语句数：软删 " + softSql + " 条 / 彻底删除 " + permSql + " 条（旧实现约 41 / 535）");
+    console.log("        实测语句数：软删 " + softSql + " 条 / 彻底删除 " + permSql + " 条");
   });
 
   console.log("\n" + (failures.length === 0 ? "全部通过：" + passed + " 项" : "失败 " + failures.length + " 项：\n" + failures.join("\n")));

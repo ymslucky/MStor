@@ -17,7 +17,7 @@ function startOfToday() {
 
 /**
  * 站内通知铃铛：只在打开时拉一次（不轮询），未读数来自 /api/me.unreadNotifications 与列表接口。
- * 明确不做邮件投递——方案 §0.1 假设 A2。
+ * 明确不做邮件投递。
  * 列表按「未读优先 + 时间倒序」排序，再按「今天 / 更早」分组；未读数用 Pill（上限 99+）。
  */
 export function NotificationBell({ initialUnread = 0 }: { initialUnread?: number }) {
