@@ -3,7 +3,7 @@ import { cn } from "../../lib/cn";
 
 /**
  * 按钮：状态反馈统一走状态层（.state-layer → --state-hover/--state-press），
- * 不再按皮肤硬编码 hover 颜色；形变只保留按下时的轻微缩放。
+ * 不再按皮肤硬编码 hover 颜色；形变一律不做（DESIGN.md 禁止 hover/active 缩放）。
  */
 export function Button({
   variant = "primary",

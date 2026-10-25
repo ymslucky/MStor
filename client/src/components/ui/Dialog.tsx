@@ -38,7 +38,7 @@ export function Dialog({ open, onClose, title, children, footer, skin = "white" 
           )}
         >
           <div className="flex items-start justify-between gap-3">
-            <RadixDialog.Title className="min-w-0 text-lg font-semibold tracking-tight text-ink">{title}</RadixDialog.Title>
+            <RadixDialog.Title className="min-w-0 text-balance text-lg font-semibold tracking-tight text-ink">{title}</RadixDialog.Title>
             <RadixDialog.Close asChild>
               <IconButton label="关闭">
                 <X size={16} aria-hidden />

@@ -190,6 +190,41 @@ body {
   min-height: 100dvh;
 }
 
+/* —— 浏览器原生表面：这些部位不属于任何组件，但同样承载品牌 ——
+   选区 / 光标 / 滚动条 / 链接下划线全部从语义令牌取色（亮暗自动跟随）。 */
+::selection {
+  background: var(--color-primary-soft);
+  color: var(--color-ink);
+}
+
+input,
+textarea {
+  caret-color: var(--color-primary);
+}
+
+a {
+  text-underline-offset: 2px;
+  text-decoration-color: color-mix(in srgb, var(--color-primary) 45%, transparent);
+}
+
+/* 滚动条：细、克制，不与内容争夺注意力 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: var(--color-line-strong);
+  background-clip: content-box;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
 /* 层叠层级（唯一出处） */
 .z-content { z-index: var(--z-content); }
 .z-sticky { z-index: var(--z-sticky); }
