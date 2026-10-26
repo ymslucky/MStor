@@ -40,7 +40,7 @@ export function MobileNavDrawer({
         <RadixDialog.Overlay className="anim-fade fixed inset-0 z-modal bg-ink/40 md:hidden" />
         <RadixDialog.Content
           data-testid="mobile-drawer"
-          className="anim-pop fixed inset-y-0 left-0 z-modal flex w-72 max-w-[85vw] flex-col bg-surface-1 shadow-glass outline-none md:hidden"
+          className="anim-pop fixed inset-y-0 left-0 z-modal flex w-72 max-w-[85vw] flex-col bg-surface-sidebar shadow-glass outline-none md:hidden"
         >
           <RadixDialog.Title className="sr-only">导航</RadixDialog.Title>
           <RadixDialog.Description className="sr-only">应用导航、空间切换与账户操作</RadixDialog.Description>

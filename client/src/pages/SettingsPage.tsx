@@ -303,7 +303,7 @@ export default function SettingsPage({ me }: { me: Me }) {
   const tab: TabKey = known && (!platformOnly || account.role === "admin") ? (seg as TabKey) : "account";
   return (
     <div className="mx-auto w-full max-w-3xl md:pb-4">
-      <PageHeader title="设置" description="账户、上传、访问与审计" />
+      <PageHeader title="设置" description="维护账户、上传队列、访问与审计规则" />
       <TabBar tabs={tabs} active={tab} />
       <div className="space-y-4">
         {tab === "account" && <AccountSection me={me} />}

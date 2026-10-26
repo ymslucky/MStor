@@ -59,7 +59,7 @@ export default function DesignPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <PageHeader
-        title="设计系统 v7"
+        title="设计系统 v9 · Home Archive"
         description={
           <>
             安静工作台 · 实色表面 · 单一强调色。令牌唯一来源 <code className="rounded bg-bg-sub px-1">client/src/index.css</code> 的
@@ -148,7 +148,7 @@ export default function DesignPage() {
           {TYPE.map((t) => (
             <div key={t.cls} className="flex items-baseline gap-3">
               <span className="w-24 shrink-0 text-2xs text-ink-3">{t.label}</span>
-              <span className={cn("truncate text-ink", t.cls)}>MStor 私有云盘 · 明亮清新</span>
+              <span className={cn("truncate text-ink", t.cls)}>MStor 家庭档案室 · 温纸墨绿</span>
             </div>
           ))}
         </div>

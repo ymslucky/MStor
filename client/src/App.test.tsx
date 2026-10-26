@@ -32,7 +32,7 @@ test("懒加载的 /design 页经 Suspense 正常渲染", async () => {
       <App />
     </MemoryRouter>,
   );
-  expect(await screen.findByText("设计系统 v7")).toBeInTheDocument();
+  expect(await screen.findByText("设计系统 v9 · Home Archive")).toBeInTheDocument();
 });
 
 test("/auth/renew 落地后按 next 回跳应用内路径", async () => {

@@ -67,8 +67,8 @@ function AppShellLayout() {
       </a>
       <div className="relative z-content md:flex md:h-dvh">
         <aside
-          className={`hidden h-dvh shrink-0 flex-col border-r border-line bg-surface-1 transition-[width] duration-200 ease-(--ease-out-soft) md:flex ${
-            collapsed ? "md:w-16" : "md:w-60"
+          className={`hidden h-dvh shrink-0 flex-col border-r border-line bg-surface-sidebar transition-[width] duration-200 ease-(--ease-out-soft) md:flex ${
+            collapsed ? "md:w-16" : "md:w-62"
           }`}
         >
           <SidebarNav collapsed={collapsed} onToggle={toggle} isPlatformAdmin={sessionAccount.role === "admin"} />

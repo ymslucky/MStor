@@ -66,7 +66,7 @@ export default function SharesPage() {
     <div className="md:pb-4">
       <PageHeader
         title="我的分享"
-        description="管理你创建的公开分享链接"
+        description="控制每一条对外借出资料的入口、期限和次数"
         actions={
           visible.length > 0 ? (
             <label className="flex cursor-pointer items-center gap-1.5 text-sm text-ink-2">
@@ -105,7 +105,7 @@ export default function SharesPage() {
       <AsyncState query={query} skeletonRows={4}>
         {shares.length === 0 ? (
           <GlassCard className="p-2">
-            <EmptyState icon={Link2} title="暂无分享" description="在文件详情点「分享」即可生成公开链接" />
+            <EmptyState icon={Link2} title="暂无分享" description="选择一个文件或文件夹，生成有期限、有次数的公开链接" />
           </GlassCard>
         ) : visible.length === 0 ? (
           <GlassCard className="p-2">

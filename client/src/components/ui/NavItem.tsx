@@ -2,7 +2,7 @@ import type * as React from "react";
 import { NavLink } from "react-router-dom";
 import { cn } from "../../lib/cn";
 
-/** 导航项：选中用 accent-tint，行高走密度令牌，图标装饰位 aria-hidden */
+/** 档案索引项：选中使用中性底 + 3px 墨绿 rail。 */
 export function NavItem({
   to,
   icon,
@@ -24,9 +24,9 @@ export function NavItem({
       style={{ minHeight: "var(--density-row-h)" }}
       className={({ isActive }) =>
         cn(
-          "flex items-center gap-3 rounded-md px-3 text-sm transition-colors",
+          "flex items-center gap-3 rounded-btn px-3 text-sm transition-colors",
           isActive
-            ? "bg-bg-sub font-medium text-ink shadow-[inset_2px_0_0_var(--color-primary)]"
+            ? "bg-bg-sub font-medium text-ink shadow-[inset_3px_0_0_var(--color-primary)]"
             : "state-layer text-ink-2 hover:text-ink",
         )
       }
