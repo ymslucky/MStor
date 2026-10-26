@@ -16,7 +16,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 const ROOT = process.cwd();
 const DIST = path.join(ROOT, "client/dist");
 const OUT = path.join(ROOT, ".tmp-build/visual");
-const BASELINE_DIR = path.join(ROOT, "docs/design/v9");
+const BASELINE_DIR = path.join(ROOT, "docs/design/v10");
 const PROFILE = path.join(OUT, "chrome-profile");
 const ARGS = new Set(process.argv.slice(2));
 const CHECK_BASELINE = ARGS.has("--baseline");
@@ -489,7 +489,7 @@ async function main() {
     const diff = r.pct == null ? "" : `  diff ${r.pct.toFixed(2)}%`;
     console.log(`${ok ? "PASS" : "FAIL"}  ${r.name.padEnd(18)} ${r.size}${diff}  ${r.problems.join("；") || "no overflow"}`);
   }
-  if (UPDATE_BASELINE) console.log(`\n基线已更新：docs/design/v9（${results.length} 张）`);
+  if (UPDATE_BASELINE) console.log(`\n基线已更新：docs/design/v10（${results.length} 张）`);
   console.log(`\n视觉检查：${results.length - failed.length}/${results.length} 通过；${CHECK_BASELINE ? "像素基线已对比；" : ""}截图目录 .tmp-build/visual`);
   if (failed.length > 0) process.exitCode = 1;
 }

@@ -16,9 +16,9 @@ import { DEFAULT_TAG_COLOR, TAG_COLORS, tagDotColor } from "../lib/tagColors";
 type Kind = "favorites" | "recent" | "tags";
 
 const COPY: Record<Kind, { title: string; desc: string; icon: typeof Star; empty: string }> = {
-  favorites: { title: "收藏", desc: "取用频率最高的家庭资料，保持一键可达", icon: Star, empty: "还没有收藏，在文件右键菜单里可以加入收藏" },
-  recent: { title: "最近", desc: "刚登记或刚取用过的资料，按时间排列", icon: Clock, empty: "最近没有访问记录" },
-  tags: { title: "标签", desc: "为同类资料建立检索线索", icon: TagIcon, empty: "还没有创建标签" },
+  favorites: { title: "收藏", desc: "高频资料的一等入口，排序和筛选保持可预测", icon: Star, empty: "还没有收藏，在文件右键菜单里可以加入收藏" },
+  recent: { title: "最近", desc: "最近变化的资料按时间排出作业队列", icon: Clock, empty: "最近没有访问记录" },
+  tags: { title: "标签", desc: "用标签建立长期检索维度", icon: TagIcon, empty: "还没有创建标签" },
 };
 
 function NodeRow({ node, onRemoveFavorite }: { node: Node; onRemoveFavorite?: (node: Node) => void }) {

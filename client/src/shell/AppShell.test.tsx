@@ -48,10 +48,10 @@ function renderShell(initial = "/") {
 
 test("shows user name, quota and nav links", async () => {
   renderShell();
-  expect(await screen.findByText("Alice")).toBeInTheDocument();
+  expect((await screen.findAllByText(/Alice/)).length).toBeGreaterThan(0);
   // 长页面统一在主内容区滚动，StatusBar/上传队列不会盖住最后一行
   expect(document.getElementById("main-content")?.className).toContain("overflow-y-auto");
-  // 桌面侧栏导航以 role="navigation" 语义断言；移动端底部 Tab 为另一导航不干扰
+  // 桌面命令轨以 role="navigation" 语义断言；移动端抽屉为另一导航不干扰
   const nav = screen.getByRole("navigation", { name: "主导航" });
   expect(within(nav).getByRole("link", { name: "文件" })).toBeInTheDocument();
   expect(within(nav).getByRole("link", { name: "回收站" })).toBeInTheDocument();
@@ -65,7 +65,7 @@ test("shows user name, quota and nav links", async () => {
 
 test("mobile drawer opens from top bar and closes on Escape", async () => {
   const { user } = renderShell();
-  await screen.findByText("Alice");
+  await screen.findAllByText(/Alice/);
   await user.click(screen.getByRole("button", { name: "打开导航" }));
   const drawer = await screen.findByTestId("mobile-drawer");
   expect(within(drawer).getByRole("link", { name: "文件" })).toBeInTheDocument();
@@ -74,23 +74,21 @@ test("mobile drawer opens from top bar and closes on Escape", async () => {
   await waitFor(() => expect(screen.queryByTestId("mobile-drawer")).not.toBeInTheDocument());
 });
 
-test("sidebar toggle collapses, expands and persists to localStorage", async () => {
-  const { user } = renderShell();
-  await screen.findByText("Alice");
+test("command rail keeps labels visible without a persisted collapse state", async () => {
+  renderShell();
+  await screen.findAllByText(/Alice/);
+  expect(screen.queryByRole("button", { name: "折叠侧栏" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "展开侧栏" })).not.toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "文件" })).toHaveTextContent("文件");
+  expect(screen.getByRole("link", { name: "回收站" })).toHaveTextContent("回收站");
   expect(localStorage.getItem("mstor_sidebar")).toBeNull();
-  await user.click(screen.getByRole("button", { name: "折叠侧栏" }));
-  expect(screen.getByRole("button", { name: "展开侧栏" })).toBeInTheDocument();
-  expect(localStorage.getItem("mstor_sidebar")).toBe("collapsed");
-  await user.click(screen.getByRole("button", { name: "展开侧栏" }));
-  expect(screen.getByRole("button", { name: "折叠侧栏" })).toBeInTheDocument();
-  expect(localStorage.getItem("mstor_sidebar")).toBe("expanded");
 });
 
 test("logout opens confirm dialog; cancel keeps session", async () => {
   const fetchMock = vi.fn();
   vi.stubGlobal("fetch", fetchMock);
   const { user } = renderShell("/settings");
-  await screen.findByText("Alice");
+  await screen.findAllByText(/Alice/);
   await user.click(screen.getAllByRole("button", { name: "退出" })[0]);
   expect(await screen.findByText("退出登录")).toBeInTheDocument();
   expect(screen.getByText("退出后将结束 Cloudflare Access 会话（对所有 Access 应用生效），确定继续吗？")).toBeInTheDocument();
@@ -112,7 +110,7 @@ test("logout confirm clears session and redirects to Access logout", async () =>
   const fetchMock = vi.fn();
   vi.stubGlobal("fetch", fetchMock);
   const { user } = renderShell("/settings");
-  await screen.findByText("Alice");
+  await screen.findAllByText(/Alice/);
   await user.click(screen.getAllByRole("button", { name: "退出" })[1]);
   await screen.findByText("退出登录");
   // 弹窗内确认按钮同为「退出」，需限定在弹窗面板内点击
@@ -142,10 +140,10 @@ test("sidebar shows the target user's name and avatar while acting as another us
     self: { id: "u1", name: "Alice", role: "admin" },
   });
   renderShell();
-  // 档案行显示目标用户 Bob，而非管理员 Alice
-  expect(await screen.findByText("Bob")).toBeInTheDocument();
-  expect(screen.queryByText("Alice")).not.toBeInTheDocument();
-  expect(screen.getByText("管理员代管")).toBeInTheDocument();
+  // 命令轨以屏幕阅读器文本显示目标用户 Bob，而非管理员 Alice
+  expect((await screen.findAllByText(/Bob/)).length).toBeGreaterThan(0);
+  expect(screen.queryAllByText(/Alice/)).toHaveLength(0);
+  expect(screen.getAllByText(/管理员代管/)[0]).toBeInTheDocument();
   // act-as 横幅显示的是目标空间用户
   expect(screen.getByText(/查看「Bob」的空间/)).toBeInTheDocument();
   localStorage.removeItem("mstor_act_as");

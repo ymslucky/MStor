@@ -126,7 +126,7 @@ Windows 本机 workerd 失败时，`npm run test:server:local` 是可接受的�
 
 ## 6. 视觉测试
 
-- 基线目录：`docs/design/v9`
+- 基线目录：`docs/design/v10`
 - 默认检查布局与横向溢出；
 - 有意改版时更新基线；
 - 更新基线不得与逻辑修复混在同一提交；

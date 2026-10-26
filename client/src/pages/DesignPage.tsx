@@ -41,8 +41,8 @@ const TYPE = [
  * 任何人改主题后打开这一页就能看到影响面；新增原语必须先在这里登记。
  */
 const SKINS: { key: Skin; label: string }[] = [
-  { key: "paper", label: "Paper · 明亮纸感" },
-  { key: "slate", label: "Slate · 冷灰控制台" },
+  { key: "paper", label: "Signal · 瓷白操作台" },
+  { key: "slate", label: "Slate · 石墨信号" },
   { key: "ink", label: "Ink · 深色优先" },
   { key: "brutal", label: "Brutal · 新粗野主义" },
 ];
@@ -59,10 +59,10 @@ export default function DesignPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <PageHeader
-        title="设计系统 v9 · Home Archive"
+        title="设计系统 v10 · Signal Desk"
         description={
           <>
-            安静工作台 · 实色表面 · 单一强调色。令牌唯一来源 <code className="rounded bg-bg-sub px-1">client/src/index.css</code> 的
+            深色命令轨 · 瓷白工作面 · 单一信号色。令牌唯一来源 <code className="rounded bg-bg-sub px-1">client/src/index.css</code> 的
             <code className="ml-1 rounded bg-bg-sub px-1">@theme</code>；原语位于
             <code className="ml-1 rounded bg-bg-sub px-1">components/ui</code>。
           </>
@@ -148,7 +148,7 @@ export default function DesignPage() {
           {TYPE.map((t) => (
             <div key={t.cls} className="flex items-baseline gap-3">
               <span className="w-24 shrink-0 text-2xs text-ink-3">{t.label}</span>
-              <span className={cn("truncate text-ink", t.cls)}>MStor 家庭档案室 · 温纸墨绿</span>
+              <span className={cn("truncate text-ink", t.cls)}>MStor 个人数据操作台 · Signal Desk</span>
             </div>
           ))}
         </div>

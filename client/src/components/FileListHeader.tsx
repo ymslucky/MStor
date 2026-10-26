@@ -7,7 +7,7 @@ import type { FileTable } from "../hooks/useFileTable";
 import { SearchInput } from "./SearchInput";
 import { Button } from "./ui";
 
-const TH = "select-none px-2 py-2 text-xs font-medium text-ink-faint";
+const TH = "select-none px-2 py-2 text-2xs font-semibold tracking-wide text-ink-3 uppercase";
 
 /** 列显隐菜单条目：列 id → 文案（列本身由 table 的列模型提供） */
 const VISIBILITY_ITEMS = [

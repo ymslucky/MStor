@@ -2,7 +2,6 @@
 
 /** localStorage 键：持久化用户偏好与本地会话标记 */
 export const STORAGE_KEYS = {
-  sidebar: "mstor_sidebar",
   view: "mstor_view",
   actAs: "mstor_act_as",
   workspace: "mstor_workspace",

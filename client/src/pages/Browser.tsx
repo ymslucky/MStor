@@ -264,6 +264,9 @@ export default function Browser() {
     </>
   );
 
+  const dirCount = nodes.filter((n) => n.is_dir).length;
+  const fileCount = nodes.length - dirCount;
+
   // 空目录 CTA：复用上传入口与新建文件夹
   const emptyDirActions = (
     <div className="flex flex-wrap justify-center gap-2">
@@ -310,9 +313,31 @@ export default function Browser() {
         }}
       />
       {query.data && (
-        <div className="mb-3 flex min-w-0 items-center gap-3">
-          <Breadcrumb crumbs={query.data.breadcrumb} onDropNode={dropMove} />
-        </div>
+        <GlassCard className="mb-4 p-3 sm:p-4">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <Breadcrumb crumbs={query.data.breadcrumb} onDropNode={dropMove} />
+            </div>
+            <div className="flex shrink-0 items-center gap-2 text-xs text-ink-3">
+              <span className="num">目录 {dirCount}</span>
+              <span aria-hidden className="h-3 w-px bg-line" />
+              <span className="num">文件 {fileCount}</span>
+              <span aria-hidden className="h-3 w-px bg-line" />
+              <span className="num">共 {nodes.length} 项</span>
+            </div>
+          </div>
+          <BrowserToolbar
+            typeFilter={typeFilter}
+            timeFilter={timeFilter}
+            onTypeFilter={setTypeFilter}
+            onTimeFilter={setTimeFilter}
+            view={view}
+            onView={switchView}
+            onCreateDir={() => setCreating(true)}
+            onUploadFiles={() => fileInput.current?.click()}
+            onUploadFolder={pickFolder}
+          />
+        </GlassCard>
       )}
       {query.isPending && (
         <GlassCard className="p-3 sm:p-4">
@@ -342,19 +367,7 @@ export default function Browser() {
           />
         </GlassCard>
       )}
-      {query.data && (
-        <BrowserToolbar
-          typeFilter={typeFilter}
-          timeFilter={timeFilter}
-          onTypeFilter={setTypeFilter}
-          onTimeFilter={setTimeFilter}
-          view={view}
-          onView={switchView}
-          onCreateDir={() => setCreating(true)}
-          onUploadFiles={() => fileInput.current?.click()}
-          onUploadFolder={pickFolder}
-        />
-      )}
+
       {query.data && (
         <GlassCard className="px-3 pt-3 pb-0 sm:px-4 sm:pt-4 md:flex md:min-h-0 md:flex-1 md:flex-col">
           <div className="md:flex md:min-h-0 md:flex-1 md:gap-4">

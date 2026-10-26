@@ -15,10 +15,7 @@ interface Props {
   onUploadFolder: () => void;
 }
 
-/**
- * 文件页工具条（v7）：左侧筛选 chips，右侧按「次要 → 主要」排布
- * （上传文件夹 / 新建文件夹 → 上传主按钮 → 视图切换），让上传成为唯一主操作。
- */
+/** 文件控制舱第二行：筛选、创建和主上传动作保持在一个视觉组内。 */
 export function BrowserToolbar({
   typeFilter,
   timeFilter,
@@ -31,14 +28,13 @@ export function BrowserToolbar({
   onUploadFolder,
 }: Props) {
   return (
-    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-      <div className="flex flex-wrap items-center gap-1.5">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center gap-2">
         <TypeFilterChips value={typeFilter} onChange={onTypeFilter} />
-        <span aria-hidden className="mx-0.5 h-4 w-px bg-line" />
         <TimeFilterChips value={timeFilter} onChange={onTimeFilter} />
       </div>
 
-      <div className="flex items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
         <span className="hidden sm:inline-flex">
           <IconButton label="上传文件夹" onClick={onUploadFolder}>
             <FolderUp size={17} aria-hidden />

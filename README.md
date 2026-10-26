@@ -38,7 +38,7 @@ README.md             运行与交付入口
 DESIGN.md             UI 设计契约
 docs/spec/            当前有效规范
 docs/decisions/       架构与产品决策记录
-docs/design/v9/       视觉测试基线
+docs/design/v10/       视觉测试基线
 server/               Workers API
 client/               React 前端
 migrations/           D1 增量迁移

@@ -1,10 +1,7 @@
 import type * as React from "react";
 import { cn } from "../../lib/cn";
 
-/**
- * 按钮：档案室的工作台控件。状态反馈统一走状态层；
- * 只做颜色反馈，不做形变。
- */
+/** 操作台按钮：主操作使用信号紫；只做颜色反馈，不做形变。 */
 export function Button({
   variant = "primary",
   size = "md",

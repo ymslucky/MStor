@@ -1,7 +1,7 @@
 import { formatBytes } from "../lib/format";
 
 // 侧栏存储用量表：SVG 环形图（primary 环，>90% 转 warn）+ tabular-nums 用量文字 + R2 免出口流量注记
-// compact（侧栏折叠态）只渲染环形图，用量悬停提示
+// compact（命令轨）只渲染环形图，用量保留屏幕阅读器文本与悬停提示
 export default function StorageMeter({
   usedBytes,
   quotaBytes,
@@ -30,13 +30,14 @@ export default function StorageMeter({
           strokeDashoffset={c * (1 - pct / 100)}
         />
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-2xs font-semibold tabular-nums text-ink">{pct}%</span>
+      <span className="absolute inset-0 flex items-center justify-center text-2xs font-semibold tabular-nums text-rail-ink">{pct}%</span>
     </div>
   );
   const usage = `${formatBytes(usedBytes)} / ${formatBytes(quotaBytes)}`;
   if (compact) {
     return (
-      <div className="flex justify-center" title={usage}>
+      <div className="flex flex-col items-center justify-center gap-0.5" title={usage}>
+        <span className="sr-only">{usage}</span>
         {ring}
       </div>
     );

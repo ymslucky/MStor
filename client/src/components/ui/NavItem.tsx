@@ -2,7 +2,7 @@ import type * as React from "react";
 import { NavLink } from "react-router-dom";
 import { cn } from "../../lib/cn";
 
-/** 档案索引项：选中使用中性底 + 3px 墨绿 rail。 */
+/** 常规导航项：移动抽屉和展开场景使用；当前项用信号紫浅底。 */
 export function NavItem({
   to,
   icon,
@@ -26,7 +26,7 @@ export function NavItem({
         cn(
           "flex items-center gap-3 rounded-btn px-3 text-sm transition-colors",
           isActive
-            ? "bg-bg-sub font-medium text-ink shadow-[inset_3px_0_0_var(--color-primary)]"
+            ? "bg-primary-soft font-medium text-primary-text"
             : "state-layer text-ink-2 hover:text-ink",
         )
       }
