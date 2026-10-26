@@ -3,7 +3,7 @@ import { CommandPalette } from "../components/CommandPalette";
 import { NotificationBell } from "../components/NotificationBell";
 import { IconButton } from "../components/ui";
 
-/** 工作台栏：桌面显示当前空间、身份和任务语境；移动端保留导航与关键动作。 */
+/** 工作室栏：桌面显示空间与身份，移动端保留导航、品牌语境和关键动作。 */
 export function AppHeader({
   workspaceName,
   accountName,
@@ -18,7 +18,7 @@ export function AppHeader({
   onOpenMenu: () => void;
 }) {
   return (
-    <header className="flex h-16 shrink-0 items-center gap-3 border-b border-line bg-surface-1 px-3 sm:px-5 md:px-6">
+    <header className="flex h-16 shrink-0 items-center gap-3 border-b border-line bg-surface-canvas px-4 sm:px-6 md:px-8">
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <span className="md:hidden">
           <IconButton label="打开导航" onClick={onOpenMenu}>
@@ -26,9 +26,11 @@ export function AppHeader({
           </IconButton>
         </span>
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-ink md:text-base">{workspaceName ?? "我的空间"}</p>
-          <span className="sr-only">MStor</span>`n          <p className="truncate text-2xs text-ink-3">
-            {accountName ? `${accountName} · ` : ""}MStor 个人数据操作台
+          <p className="truncate font-display text-base font-semibold tracking-tight text-ink md:text-lg">
+            {workspaceName ?? "我的资料"}
+          </p>
+          <p className="truncate text-2xs text-ink-3">
+            {accountName ? `${accountName} · ` : ""}MStor 私人资料工作室
           </p>
         </div>
       </div>

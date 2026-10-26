@@ -9,7 +9,7 @@ import { ErrorBoundary } from "../components/ErrorBoundary";
 import { UploadQueueProvider } from "../hooks/UploadQueueProvider";
 import { GlobalUploadDock } from "../components/GlobalUploadDock";
 import { StatusBar } from "../components/StatusBar";
-import { CommandRail } from "./CommandRail";
+import { LibraryRail } from "./LibraryRail";
 import { AccountMenu } from "./AccountMenu";
 import { AppHeader } from "./AppHeader";
 import { PAGE_TITLES } from "./nav";
@@ -20,7 +20,7 @@ import { MobileNavDrawer } from "./MobileNavDrawer";
 import { PendingApproval } from "./PendingApproval";
 
 /**
- * Signal Desk 外壳：左侧常驻命令轨，顶部工作台栏，内容区承载路由。
+ * Atelier Studio 外壳：左侧资料馆索引，顶部工作室栏，内容区作为画布。
  * 队列与浮层在导出层包住，切换路由不丢队列。
  */
 function AppShellLayout() {
@@ -57,11 +57,14 @@ function AppShellLayout() {
         跳到主要内容
       </a>
       <div className="relative z-content md:flex md:h-dvh">
-        <aside className="hidden h-dvh w-22 shrink-0 flex-col bg-rail md:flex">
-          <CommandRail isPlatformAdmin={sessionAccount.role === "admin"} />
-          <div className="space-y-2 border-t border-rail-line px-2 py-3">
-            <StorageMeter usedBytes={me.usedBytes} quotaBytes={me.quotaBytes} compact />
-            <AccountMenu account={me} actingAs={actingAs} collapsed onLogout={() => setLogoutOpen(true)} />
+        <aside className="hidden h-dvh w-66 shrink-0 flex-col border-r border-line bg-surface-sidebar md:flex">
+          <LibraryRail
+            workspaceName={me.workspace?.name}
+            isPlatformAdmin={sessionAccount.role === "admin"}
+          />
+          <div className="space-y-3 border-t border-line px-3 py-4">
+            <StorageMeter usedBytes={me.usedBytes} quotaBytes={me.quotaBytes} />
+            <AccountMenu account={me} actingAs={actingAs} collapsed={false} onLogout={() => setLogoutOpen(true)} />
           </div>
         </aside>
 
@@ -75,7 +78,7 @@ function AppShellLayout() {
           />
           <main
             id="main-content"
-            className="min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:px-6 sm:py-5 md:flex md:min-h-0 md:flex-col md:px-8 md:py-6"
+            className="min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] sm:px-6 sm:py-6 md:flex md:min-h-0 md:flex-col md:px-8 md:py-8"
           >
             {actingAs && (
               <div className="mb-4 flex flex-wrap items-center gap-x-2 rounded-panel bg-warn-soft px-4 py-2 text-xs text-warn-text">

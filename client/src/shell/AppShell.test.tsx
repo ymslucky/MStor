@@ -51,7 +51,7 @@ test("shows user name, quota and nav links", async () => {
   expect((await screen.findAllByText(/Alice/)).length).toBeGreaterThan(0);
   // 长页面统一在主内容区滚动，StatusBar/上传队列不会盖住最后一行
   expect(document.getElementById("main-content")?.className).toContain("overflow-y-auto");
-  // 桌面命令轨以 role="navigation" 语义断言；移动端抽屉为另一导航不干扰
+  // 桌面资料馆索引以 role="navigation" 语义断言；移动端抽屉为另一导航不干扰
   const nav = screen.getByRole("navigation", { name: "主导航" });
   expect(within(nav).getByRole("link", { name: "文件" })).toBeInTheDocument();
   expect(within(nav).getByRole("link", { name: "回收站" })).toBeInTheDocument();
@@ -140,7 +140,7 @@ test("sidebar shows the target user's name and avatar while acting as another us
     self: { id: "u1", name: "Alice", role: "admin" },
   });
   renderShell();
-  // 命令轨以屏幕阅读器文本显示目标用户 Bob，而非管理员 Alice
+  // 资料馆索引显示目标用户 Bob，而非管理员 Alice
   expect((await screen.findAllByText(/Bob/)).length).toBeGreaterThan(0);
   expect(screen.queryAllByText(/Alice/)).toHaveLength(0);
   expect(screen.getAllByText(/管理员代管/)[0]).toBeInTheDocument();

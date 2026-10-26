@@ -13,11 +13,7 @@ function FilterChips<T extends string>({
   onChange: (v: T) => void;
 }) {
   return (
-    <div
-      role="group"
-      aria-label={label}
-      className="inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-btn border border-line bg-bg-sub p-0.5"
-    >
+    <div role="group" aria-label={label} className="flex flex-wrap items-center gap-1.5">
       {options.map((o) => {
         const active = value === o.value;
         return (
@@ -27,8 +23,8 @@ function FilterChips<T extends string>({
             aria-pressed={active}
             className={
               active
-                ? "rounded-sm bg-surface-1 px-2.5 py-1 text-xs font-medium text-primary-text shadow-soft"
-                : "rounded-sm px-2.5 py-1 text-xs text-ink-2 transition-colors hover:text-ink"
+                ? "rounded-chip border border-primary/25 bg-primary-soft px-3 py-1 text-xs font-medium text-primary-text transition-colors"
+                : "rounded-chip border border-line bg-surface-1 px-3 py-1 text-xs text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
             }
             onClick={() => onChange(value === o.value && !options.some((x) => x.value === "all") ? ("all" as T) : o.value)}
           >

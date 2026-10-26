@@ -2,7 +2,7 @@ import { LogOut, Settings } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { IconButton, Pill } from "../components/ui";
 
-/** 账户行：命令轨保留可访问身份与动作，移动/展开场景显示完整身份。 */
+/** 账户行：资料馆底部的身份、角色与设置/退出。 */
 export function AccountMenu({
   account,
   collapsed,
@@ -16,11 +16,17 @@ export function AccountMenu({
 }) {
   const roleLabel = account.role === "admin" ? "管理员" : "成员";
   return (
-    <div className={collapsed ? "flex flex-col items-center gap-1" : "flex items-center gap-2.5 px-1"}>
+    <div
+      className={
+        collapsed
+          ? "flex flex-col items-center gap-1"
+          : "flex items-center gap-3 rounded-panel border border-line bg-surface-1 p-3"
+      }
+    >
       <span
         aria-hidden
-        title={account.name}
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-ink-inverse"
+        title={collapsed ? account.name : undefined}
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-ink-inverse"
       >
         {account.name.charAt(0)}
       </span>
@@ -31,7 +37,9 @@ export function AccountMenu({
       ) : (
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-medium text-ink">{account.name}</div>
-          {actingAs ? <Pill tone="warn">管理员代管</Pill> : <Pill tone="accent">{roleLabel}</Pill>}
+          <div className="mt-1">
+            {actingAs ? <Pill tone="warn">管理员代管</Pill> : <Pill tone="accent">{roleLabel}</Pill>}
+          </div>
         </div>
       )}
       <NavLink
@@ -40,17 +48,13 @@ export function AccountMenu({
         title="设置"
         className={
           collapsed
-            ? "inline-flex h-9 w-9 items-center justify-center rounded-btn text-rail-ink-2 transition-colors hover:bg-white/8 hover:text-rail-ink"
-            : "inline-flex h-9 w-9 items-center justify-center rounded-full text-ink-2 transition-colors hover:bg-bg-sub hover:text-ink"
+            ? "inline-flex h-9 w-9 items-center justify-center rounded-btn text-ink-2 transition-colors hover:bg-bg-sub hover:text-ink"
+            : "inline-flex h-9 w-9 items-center justify-center rounded-btn text-ink-2 transition-colors hover:bg-bg-sub hover:text-ink"
         }
       >
         <Settings size={18} aria-hidden />
       </NavLink>
-      <IconButton
-        label="退出"
-        onClick={onLogout}
-        className={collapsed ? "text-rail-ink-2 hover:bg-white/8 hover:text-rail-ink" : ""}
-      >
+      <IconButton label="退出" onClick={onLogout}>
         <LogOut size={18} aria-hidden />
       </IconButton>
     </div>

@@ -1,7 +1,7 @@
 import { formatBytes } from "../lib/format";
 
 // 侧栏存储用量表：SVG 环形图（primary 环，>90% 转 warn）+ tabular-nums 用量文字 + R2 免出口流量注记
-// compact（命令轨）只渲染环形图，用量保留屏幕阅读器文本与悬停提示
+// compact（窄侧栏）只渲染环形图，用量保留屏幕阅读器文本与悬停提示
 export default function StorageMeter({
   usedBytes,
   quotaBytes,

@@ -1,7 +1,7 @@
 import type * as React from "react";
 import { cn } from "../../lib/cn";
 
-/** 操作台按钮：主操作使用信号紫；只做颜色反馈，不做形变。 */
+/** 工作室按钮：主操作使用陶土色；只做颜色反馈，不做形变。 */
 export function Button({
   variant = "primary",
   size = "md",
